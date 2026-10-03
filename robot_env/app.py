@@ -19,17 +19,18 @@ import pygame
 from . import config as C
 from .layout import RoomMap, Task
 from .manual import ManualDriver, ManualInput
+from .safety import is_safe
 from .system import RobotSystem
-from .types import Driver
+from .types import Command, Driver
 
 WINDOW = (1280, 720)
 FPS = 60
 MAX_FRAME_DT = 0.05
 VIEWS = ("chase", "top", "orbit", "robot camera")
 HELP = [
-    "W/A/S/D or arrows: drive    Shift: fast",
+    "W/A/S/D or arrows: drive    +/-: speed level    Shift: fastest level",
     "Right-drag: drive with the mouse",
-    "Space: emergency brake (release all keys, then press a drive key)",
+    "Space: emergency brake (release Space, keys and mouse, then press a drive key)",
     "Left-drag: rotate view    Wheel: zoom    C: change view",
     "R: restart    N: next goal    T: continue after contact on/off",
     "F12: screenshot    H: hide/show panels    Esc: quit",
@@ -59,12 +60,31 @@ def parse_script(text: str) -> list[ScriptStep]:
 
 
 class ViewCamera:
+    """The viewer's camera. The chase and orbit views follow a SMOOTHED desired pose (so a
+    small heading wobble never swings the view), but wall/furniture clearance is a hard
+    limit applied every frame after smoothing: the camera never sits inside geometry."""
+
+    YAW_TAU = 0.3  # s, heading follow
+    LOOK_TAU = 0.08  # s, look-at follow
+    OUT_TAU = 0.4  # s, easing back out after an obstruction clears
+    ELEV_TAU = 0.25  # s, tilting toward the elevation that keeps the robot in view
+    MARGIN = 0.12  # m kept between the camera and the first solid surface
+
     def __init__(self) -> None:
         self.cam = mujoco.MjvCamera()
         self.mode = 0
         self.azimuth = 0.0
         self.elevation = -22.0
         self.distance = 1.6
+        self.reset()
+
+    def reset(self) -> None:
+        """Forget the smoothed state (episode reset, teleport, view change): snap next frame."""
+        self._init = False
+        self._heading = 0.0
+        self._look = np.zeros(3)
+        self._dist = self.distance
+        self._elev = self.elevation
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEMOTION and event.buttons[0]:
@@ -73,37 +93,66 @@ class ViewCamera:
         elif event.type == pygame.MOUSEWHEEL:
             self.distance = float(np.clip(self.distance * 0.9 ** event.y, 0.5, 10.0))
 
-    def apply(self, x: float, y: float, yaw: float) -> mujoco.MjvCamera | str:
+    @staticmethod
+    def _alpha(dt: float, tau: float) -> float:
+        return 1.0 - math.exp(-max(dt, 0.0) / tau)  # frame-rate independent
+
+    def apply(self, sim, dt: float = 1 / 60) -> mujoco.MjvCamera | str:
+        """Set up the viewer camera for the current mode (uses the true pose: viewer only)."""
+        x, y, yaw = sim.true_pose()
         view = VIEWS[self.mode]
         if view == "robot camera":
             return "robot_cam"
         self.cam.type = mujoco.mjtCamera.mjCAMERA_FREE
         if view == "top":
             self.cam.lookat[:] = (0.0, 0.0, 0.0)
-            self.cam.azimuth, self.cam.elevation, self.cam.distance = 90.0, -89.9, 8.2
+            self.cam.azimuth, self.cam.elevation = 90.0, -89.9
+            # Fit the whole floor; the wall tops are 2.4 m closer to the camera than the floor.
+            self.cam.distance = (C.FLOOR_HALF_SIZE + 0.3) / math.tan(math.radians(22.5)) + C.WALL_HEIGHT
             return self.cam
-        self.cam.lookat[:] = (x, y, 0.1)
-        self.cam.azimuth = (math.degrees(yaw) if view == "chase" else 0.0) + self.azimuth
-        # Near a wall the camera would end up behind it: look from higher up instead.
-        self.cam.elevation = self.elevation
-        self.cam.distance = self._inside_room_distance(x, y)
-        while self.cam.distance < 0.999 * min(self.distance, 0.9) and self.cam.elevation > -85.0:
-            self.cam.elevation = max(self.cam.elevation - 5.0, -85.0)
-            self.cam.distance = self._inside_room_distance(x, y)
+
+        heading = math.degrees(yaw) if view == "chase" else 0.0
+        target_look = np.array([x, y, 0.1])
+        if not self._init:
+            self._heading, self._look = heading, target_look.copy()
+            self._dist, self._elev = self.distance, self.elevation
+            self._init = True
+        else:
+            wrap = (heading - self._heading + 180.0) % 360.0 - 180.0  # shortest way round
+            self._heading += wrap * self._alpha(dt, self.YAW_TAU)
+            self._look += (target_look - self._look) * self._alpha(dt, self.LOOK_TAU)
+        self.cam.lookat[:] = self._look
+        self.cam.azimuth = self._heading + self.azimuth
+
+        # Elevation: tilt smoothly toward the shallowest angle (from the user's choice down to
+        # -85 degrees) at which the desired distance is clear.
+        wanted = min(self.distance, 0.9)
+        target_elev = -85.0
+        for el in np.arange(self.elevation, -85.0, -1.0):
+            if self._clear_distance(sim, self.cam.azimuth, el) >= wanted:
+                target_elev = float(el)
+                break
+        self._elev += (target_elev - self._elev) * self._alpha(dt, self.ELEV_TAU)
+        self.cam.elevation = self._elev
+
+        # Distance: ease back out slowly, pull in immediately (hard cap, every frame).
+        if self.distance > self._dist:
+            self._dist += (self.distance - self._dist) * self._alpha(dt, self.OUT_TAU)
+        else:
+            self._dist = self.distance
+        clear = self._clear_distance(sim, self.cam.azimuth, self.cam.elevation)
+        self.cam.distance = min(self._dist, clear)
+        self._dist = self.cam.distance if clear < self._dist else self._dist
         return self.cam
 
-    def _inside_room_distance(self, x: float, y: float) -> float:
-        """Shorten the camera distance so the camera never ends up behind a wall."""
-        az, el = math.radians(self.cam.azimuth), math.radians(self.cam.elevation)
-        f = (math.cos(el) * math.cos(az), math.cos(el) * math.sin(az))
-        lim = C.ROOM_HALF_SIZE - 0.1
-        d = self.distance
-        for look, fc in ((x, f[0]), (y, f[1])):
-            if fc > 1e-6:
-                d = min(d, (look + lim) / fc)
-            elif fc < -1e-6:
-                d = min(d, (look - lim) / fc)
-        return max(d, 0.3)
+    def _clear_distance(self, sim, azimuth: float, elevation: float) -> float:
+        """Distance the camera may sit behind the look-at point without entering geometry."""
+        az, el = math.radians(azimuth), math.radians(elevation)
+        back = np.array([-math.cos(el) * math.cos(az), -math.cos(el) * math.sin(az), -math.sin(el)])
+        hit = sim.ray_to_solid(self.cam.lookat, back)
+        if hit < 0:
+            return math.inf
+        return max(hit - self.MARGIN, 0.02)
 
 
 @dataclass
@@ -116,7 +165,8 @@ class Episode:
 
 class App:
     def __init__(self, seed: int, screenshot: Path | None = None, frames: int | None = None,
-                 script: list[ScriptStep] | None = None, view: int = 0, driver: Driver | None = None):
+                 script: list[ScriptStep] | None = None, view: int = 0, driver: Driver | None = None,
+                 key_policy=None, speed_level: int = C.DEFAULT_SPEED_LEVEL):
         # Only display and fonts. pygame.init() also starts the joystick subsystem,
         # and MuJoCo's GLFW renderer then triggers a JOYDEVICEREMOVED event that
         # crashes pygame.event.get() with KeyError(0) (found in the step 2 spike).
@@ -132,8 +182,10 @@ class App:
         self.room = RoomMap(self.system.sim.model)
         self.renderer = mujoco.Renderer(self.system.sim.model, height=WINDOW[1], width=WINDOW[0])
         self.view = ViewCamera()
+        self.overview_option = mujoco.MjvOption()  # default groups: ceiling (3) hidden
         self.view.mode = view
-        self.input = ManualInput()
+        self._frame_dt = 1 / FPS
+        self.input = ManualInput(speed_level)
         # Any driver uses the same decide(observation) plug. The human can always brake
         # (Space) and focus loss always stops; release-to-stop applies only to manual driving.
         self.driver: Driver = driver or ManualDriver(self.input)
@@ -144,6 +196,9 @@ class App:
         self.screenshot = screenshot
         self.script = list(script or [])
         self._script_keys: frozenset[int] = frozenset()
+        # QA only: a function (app) -> set of keys to hold, evaluated every frame. Keys are
+        # posted as real pygame key events, so they take the same path as a person's keys.
+        self.key_policy = key_policy
         self._script_until = 0.0
         self.wall_start = time.perf_counter()
         self.sim_elapsed = 0.0
@@ -156,9 +211,10 @@ class App:
         task = self.room.sample_task(seed)
         x, y, yaw = task.start
         self.system.reset(x, y, yaw, task.goal)
-        self.input.release_all()
-        self.input.emergency_brake = False
+        self.input.release_all()  # drive inputs only: a latched or held brake stays on
         self.episode = Episode(task)
+        if hasattr(self, "view"):
+            self.view.reset()  # the robot teleported: snap the camera
         self._next_decision = 0.0
         self._last_sent = None
 
@@ -188,6 +244,7 @@ class App:
                     return False
                 if event.key == pygame.K_c:
                     self.view.mode = (self.view.mode + 1) % len(VIEWS)
+                    self.view.reset()
                 elif event.key == pygame.K_r:
                     self.new_episode(self.seed)
                 elif event.key == pygame.K_n:
@@ -230,6 +287,29 @@ class App:
     def manual_driving(self) -> bool:
         return isinstance(self.driver, ManualDriver)
 
+    def free_moves(self) -> list[str]:
+        """Which single manual keys the clearance check would allow right now."""
+        v, w = self.input.speed()
+        options = [("W", Command(v, 0.0)), ("A", Command(0.0, w)), ("D", Command(0.0, -w)),
+                   ("S", Command(-v * C.MANUAL_REVERSE_FACTOR, 0.0))]
+        obs = self.system.observe()
+        return [key for key, cmd in options if is_safe(cmd, obs)]
+
+    def free_moves_text(self) -> str:
+        names = {"W": "forward (W)", "A": "turn left (A)", "D": "turn right (D)", "S": "back up (S)"}
+        free = self.free_moves()
+        return ", ".join(names[k] for k in free) if free else "none (press Space, then R)"
+
+    def speed_level_text(self) -> str:
+        """The selected level, and the level in effect when Shift is held."""
+        n = len(C.SPEED_LEVELS)
+        v, w = C.SPEED_LEVELS[self.input.level]
+        text = f"speed level {self.input.level + 1}/{n}: {v:.2f} m/s, {w:.1f} rad/s"
+        if self.input.boosted:
+            bv, bw = C.SPEED_LEVELS[-1]
+            text += f"   Shift: level {n} ({bv:.2f} m/s, {bw:.1f} rad/s) in effect"
+        return text
+
     def episode_time(self) -> float:
         """Episode clock; it stops when the episode ends (the physics keeps running)."""
         return self.episode.end_time if self.episode.end_time is not None else self.system.time
@@ -242,18 +322,21 @@ class App:
     # ----- drawing -----
     def draw(self) -> None:
         s = self.system
-        x, y, yaw = s.sim.true_pose()  # viewer camera only; never given to the driver
-        self.renderer.update_scene(s.sim.data, camera=self.view.apply(x, y, yaw))
+        camera = self.view.apply(s.sim, self._frame_dt)  # viewer only
+        # The robot's own camera shows the ceiling; overview cameras hide it (cutaway).
+        option = s.sim.camera_option if camera == "robot_cam" else self.overview_option
+        self.renderer.update_scene(s.sim.data, camera=camera, scene_option=option)
         self.screen.blit(_surface(self.renderer.render()), (0, 0))
 
         if not self.show_help:
             _text_box(self.screen, self.font, ["H: show panels"], (24, 20))
             self.draw_banners()
             return
-        cam_rect = pygame.Rect(WINDOW[0] - 336, 16, 320, 240)
-        self.screen.blit(_surface(s.sim.render_camera()), cam_rect.topleft)
-        pygame.draw.rect(self.screen, (235, 240, 245), cam_rect, 2)
-        _text_box(self.screen, self.font, ["robot camera"], (cam_rect.x + 8, cam_rect.bottom + 9))
+        if camera != "robot_cam":  # the main view already shows the robot camera: no duplicate inset
+            cam_rect = pygame.Rect(WINDOW[0] - 336, 16, 320, 240)
+            self.screen.blit(_surface(s.sim.render_camera()), cam_rect.topleft)
+            pygame.draw.rect(self.screen, (235, 240, 245), cam_rect, 2)
+            _text_box(self.screen, self.font, ["robot camera"], (cam_rect.x + 8, cam_rect.bottom + 9))
         self.draw_lidar(pygame.Rect(WINDOW[0] - 236, WINDOW[1] - 236, 220, 220))
 
         obs = s.observe()
@@ -264,9 +347,12 @@ class App:
         lines = [
             f"driver: {self.driver.name}   goal seed {self.seed}   view: {VIEWS[self.view.mode]}   time {self.episode_time():5.1f}/{C.EPISODE_TIME_LIMIT:.0f} s",
             f"goal: {obs.goal_distance:4.2f} m at {math.degrees(obs.goal_bearing):+4.0f} deg",
+            self.speed_level_text(),
             f"speed (encoders): {obs.velocity_estimate[0]:+.2f} m/s  {obs.velocity_estimate[1]:+.2f} rad/s",
-            f"requested: {_cmd(req)}   executed: {_cmd(res.command)}",
-            f"safety: {', '.join(res.reasons) if res.reasons else 'ok'}",
+            f"requested: {_cmd(req)}   approved: {_cmd(res.command)}",
+            f"applied to motors: {_cmd(s.applied)}",
+            f"safety: {', '.join(res.reasons) if res.reasons else 'ok'}"
+            + (f"   free moves: {self.free_moves_text()}" if "clearance" in res.reasons else ""),
             f"collisions {s.collisions}   interventions {s.intervention_events}   "
             f"contact-continue {'ON' if self.continue_after_contact else 'off'}",
             f"{self.clock.get_fps():4.0f} FPS   real-time factor {rtf:4.2f}",
@@ -278,7 +364,10 @@ class App:
     def draw_banners(self) -> None:
         obs = self.system.observe()
         if self.input.emergency_brake:
-            _banner(self.screen, self.big, "EMERGENCY BRAKE", (240, 170, 40), y=200)
+            _banner(self.screen, self.big, "EMERGENCY BRAKE - " + self.input.brake_hint(), (240, 170, 40), y=200)
+        if self.input.pending_release and not self.input.emergency_brake:
+            _banner(self.screen, self.font, "Release " + ", ".join(self.input.pending_names())
+                    + " and press again to drive", (240, 200, 90), y=200)
         if not self.input.focused:
             _banner(self.screen, self.big, "WINDOW NOT FOCUSED - STOPPED", (240, 170, 40), y=255)
         status = self.episode.status
@@ -296,12 +385,19 @@ class App:
         panel.fill((10, 14, 22, 200))
         cx, cy = rect.width // 2, rect.height // 2
         scale = (rect.width / 2 - 10) / 3.0  # up to 3 m
-        for angle, dist, ok in zip(obs.lidar_angles, obs.lidar, obs.lidar_valid):
-            shown = min(dist, 3.0) if ok else 0.4
-            px, py = cx - math.sin(angle) * shown * scale, cy - math.cos(angle) * shown * scale
-            pygame.draw.line(panel, (60, 90, 120) if ok else (200, 120, 40), (cx, cy), (px, py), 1)
-            if ok and dist < C.LIDAR_RANGE:
-                pygame.draw.circle(panel, (240, 70, 60) if dist < 0.5 else (90, 220, 140), (int(px), int(py)), 3)
+        # One polygon for the free space and one outline for the returns (360 rays: drawing a
+        # line and a dot per ray cost several milliseconds per frame).
+        ok = obs.lidar_valid
+        shown = np.where(ok, np.minimum(obs.lidar, 3.0), 0.4)
+        px = cx - np.sin(obs.lidar_angles) * shown * scale
+        py = cy - np.cos(obs.lidar_angles) * shown * scale
+        points = list(zip(px.tolist(), py.tolist()))
+        pygame.draw.polygon(panel, (40, 62, 86, 200), points)
+        pygame.draw.lines(panel, (90, 220, 140), True, points, 2)
+        for i in np.flatnonzero(~ok):
+            pygame.draw.line(panel, (200, 120, 40), (cx, cy), points[i], 1)
+        for i in np.flatnonzero(ok & (obs.lidar < 0.5)):
+            pygame.draw.circle(panel, (240, 70, 60), (int(px[i]), int(py[i])), 3)
         gb = obs.goal_bearing
         gd = min(obs.goal_distance, 3.0)
         pygame.draw.circle(panel, (60, 230, 100), (int(cx - math.sin(gb) * gd * scale), int(cy - math.cos(gb) * gd * scale)), 5, 2)
@@ -328,6 +424,7 @@ class App:
             real_dt, last = now - last, now
             self.wall_elapsed += real_dt  # true wall time; sim time is capped per frame
             self.simulate(real_dt)
+            self._frame_dt = min(real_dt, MAX_FRAME_DT)
             self.draw()
             pygame.display.flip()
             self.clock.tick(FPS)
@@ -351,18 +448,24 @@ class App:
 
     def _advance_script(self) -> None:
         """Replay scripted key holds (for automated QA that drives like a human)."""
+        if self.key_policy is not None:
+            self._post_keys(frozenset(self.key_policy(self)))
+            return
         if not self.script and not self._script_keys:
             return
         now = time.perf_counter() - self.wall_start
         if now < self._script_until:
             return
         step = self.script.pop(0) if self.script else ScriptStep(frozenset(), 0.0)
-        for k in self._script_keys - step.keys:
-            pygame.event.post(pygame.event.Event(pygame.KEYUP, key=k, mod=0, unicode="", scancode=0))
-        for k in step.keys - self._script_keys:
-            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=k, mod=0, unicode="", scancode=0))
-        self._script_keys = step.keys
+        self._post_keys(step.keys)
         self._script_until = now + step.duration
+
+    def _post_keys(self, keys: frozenset[int]) -> None:
+        for k in self._script_keys - keys:
+            pygame.event.post(pygame.event.Event(pygame.KEYUP, key=k, mod=0, unicode="", scancode=0))
+        for k in keys - self._script_keys:
+            pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=k, mod=0, unicode="", scancode=0))
+        self._script_keys = keys
 
 
 def _surface(image: np.ndarray) -> pygame.Surface:
@@ -397,11 +500,15 @@ def main(argv: list[str] | None = None) -> dict:
     p = argparse.ArgumentParser(description="Drive the robot by hand.")
     p.add_argument("--seed", type=int, default=C.HELDOUT_SEEDS[0], help="goal seed (start and goal positions)")
     p.add_argument("--view", type=int, default=0, help="0 chase, 1 top, 2 orbit, 3 robot camera")
+    p.add_argument("--speed-level", type=int, default=C.DEFAULT_SPEED_LEVEL + 1,
+                   choices=range(1, len(C.SPEED_LEVELS) + 1),
+                   help=f"starting speed level, 1 to {len(C.SPEED_LEVELS)} (default {C.DEFAULT_SPEED_LEVEL + 1})")
     p.add_argument("--frames", type=int, help="quit after this many frames (automated checks)")
     p.add_argument("--screenshot", type=Path, help="save a screenshot here when quitting")
     p.add_argument("--script", help="scripted key holds, e.g. 'W:2;W+A:1;none:0.5' (automated checks)")
     a = p.parse_args(argv)
-    app = App(a.seed, a.screenshot, a.frames, parse_script(a.script) if a.script else None, a.view)
+    app = App(a.seed, a.screenshot, a.frames, parse_script(a.script) if a.script else None, a.view,
+              speed_level=a.speed_level - 1)
     summary = app.run()
     print("summary:", {k: (round(v, 3) if isinstance(v, float) else v) for k, v in summary.items()})
     return summary

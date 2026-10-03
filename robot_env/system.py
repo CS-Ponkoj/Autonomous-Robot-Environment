@@ -1,7 +1,7 @@
 """RobotSystem: the one path from any driver to the wheels.
 
-    driver -> drive(v, omega) -> [50 Hz control tick: sense -> SafetyLayer] -> wheel motors
-                                  [500 Hz physics steps with contact detection]
+    driver -> drive(v, omega) -> [50 Hz control tick: sense -> SafetyLayer -> approved target]
+           -> [every 2 kHz physics step: velocity smoother -> wheel motors -> physics, contacts]
 
 The GUI, the Gymnasium environment, and the tests all use this class.
 """
@@ -12,7 +12,7 @@ from collections import deque
 from dataclasses import dataclass
 
 from . import config as C
-from .safety import INTERVENTION_REASONS, SafetyFlags, SafetyLayer, SafetyResult
+from .safety import HARD_STOP_REASONS, INTERVENTION_REASONS, SafetyFlags, SafetyLayer, SafetyResult
 from .sim import RobotSim
 from .types import STOP, Command, Decision, Observation
 
@@ -23,8 +23,10 @@ class SafetyEvent:
 
     time: float
     reasons: tuple[str, ...]
-    requested: Command | None
-    executed: Command
+    requested: Command | None  # from the driver
+    approved: Command  # after the safety layer
+    applied: Command  # motor command at the event: the value before this tick's smoothing
+    # for an ordinary change, zero for a hard stop (hard stops zero the motors at once)
 
 
 class RobotSystem:
@@ -37,13 +39,20 @@ class RobotSystem:
         self.reset(0.0, 0.0, 0.0, (2.0, 2.0))
 
     def reset(self, x: float, y: float, yaw: float, goal_xy: tuple[float, float]) -> None:
-        # Zero every command first, then restore the complete state.
+        # Zero every command first, then restore the complete state. System-owned flags are
+        # cleared; operator flags (emergency brake, focus) are kept: only the operator
+        # (or the window reporting the operator's state) may change them.
         self.sim.set_wheel_targets(0.0, 0.0)
+        self.flags.episode_over = False
+        self.flags.manual_mode = False
+        self.flags.manual_input_held = False
         self._requested: Command | None = None
         self._issued_at: float | None = None
         self.last_decision: Decision | None = None
         self._wheel_v = 0.0
         self._wheel_w = 0.0
+        self._target = STOP  # latest approved command; the smoother moves toward it every physics step
+        self.applied = STOP
         self.sim.reset(x, y, yaw, goal_xy)
         self.scan_enabled = True
         self._step = 0
@@ -108,6 +117,7 @@ class RobotSystem:
         for _ in range(steps):
             if self._step % self._ctrl_every == 0:
                 self._control_tick()
+            self._motor_step()
             contact = self.sim.physics_step()
             self._step += 1
             if contact:
@@ -118,6 +128,10 @@ class RobotSystem:
                     self.collision_times.append(self.sim.time)
                 self._last_contact_time = self.sim.time
             self._contact = contact
+        if steps:
+            # Endpoint snapshot: goal, encoders, contact, and time are current; the lidar
+            # keeps its real scan_time (scans happen only on 50 Hz control ticks).
+            self._obs = self._build_observation()
 
     def _control_tick(self) -> None:
         now = self.sim.time
@@ -126,12 +140,15 @@ class RobotSystem:
             self._scan_time = now
         self._obs = self._build_observation()
         result = self.safety.filter(self._requested, self._issued_at, self._obs, now, self.flags)
-        self._wheel_v = _smooth(self._wheel_v, result.command.v, C.SMOOTH_ACCEL * C.CONTROL_PERIOD)
-        self._wheel_w = _smooth(self._wheel_w, result.command.omega, C.SMOOTH_ANG_ACCEL * C.CONTROL_PERIOD)
-        self.sim.set_wheel_targets(self._wheel_v, self._wheel_w)
+        self._target = result.command
+        if is_hard_stop(result):
+            # Safety stops bypass the comfort smoothing: motors are zero before the next physics step.
+            self._wheel_v = self._wheel_w = 0.0
+            self.sim.set_wheel_targets(0.0, 0.0)
+            self.applied = STOP
         if result.reasons != self.last_result.reasons or result.command != self.last_result.command:
             if result.reasons or self.last_result.reasons:
-                self.safety_log.append(SafetyEvent(now, result.reasons, self._requested, result.command))
+                self.safety_log.append(SafetyEvent(now, result.reasons, self._requested, result.command, self.applied))
         intervening = bool(INTERVENTION_REASONS.intersection(result.reasons))
         if intervening and not self._intervening:
             self.intervention_events += 1
@@ -139,6 +156,15 @@ class RobotSystem:
             self.intervention_time += C.CONTROL_PERIOD
         self._intervening = intervening
         self.last_result = result
+
+    def _motor_step(self) -> None:
+        """Velocity smoother, once before every physics step: the motor command moves toward the
+        approved target at the smoother's rates (a 50 Hz staircase would excite the tire contact)."""
+        dt = C.PHYSICS_DT
+        self._wheel_v = _smooth(self._wheel_v, self._target.v, C.SMOOTH_ACCEL * dt, C.SMOOTH_DECEL * dt)
+        self._wheel_w = _smooth(self._wheel_w, self._target.omega, C.SMOOTH_ANG_ACCEL * dt, C.SMOOTH_ANG_DECEL * dt)
+        self.sim.set_wheel_targets(self._wheel_v, self._wheel_w)
+        self.applied = Command(self._wheel_v, self._wheel_w)
 
     def _build_observation(self) -> Observation:
         self._seq += 1
@@ -171,11 +197,19 @@ class RobotSystem:
         self.sim.close()
 
 
-def _smooth(current: float, target: float, max_increase: float) -> float:
-    """Velocity smoother: speeding up is rate limited; slowing down is immediate."""
-    if target * current < 0:
-        current = 0.0  # reversing direction: drop to zero at once
-    if abs(target) <= abs(current):
-        return target
-    step = min(abs(target) - abs(current), max_increase)
-    return current + step if target > 0 else current - step
+def is_hard_stop(result: SafetyResult) -> bool:
+    """Stops that command zero at once: every stop except the manual driver releasing its keys."""
+    if result.command != STOP:
+        return False
+    return bool(HARD_STOP_REASONS.intersection(result.reasons))
+
+
+def _smooth(current: float, target: float, max_increase: float, max_decrease: float) -> float:
+    """Velocity smoother: speeding up and ordinary slowing down are rate limited. Reversing
+    direction ramps down to zero first."""
+    goal = 0.0 if target * current < 0 else target
+    if abs(goal) > abs(current):
+        step = min(abs(goal) - abs(current), max_increase)
+        return current + step if goal > 0 else current - step
+    step = min(abs(current) - abs(goal), max_decrease)
+    return current - step if current > 0 else current + step

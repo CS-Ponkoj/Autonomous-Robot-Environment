@@ -10,10 +10,9 @@ from robot_env.safety import SafetyFlags, SafetyLayer, clearance_filter, is_safe
 from robot_env.sim import RobotSim
 from robot_env.system import RobotSystem
 from robot_env.types import STOP, Command, Observation
-from tests.helpers import empty_system, hold
+from tests.helpers import door_edge_starts, empty_system, free_door_edge, hold, min_clearance_run
 
 ANGLES = np.array(C.LIDAR_ANGLES)
-THIN_POLE = '<geom name="thin_pole" type="cylinder" pos="1.2 0.03 0.3" size="0.012 0.3" rgba="1 0 1 1"/>'
 LOW_BLOCK = '<geom name="low_block" type="box" pos="1.2 0 0.05" size="0.05 0.3 0.05" rgba="1 0 1 1"/>'
 
 
@@ -161,10 +160,10 @@ def test_current_motion_is_included():
 @pytest.mark.parametrize("v,yaw", [(0.5, 0.0), (0.3, 0.0), (-0.15, math.pi)])
 def test_driving_at_a_wall_stops_before_contact(v, yaw):
     s = empty_system()
-    s.reset(1.5, 0.0, yaw, (-2.5, -2.5))  # east wall ahead, or behind when reversing
+    s.reset(C.FLOOR_HALF_SIZE - 1.5, 0.0, yaw, (-2.5, -2.5))  # east wall ahead, or behind when reversing
     hold(s, v, 0.0, 12.0)
     x = s.sim.true_pose()[0]
-    gap = C.ROOM_HALF_SIZE - x - C.FOOTPRINT_HALF_LENGTH
+    gap = C.FLOOR_HALF_SIZE - x - C.FOOTPRINT_HALF_LENGTH
     assert s.collisions == 0
     assert gap >= C.SAFETY_BUFFER * 0.5, gap
     assert s.intervention_events >= 1 and "clearance" in s.last_result.reasons
@@ -172,7 +171,7 @@ def test_driving_at_a_wall_stops_before_contact(v, yaw):
 
 def test_turning_in_place_next_to_wall_never_collides():
     s = empty_system()
-    y = C.ROOM_HALF_SIZE - C.FOOTPRINT_HALF_WIDTH - 0.06  # side 6 cm from the north wall
+    y = C.FLOOR_HALF_SIZE - C.FOOTPRINT_HALF_WIDTH - 0.06  # side 6 cm from the north wall
     s.reset(0.0, y, 0.0, (-2.5, -2.5))
     for w in (1.0, -1.0):
         hold(s, 0.0, w, 3.0)
@@ -181,17 +180,57 @@ def test_turning_in_place_next_to_wall_never_collides():
 
 def test_driving_along_a_wall_and_into_a_corner_never_collides():
     s = empty_system()
-    s.reset(0.0, C.ROOM_HALF_SIZE - 0.3, 0.0, (-2.5, -2.5))
+    s.reset(0.0, C.FLOOR_HALF_SIZE - 0.3, 0.0, (-2.5, -2.5))
     hold(s, 0.5, 0.3, 10.0)  # curves toward the north wall and the corner
     assert s.collisions == 0
 
 
-def test_thin_pole_ahead_stops_without_contact():
-    """A 2.4 cm pole slightly off the center ray: the lidar must still catch it in time."""
-    s = RobotSystem(RobotSim(include_obstacles=False, extra_world_xml=THIN_POLE))
-    s.reset(0.0, 0.0, 0.0, (-2.5, -2.5))
-    hold(s, 0.3, 0.0, 6.0)
-    assert s.collisions == 0 and s.sim.true_pose()[0] < 1.2 - 0.012 - C.FOOTPRINT_HALF_LENGTH
+POLE_AT = '<geom name="thin_pole" type="cylinder" pos="1.2 {y} 0.3" size="0.012 0.3" rgba="1 0 1 1"/>'
+
+
+@pytest.mark.parametrize("v", [0.3, 0.5])
+@pytest.mark.parametrize("phase", [0.0, 0.5])
+def test_thin_pole_is_never_hit_across_offsets_and_ray_phases(v, phase):
+    """Regression (a 36-ray scan hit this pole at some offsets): a 2.4 cm pole anywhere across
+    the robot's path, at two ray phases, stops the robot with the full clearance buffer."""
+    for off in np.round(np.arange(-0.10, 0.1001, 0.02), 3):
+        s = RobotSystem(RobotSim(include_obstacles=False, extra_world_xml=POLE_AT.format(y=off)))
+        s.reset(0.0, 0.0, math.radians(phase), (-4.5, -4.5))
+        low = min_clearance_run(s, s.sim.model.geom("thin_pole").id, v, 0.0, 4.0)
+        assert s.collisions == 0 and low >= C.SAFETY_BUFFER, (off, low)
+        s.close()
+
+
+@pytest.mark.parametrize("v,w,start", [(-0.25, 0.0, (0.0, 0.04, math.pi)),   # backing into it
+                                       (0.3, 0.15, (0.1, -0.12, 0.0)),       # curving into it
+                                       (0.5, -0.25, (0.1, 0.15, 0.0))])
+def test_thin_pole_reverse_and_curving_approaches(v, w, start):
+    s = RobotSystem(RobotSim(include_obstacles=False, extra_world_xml=POLE_AT.format(y=0.0)))
+    s.reset(*start, (-4.5, -4.5))
+    low = min_clearance_run(s, s.sim.model.geom("thin_pole").id, v, w, 6.0)
+    assert s.collisions == 0 and low >= C.SAFETY_BUFFER, low
+    assert low < 0.5  # the approach really reached the pole
+    s.close()
+
+
+@pytest.mark.parametrize("door", ["door_office", "door_storage", "door_reception", "door_office_lab"])
+def test_free_door_edges_are_never_hit_head_on(door):
+    """Open door leaves are 4 cm thick: approached edge-on, both sides of the edge."""
+    import mujoco
+    from robot_env.layout import RoomMap
+    s = RobotSystem()
+    m, d = s.sim.model, s.sim.data
+    mujoco.mj_forward(m, d)
+    room = RoomMap(m)
+    g = m.geom(door).id
+    edge, out = free_door_edge(m, d, door)
+    starts = list(door_edge_starts(room, edge, out))
+    assert len(starts) == 3
+    for off, start, yaw in starts:
+        s.reset(float(start[0]), float(start[1]), yaw, (0.0, 0.0))
+        low = min_clearance_run(s, g, 0.5, 0.0, 4.0)
+        assert s.collisions == 0 and C.SAFETY_BUFFER <= low < 0.10, (off, low)  # reached, never hit
+    s.close()
 
 
 def test_obstacle_below_lidar_plane_is_recorded_by_contact_check():
@@ -204,14 +243,14 @@ def test_obstacle_below_lidar_plane_is_recorded_by_contact_check():
 
 def test_interventions_counted_as_continuous_events():
     s = empty_system()
-    s.reset(2.2, 0.0, 0.0, (-2.5, -2.5))
+    s.reset(C.FLOOR_HALF_SIZE - 0.8, 0.0, 0.0, (-2.5, -2.5))
     hold(s, 0.3, 0.0, 3.0)  # blocked for most of this time
     assert s.intervention_events == 1 and s.intervention_time > 1.0
 
 
 def test_safety_events_are_recorded():
     s = empty_system()
-    s.reset(2.2, 0.0, 0.0, (-2.5, -2.5))
+    s.reset(C.FLOOR_HALF_SIZE - 0.8, 0.0, 0.0, (-2.5, -2.5))
     hold(s, 0.3, 0.0, 2.0)
     assert any("clearance" in e.reasons for e in s.safety_log)
 

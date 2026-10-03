@@ -18,7 +18,8 @@ from .types import Observation
 
 
 class RobotGoalEnv(gym.Env):
-    metadata = {"render_modes": ["rgb_array"], "render_fps": int(1 / C.DECISION_PERIOD)}
+    metadata = {"render_modes": ["rgb_array"], "render_fps": int(1 / C.DECISION_PERIOD),
+                "observation_version": C.OBSERVATION_VERSION, "action_version": C.ACTION_VERSION}
 
     def __init__(self, render_mode: str | None = None, collision_ends_episode: bool = True,
                  system: RobotSystem | None = None):
@@ -92,6 +93,8 @@ class RobotGoalEnv(gym.Env):
         s = self.system
         info = {
             "seq": s.observe().seq,
+            "observation_version": C.OBSERVATION_VERSION,
+            "action_version": C.ACTION_VERSION,
             "sim_time": s.time,
             "task_seed": self.task.seed if self.task else None,
             "is_success": success,
@@ -100,7 +103,8 @@ class RobotGoalEnv(gym.Env):
             "intervention_events": s.intervention_events,
             "intervention_time": s.intervention_time,
             "safety_reasons": s.last_result.reasons,
-            "executed_command": (s.last_result.command.v, s.last_result.command.omega),
+            "approved_command": (s.last_result.command.v, s.last_result.command.omega),  # after safety
+            "applied_command": (s.applied.v, s.applied.omega),  # motor target after the smoother
             "ground_truth": s.ground_truth(),  # evaluation only
         }
         return info

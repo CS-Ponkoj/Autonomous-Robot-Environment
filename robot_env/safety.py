@@ -26,6 +26,10 @@ from .types import STOP, Command, Observation
 # "no_command" are recorded as safety events but are not interventions.
 INTERVENTION_REASONS = frozenset({"invalid_input", "command_expired", "stale_scan", "speed_limit", "clearance"})
 OPERATOR_REASONS = frozenset({"emergency_brake", "focus_lost", "episode_over", "released"})
+# Stops that bypass the comfort smoothing and command zero at once. "released" (the manual
+# driver letting go of its keys) is the only stop that ramps down.
+HARD_STOP_REASONS = frozenset({"invalid_input", "emergency_brake", "focus_lost", "episode_over", "no_command",
+                               "command_expired", "stale_scan", "clearance"})
 
 
 @dataclass
@@ -94,19 +98,17 @@ def obstacle_points(obs: Observation) -> np.ndarray:
     hit = obs.lidar_valid & (obs.lidar < C.LIDAR_RANGE)
     pts = [np.column_stack((obs.lidar[hit] * np.cos(angles[hit]), obs.lidar[hit] * np.sin(angles[hit])))]
     half_sector = math.pi / C.LIDAR_RAYS
-    for a in angles[~obs.lidar_valid]:
-        for da in np.linspace(-half_sector, half_sector, 5):
-            ang = a + da
-            r = _footprint_boundary(ang) + C.SAFETY_BUFFER * 0.5
-            pts.append(np.array([[r * math.cos(ang), r * math.sin(ang)]]))
-    p = np.vstack(pts) if pts else np.zeros((0, 2))
+    invalid = angles[~obs.lidar_valid]
+    if invalid.size:
+        ang = (invalid[:, None] + np.linspace(-half_sector, half_sector, 5)[None, :]).ravel()
+        c, s = np.abs(np.cos(ang)), np.abs(np.sin(ang))
+        with np.errstate(divide="ignore"):
+            boundary = np.minimum(np.where(c > 1e-9, C.FOOTPRINT_HALF_LENGTH / c, np.inf),
+                                  np.where(s > 1e-9, C.FOOTPRINT_HALF_WIDTH / s, np.inf))
+        r = boundary + C.SAFETY_BUFFER * 0.5
+        pts.append(np.column_stack((r * np.cos(ang), r * np.sin(ang))))
+    p = np.vstack(pts)
     return p[np.hypot(p[:, 0], p[:, 1]) <= C.SAFETY_CONSIDER_RADIUS]
-
-
-def _footprint_boundary(angle: float) -> float:
-    c, s = abs(math.cos(angle)), abs(math.sin(angle))
-    return min(C.FOOTPRINT_HALF_LENGTH / c if c > 1e-9 else math.inf,
-               C.FOOTPRINT_HALF_WIDTH / s if s > 1e-9 else math.inf)
 
 
 def footprint_distance(px: np.ndarray, py: np.ndarray) -> np.ndarray:

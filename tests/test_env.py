@@ -164,3 +164,21 @@ def test_driver_plug_drives_through_system_apply(seed):
         s.advance(C.DECISION_PERIOD)
     assert s.observe().goal_distance <= C.GOAL_RADIUS and s.collisions == 0
     env.close()
+
+
+def test_worst_measured_task_fits_the_time_limit_rule():
+    """The worst seed of the last 1,000-seed sweep must still fit within half the limit
+    (re-run the sweep after layout changes and update WORST_TRAVEL_SEED)."""
+    room = RoomMap(RobotGoalEnv().system.sim.model)
+    assert room.sample_task(C.WORST_TRAVEL_SEED).estimated_travel_time() <= C.EPISODE_TIME_LIMIT / 2
+
+
+def test_format_versions_match_the_formats():
+    """A format change must bump its version (datasets of different formats must not mix)."""
+    env = RobotGoalEnv()
+    obs, info = env.reset(options={"task_seed": 1000})
+    assert (C.OBSERVATION_VERSION, obs["lidar"].shape) == (2, (360,))
+    assert (C.ACTION_VERSION, float(env.action_space.high[0]), float(env.action_space.high[1])) == (2, 1.0, 1.5)
+    assert info["observation_version"] == env.metadata["observation_version"] == C.OBSERVATION_VERSION
+    assert info["action_version"] == env.metadata["action_version"] == C.ACTION_VERSION
+    env.close()

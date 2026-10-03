@@ -15,8 +15,10 @@ import numpy as np
 from . import config as C
 
 WORLD_XML = Path(__file__).with_name("world.xml")
+ASSETS = Path(__file__).with_name("assets")
 _OBSTACLES_BLOCK = re.compile(r"<!-- OBSTACLES.*?/OBSTACLES -->", re.S)
-_RAY_GROUPS = np.array([1, 1, 0, 1, 1, 1], dtype=np.uint8)  # skip group 2 (visual only)
+_RAY_GROUPS = np.array([1, 1, 0, 0, 1, 1], dtype=np.uint8)  # skip visual (2) and ceiling (3)
+_WORLD_SOLID_GROUP = np.array([1, 0, 0, 0, 0, 0], dtype=np.uint8)  # world solids only (tires are group 1)
 _SPAWN_HEIGHT = 0.0505
 
 
@@ -36,7 +38,8 @@ def yaw_from_quat(q: np.ndarray) -> float:
 
 class RobotSim:
     def __init__(self, include_obstacles: bool = True, extra_world_xml: str = ""):
-        self.model = mujoco.MjModel.from_xml_string(load_world_xml(include_obstacles, extra_world_xml))
+        assets = {p.name: p.read_bytes() for p in ASSETS.glob("*.png")}
+        self.model = mujoco.MjModel.from_xml_string(load_world_xml(include_obstacles, extra_world_xml), assets)
         if abs(self.model.opt.timestep - C.PHYSICS_DT) > 1e-12:
             raise ValueError("world.xml timestep must match config.PHYSICS_DT")
         self.data = mujoco.MjData(self.model)
@@ -53,10 +56,15 @@ class RobotSim:
         self._robot_geom = roots == self.robot_body
         self._solid_world_geom = (~self._robot_geom) & (m.geom_contype != 0) & (np.arange(m.ngeom) != self._floor)
         self._ray_hit = np.zeros(1, dtype=np.int32)
+        self._scan_geom = np.zeros(C.LIDAR_RAYS, dtype=np.int32)
+        self._scan_dist = np.zeros(C.LIDAR_RAYS)
+        self._scan_dirs = np.zeros((C.LIDAR_RAYS, 3))
         self.lidar_angles = np.array(C.LIDAR_ANGLES)
         self.lidar_fault = np.zeros(C.LIDAR_RAYS, dtype=bool)  # test hook: forced invalid rays
         self.goal = np.zeros(2)
         self._camera_renderer: mujoco.Renderer | None = None
+        self.camera_option = mujoco.MjvOption()
+        self.camera_option.geomgroup[3] = 1  # the robot camera sees the ceiling
         self.reset(0.0, 0.0, 0.0, (2.0, 2.0))
 
     # ----- state -----
@@ -100,12 +108,15 @@ class RobotSim:
         yaw = self.true_pose()[2]
         ranges = np.full(C.LIDAR_RAYS, C.LIDAR_RANGE)
         valid = np.ones(C.LIDAR_RAYS, dtype=bool)
-        for i, angle in enumerate(self.lidar_angles):
-            direction = np.array([math.cos(yaw + angle), math.sin(yaw + angle), 0.0])
-            hit = mujoco.mj_ray(self.model, self.data, origin, direction, _RAY_GROUPS, 1,
-                                self.robot_body, self._ray_hit)
-            if 0 <= hit < C.LIDAR_RANGE:
-                ranges[i] = hit
+        directions = self._scan_dirs  # preallocated workspace (z stays 0: one horizontal plane)
+        directions[:, 0] = np.cos(yaw + self.lidar_angles)
+        directions[:, 1] = np.sin(yaw + self.lidar_angles)
+        # One batched cast (same results as mj_ray per ray within LIDAR_RANGE; geoms beyond it
+        # are ignored, which reads as "no return").
+        mujoco.mj_multiRay(self.model, self.data, origin, directions.ravel(), _RAY_GROUPS, 1,
+                           self.robot_body, self._scan_geom, self._scan_dist, None, C.LIDAR_RAYS, C.LIDAR_RANGE)
+        hit = (self._scan_dist >= 0) & (self._scan_dist < C.LIDAR_RANGE)
+        ranges[hit] = self._scan_dist[hit]
         bad = self.lidar_fault | ~np.isfinite(ranges)
         valid[bad] = False
         ranges[bad] = 0.0
@@ -128,8 +139,14 @@ class RobotSim:
         if self._camera_renderer is None or (self._camera_renderer.height, self._camera_renderer.width) != size:
             self.close()
             self._camera_renderer = mujoco.Renderer(self.model, height=size[0], width=size[1])
-        self._camera_renderer.update_scene(self.data, camera="robot_cam")
+        self._camera_renderer.update_scene(self.data, camera="robot_cam", scene_option=self.camera_option)
         return self._camera_renderer.render()
+
+    def ray_to_solid(self, origin, direction) -> float:
+        """Distance to the first solid world geom along a unit direction (-1 if none).
+        Used by the viewer camera only; ignores the robot, visuals, and the ceiling."""
+        return float(mujoco.mj_ray(self.model, self.data, np.asarray(origin, float), np.asarray(direction, float),
+                                   _WORLD_SOLID_GROUP, 1, self.robot_body, self._ray_hit))
 
     # ----- ground truth (evaluation only, never given to drivers) -----
     def true_pose(self) -> tuple[float, float, float]:

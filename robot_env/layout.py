@@ -48,14 +48,24 @@ class Task:
 
 
 def shapes_from_model(model: mujoco.MjModel) -> list[Shape]:
-    shapes = []
+    """Every solid geom on a static body (the world or bodies welded to it), in world
+    coordinates, that reaches below OVERHEAD_CLEARANCE. Excludes the floor, the robot,
+    the goal marker, visual-only geoms, and overhead parts (door headers, desk tops)."""
+    data = mujoco.MjData(model)
+    mujoco.mj_forward(model, data)
     floor = model.geom("floor").id
+    shapes = []
     for g in range(model.ngeom):
-        if g == floor or model.geom_bodyid[g] != 0 or model.geom_contype[g] == 0:
+        body = model.geom_bodyid[g]
+        static = model.body_weldid[body] == 0 and model.body_mocapid[body] < 0
+        if g == floor or not static or model.geom_contype[g] == 0:
             continue
-        x, y = model.geom_pos[g][:2]
-        q = model.geom_quat[g]
-        yaw = math.atan2(2 * (q[0] * q[3] + q[1] * q[2]), 1 - 2 * (q[2] ** 2 + q[3] ** 2))
+        x, y, z = data.geom_xpos[g]
+        xmat = data.geom_xmat[g].reshape(3, 3)
+        half_height = float(np.abs(xmat[2]) @ model.geom_size[g]) if model.geom_type[g] == mujoco.mjtGeom.mjGEOM_BOX             else float(model.geom_size[g][1])
+        if z - half_height >= C.OVERHEAD_CLEARANCE:
+            continue
+        yaw = math.atan2(xmat[1, 0], xmat[0, 0])
         size = model.geom_size[g]
         if model.geom_type[g] == mujoco.mjtGeom.mjGEOM_BOX:
             shapes.append(Shape("box", float(x), float(y), yaw, float(size[0]), float(size[1])))
@@ -64,6 +74,13 @@ def shapes_from_model(model: mujoco.MjModel) -> list[Shape]:
         else:
             raise ValueError(f"unsupported obstacle geom type {model.geom_type[g]}")
     return shapes
+
+
+def region_of(x: float, y: float) -> str | None:
+    for name, (x0, x1, y0, y1) in C.ROOMS.items():
+        if x0 <= x <= x1 and y0 <= y <= y1:
+            return name
+    return None
 
 
 def clearance(shapes: list[Shape], px: np.ndarray, py: np.ndarray) -> np.ndarray:
@@ -84,16 +101,16 @@ def clearance(shapes: list[Shape], px: np.ndarray, py: np.ndarray) -> np.ndarray
 class RoomMap:
     def __init__(self, model: mujoco.MjModel):
         self.shapes = shapes_from_model(model)
-        n = int(round(2 * C.ROOM_HALF_SIZE / C.GRID_RESOLUTION))
+        n = int(round(2 * C.FLOOR_HALF_SIZE / C.GRID_RESOLUTION))
         self.n = n
-        centers = -C.ROOM_HALF_SIZE + (np.arange(n) + 0.5) * C.GRID_RESOLUTION
+        centers = -C.FLOOR_HALF_SIZE + (np.arange(n) + 0.5) * C.GRID_RESOLUTION
         self.cx, self.cy = np.meshgrid(centers, centers, indexing="ij")
         self.clear = clearance(self.shapes, self.cx, self.cy)
         self.free = self.clear >= C.CIRCUMSCRIBED_RADIUS + C.PLANNING_CLEARANCE
 
     def cell(self, x: float, y: float) -> tuple[int, int]:
-        i = int((x + C.ROOM_HALF_SIZE) / C.GRID_RESOLUTION)
-        j = int((y + C.ROOM_HALF_SIZE) / C.GRID_RESOLUTION)
+        i = int((x + C.FLOOR_HALF_SIZE) / C.GRID_RESOLUTION)
+        j = int((y + C.FLOOR_HALF_SIZE) / C.GRID_RESOLUTION)
         return min(max(i, 0), self.n - 1), min(max(j, 0), self.n - 1)
 
     def point_clearance(self, x: float, y: float) -> float:
@@ -158,7 +175,7 @@ class RoomMap:
     def sample_task(self, seed: int, max_tries: int = 2000) -> Task:
         """Seeded start and goal in free space, far enough apart, with a feasible path."""
         rng = np.random.default_rng(seed)
-        lim = C.ROOM_HALF_SIZE - C.START_GOAL_MIN_CLEARANCE
+        lim = C.FLOOR_HALF_SIZE - C.START_GOAL_MIN_CLEARANCE
 
         def free_point() -> tuple[float, float] | None:
             for _ in range(max_tries):
@@ -174,6 +191,8 @@ class RoomMap:
                 break
             if math.dist(start, goal) < C.START_GOAL_MIN_SEPARATION:
                 continue
+            if region_of(*start) == region_of(*goal):
+                continue  # every task crosses at least one doorway
             path = self.find_path(start, goal)
             if path is None:
                 continue
