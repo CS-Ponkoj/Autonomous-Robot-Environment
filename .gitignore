@@ -1,0 +1,11 @@
+# Python environment and caches (rebuilt by setup.ps1)
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Generated output
+screenshots/
+data/
+logs/
+models/
