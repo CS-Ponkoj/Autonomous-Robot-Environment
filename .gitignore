@@ -6,6 +6,12 @@ __pycache__/
 
 # Generated output
 screenshots/
+qa_output/
+_private/
 data/
 logs/
 models/
+
+# Working notes stay local; README.md is the only published Markdown file
+*.md
+!README.md

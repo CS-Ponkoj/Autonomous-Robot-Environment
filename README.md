@@ -8,7 +8,6 @@ driver will use later.
 
 ![Goal reached in the simulator](docs/screenshot_goal.png)
 
-
 ## Setup (Windows, Python 3.11)
 
 In PowerShell, in this folder:
