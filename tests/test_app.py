@@ -15,18 +15,21 @@ def run_app(tmp_path, **kw):
     return summary, shot
 
 
+@pytest.mark.gui
 def test_window_renders_and_saves_screenshot(tmp_path):
     summary, shot = run_app(tmp_path, frames=20)
     assert shot.exists() and shot.stat().st_size > 10_000
     assert summary["status"] == "running" and summary["collisions"] == 0
 
 
+@pytest.mark.gui
 @pytest.mark.parametrize("view", [0, 1, 2, 3])
 def test_every_view_renders(tmp_path, view):
     summary, shot = run_app(tmp_path, frames=5, view=view)
     assert shot.exists()
 
 
+@pytest.mark.gui
 @pytest.mark.parametrize("view, expect_inset", [(0, True), (3, False)])
 def test_robot_camera_inset_is_skipped_in_robot_camera_view(tmp_path, monkeypatch, view, expect_inset):
     from robot_env.sim import RobotSim
@@ -48,6 +51,7 @@ def test_parse_script():
     assert steps[3].duration == 0.3
 
 
+@pytest.mark.gui
 def test_real_time_factor_is_honest_when_frames_are_slow(tmp_path, monkeypatch):
     """Regression: RTF showed 1.00 at about 9 FPS."""
     import time as _time
@@ -88,6 +92,7 @@ def test_viewer_camera_never_ends_up_inside_walls_or_furniture(pose, view):
     sim.close()
 
 
+@pytest.mark.gui
 def test_episode_clock_stops_at_episode_end(tmp_path):
     from robot_env import config as C
     app = App(1005, screenshot=None, frames=1)
@@ -109,6 +114,7 @@ class _FakeModelDriver:
         return Decision(Command(0.3, 0.0), obs.seq)
 
 
+@pytest.mark.gui
 def test_window_runs_a_non_manual_driver_without_held_keys(tmp_path):
     """Regression: release-to-stop blocked any non-manual driver."""
     app = App(1006, screenshot=tmp_path / "s.png", frames=60, driver=_FakeModelDriver())
@@ -119,6 +125,7 @@ def test_window_runs_a_non_manual_driver_without_held_keys(tmp_path):
     assert app.system.sim.true_velocity()[0] > 0.1  # it actually moves
 
 
+@pytest.mark.gui
 def test_space_still_brakes_a_non_manual_driver(tmp_path):
     app = App(1006, screenshot=tmp_path / "s.png", frames=90, driver=_FakeModelDriver(),
               script=parse_script("none:0.6;SPACE:1.0"))
@@ -127,6 +134,7 @@ def test_space_still_brakes_a_non_manual_driver(tmp_path):
     assert abs(app.system.sim.true_velocity()[0]) < 0.02
 
 
+@pytest.mark.gui
 def test_free_moves_hint_lists_exactly_the_safe_moves(tmp_path):
     """QA finding: when blocked, the panel must say what is still free. Robot facing the
     lab island bench's west end, overlapping it sideways: forward is blocked."""
@@ -148,6 +156,7 @@ def _post(t, k):
     pygame.event.post(pygame.event.Event(t, key=k, mod=0, unicode="", scancode=0))
 
 
+@pytest.mark.gui
 @pytest.mark.parametrize("reset_key", [pygame.K_r, pygame.K_n])
 def test_reset_keeps_a_held_space_brake(tmp_path, reset_key):
     """Regression: Space down, R (or N) down, W down, no Space up -> must stay braked."""
@@ -162,6 +171,7 @@ def test_reset_keeps_a_held_space_brake(tmp_path, reset_key):
     assert abs(app.system.sim.true_velocity()[0]) < 0.02
 
 
+@pytest.mark.gui
 def test_scripted_keys_move_then_release_stops(tmp_path):
     app = App(1005, screenshot=None, frames=300, script=parse_script("D:1.5;W:1.5;none:1.2"))  # about 4.2 s of script
     x0, y0, _ = app.system.sim.true_pose()
@@ -172,6 +182,7 @@ def test_scripted_keys_move_then_release_stops(tmp_path):
     assert app.system.collisions == 0
 
 
+@pytest.mark.gui
 @pytest.mark.parametrize("clear", ["r", "n", "focus"])
 def test_brake_holds_when_a_forgotten_key_is_still_down(tmp_path, clear):
     """Regression: W down, Space down/up, R (or N, or focus loss and gain),
@@ -194,6 +205,7 @@ def test_brake_holds_when_a_forgotten_key_is_still_down(tmp_path, clear):
     assert abs(app.system.sim.true_velocity()[1]) < 0.05
 
 
+@pytest.mark.gui
 def test_hint_when_a_held_key_was_forgotten_by_a_restart(tmp_path):
     app = App(1006, screenshot=None, frames=30)
     _post(pygame.KEYDOWN, pygame.K_w)
@@ -340,6 +352,7 @@ def _open_app(level=None):
     return app
 
 
+@pytest.mark.gui
 def test_shift_and_level_keys_retarget_a_held_drive_key_without_a_new_press():
     """Pressing Shift or +/- while W is held changes the requested command at once and the
     approved target by the next control tick; the applied command stays rate limited."""
@@ -363,6 +376,7 @@ def test_shift_and_level_keys_retarget_a_held_drive_key_without_a_new_press():
     app.run()
 
 
+@pytest.mark.gui
 def test_level_keys_never_release_the_brake_in_the_window():
     app = _open_app()
     _key_event(app, pygame.KEYDOWN, pygame.K_SPACE)
@@ -376,6 +390,7 @@ def test_level_keys_never_release_the_brake_in_the_window():
     app.run()
 
 
+@pytest.mark.gui
 def test_restart_and_next_goal_keep_the_selected_level():
     app = _open_app()
     _key_event(app, pygame.KEYDOWN, pygame.K_MINUS)
@@ -386,6 +401,7 @@ def test_restart_and_next_goal_keep_the_selected_level():
     app.run()
 
 
+@pytest.mark.gui
 def test_status_line_shows_selected_and_effective_levels():
     from robot_env import config as C
     app = _open_app()
@@ -396,6 +412,7 @@ def test_status_line_shows_selected_and_effective_levels():
     app.run()
 
 
+@pytest.mark.gui
 def test_free_moves_use_the_level_in_effect():
     """At the slowest level the hint must test the slow commands, not the default ones."""
     from robot_env import config as C
@@ -420,6 +437,7 @@ def test_speed_level_command_line_option():
         main(["--frames", "2", "--speed-level", str(len(C.SPEED_LEVELS) + 1)])
 
 
+@pytest.mark.gui
 def test_camera_stays_continuous_while_changing_level_and_shift():
     """Changing the speed level and pressing or releasing Shift while driving never makes the
     chase camera pop; the status line updates in the same frame."""

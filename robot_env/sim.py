@@ -62,6 +62,7 @@ class RobotSim:
         self._scan_dist = np.zeros(C.LIDAR_RAYS)
         self._scan_dirs = np.zeros((C.LIDAR_RAYS, 3))
         self.lidar_angles = np.array(C.LIDAR_ANGLES)
+        self.lidar_angles.flags.writeable = False  # the scanner's geometry: never changed
         self.lidar_fault = np.zeros(C.LIDAR_RAYS, dtype=bool)  # test hook: forced invalid rays
         self.goal = np.zeros(2)
         self._camera_renderer: mujoco.Renderer | None = None

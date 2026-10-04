@@ -208,15 +208,44 @@ def read_log(path: str | Path, allow_incomplete: bool = False) -> list[dict]:
     with open(path, encoding="utf-8") as f:
         for n, line in enumerate(f, 1):
             try:
-                rec = json.loads(line)
+                rec = json.loads(line, parse_constant=_reject_constant)
+            except _NonFinite as e:
+                raise IncompleteLogError(f"line {n}: non-finite number {e}") from e
             except json.JSONDecodeError as e:
                 raise IncompleteLogError(f"line {n}: not JSON (truncated write?)") from e
+            if not isinstance(rec, dict):
+                raise IncompleteLogError(f"line {n}: not a record")
             for key in ("lidar", "lidar_valid", "lidar_angles"):
                 if isinstance(rec.get(key), dict) and "b64" in rec[key]:
                     rec[key] = unpack_array(rec[key])
             out.append(rec)
     validate_log(out, allow_incomplete)
     return out
+
+
+class _NonFinite(ValueError):
+    pass
+
+
+def _reject_constant(name: str):
+    raise _NonFinite(name)  # NaN, Infinity, -Infinity are not valid log numbers
+
+
+def _check_time(rec: dict, key: str, required: bool) -> None:
+    """A timestamp must be a real finite number (not bool, not text); optional ones may be None."""
+    if key not in rec:
+        if required:
+            raise IncompleteLogError(f"{rec.get('kind')} record without {key!r}")
+        return
+    v = rec[key]
+    if v is None and not required:
+        return
+    try:
+        ok = not isinstance(v, bool) and isinstance(v, (int, float)) and math.isfinite(v)
+    except OverflowError:  # an integer too large for a float (e.g. 401 digits)
+        ok = False
+    if not ok:
+        raise IncompleteLogError(f"{rec.get('kind')} record: {key}={str(v)[:40]!r} is not a finite number")
 
 
 def validate_log(records: list[dict], allow_incomplete: bool = False) -> None:
@@ -242,6 +271,15 @@ def validate_log(records: list[dict], allow_incomplete: bool = False) -> None:
         if foot.get("ticks") != len(ticks) or foot.get("events") != len(events):
             raise IncompleteLogError(f"footer counts {foot.get('ticks')} ticks / {foot.get('events')} events, "
                                      f"file has {len(ticks)} / {len(events)}")
+    for r in records[1:]:
+        if r.get("kind") in ("tick", "event"):
+            _check_time(r, "t", required=True)
+        if r.get("kind") == "tick":
+            _check_time(r, "scan_time", required=True)
+            _check_time(r, "command_issued", required=False)
+            _check_time(r, "command_expires", required=False)
+            if not isinstance(r.get("tick"), int) or isinstance(r.get("tick"), bool):
+                raise IncompleteLogError(f"tick record without an integer tick number: {r.get('tick')!r}")
     n_rays = len(head["lidar_angles"])
     for prev, cur in zip(ticks, ticks[1:]):
         if cur["tick"] != prev["tick"] + 1:

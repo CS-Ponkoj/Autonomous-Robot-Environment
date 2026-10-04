@@ -82,8 +82,10 @@ class RobotGoalEnv(gym.Env):
             reward += C.REWARD_GOAL
         terminated = bool(success or (collided and self.collision_ends_episode))
         truncated = bool(not terminated and self.system.time >= C.EPISODE_TIME_LIMIT - 1e-9)
-        if (terminated or truncated) and self.system.cats is not None:
-            self.system.finish_cat_contacts("episode_end")
+        if terminated or truncated:
+            self.system.flags.episode_over = True  # the shared safety stop; reset clears it
+            if self.system.cats is not None:
+                self.system.finish_cat_contacts("episode_end")
         if self.system.log is not None and (terminated or truncated or collided):
             outcome = "success" if success else "collision" if collided else "timeout"
             self.system.log.event("episode_" + outcome, self.system.time, terminated=terminated, truncated=truncated)

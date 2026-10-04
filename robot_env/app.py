@@ -318,6 +318,9 @@ class App:
         task = self.room.sample_task(seed)
         x, y, yaw = task.start
         self.system.reset(x, y, yaw, task.goal)
+        reset = getattr(self.driver, "reset", None) if hasattr(self, "driver") else None
+        if callable(reset):
+            reset()  # a stateful driver (map, odometry, clock) starts the new episode fresh
         self.input.release_all()  # drive inputs only: a latched or held brake stays on
         self.episode = Episode(task)
         if hasattr(self, "view"):

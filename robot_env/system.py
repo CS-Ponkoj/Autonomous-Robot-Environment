@@ -156,8 +156,10 @@ class RobotSystem:
                 if self.cats is not None:
                     self.cats.tick()
                     if self.log is not None:
-                        for index, t, state in self.cats.new_transitions():
-                            self.log.event("cat_state", t, evaluation_only_truth={"cat": index, "state": state})
+                        for index, _t, state in self.cats.new_transitions():
+                            # stamped with the simulation clock shared by every log record
+                            self.log.event("cat_state", self.sim.time,
+                                           evaluation_only_truth={"cat": index, "state": state})
                 self._control_tick()
             self._motor_step()
             if self.cats is not None:
@@ -329,9 +331,9 @@ class RobotSystem:
         return Observation(
             seq=self._seq,
             time=self.sim.time,
-            lidar=self._scan.copy(),
-            lidar_valid=self._scan_valid.copy(),
-            lidar_angles=self.sim.lidar_angles,
+            lidar=_frozen(self._scan),
+            lidar_valid=_frozen(self._scan_valid),
+            lidar_angles=_frozen(self.sim.lidar_angles),
             scan_time=self._scan_time,
             velocity_estimate=self.sim.velocity_estimate(),
             goal_distance=dist,
@@ -374,6 +376,14 @@ def _smooth(current: float, target: float, max_increase: float, max_decrease: fl
         return current + step if goal > 0 else current - step
     step = min(abs(current) - abs(goal), max_decrease)
     return current - step if current > 0 else current + step
+
+
+def _frozen(a: np.ndarray) -> np.ndarray:
+    """A driver-facing snapshot: its own memory, read-only (in-place preprocessing raises
+    instead of changing the simulator or a later observation)."""
+    out = np.array(a, copy=True)
+    out.flags.writeable = False
+    return out
 
 
 def mujoco_forward(sim) -> None:

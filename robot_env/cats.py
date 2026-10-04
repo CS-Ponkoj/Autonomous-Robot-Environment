@@ -203,7 +203,7 @@ class CatHerd:
         cat.target_v = {"walk": r.uniform(0.15, 0.35), "pause": 0.0, "sit": 0.0, "dart": 0.9, "flee": 0.35}[state]
         if state in ("walk", "dart"):
             cat.target_yaw = self._open_heading(cat)
-        cat.transitions.append((round(self.time, 3), state))
+        cat.transitions.append((self.time, state))
 
     def _open_heading(self, cat: Cat, avoid: tuple[float, float] | None = None) -> float:
         """A heading with room ahead: random candidates scored by clearance 0.5 m ahead (and,

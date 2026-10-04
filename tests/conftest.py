@@ -20,3 +20,43 @@ if _CANDIDATES:
         raise ValueError(f"candidate levels must be faster than every exposed level: {combined}")
     C.SPEED_LEVELS = combined
     C.MAX_LINEAR_SPEED = max(speeds)
+
+
+import functools  # noqa: E402
+
+import pytest  # noqa: E402
+
+
+@functools.cache
+def _no_display() -> str | None:
+    """Why no desktop window can open here, or None. Only this check can skip a gui test."""
+    import pygame
+    try:
+        pygame.display.init()
+        n = pygame.display.get_num_displays()
+    except pygame.error as e:
+        return f"no display: {e}"
+    finally:
+        pygame.display.quit()
+    return None if n > 0 else "no display attached"
+
+
+@functools.cache
+def _no_opengl() -> str | None:
+    """Why no OpenGL context can be created here, or None. Only this check can skip an opengl test."""
+    import mujoco
+    try:
+        ctx = mujoco.GLContext(16, 16)
+        ctx.make_current()
+        ctx.free()
+    except Exception as e:  # context creation only: rendering failures still fail their tests
+        return f"no OpenGL context: {type(e).__name__}: {e}"
+    return None
+
+
+def pytest_collection_modifyitems(config, items):
+    for item in items:
+        if item.get_closest_marker("gui") and (why := _no_display() or _no_opengl()):
+            item.add_marker(pytest.mark.skip(reason=why))
+        elif item.get_closest_marker("opengl") and (why := _no_opengl()):
+            item.add_marker(pytest.mark.skip(reason=why))

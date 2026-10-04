@@ -68,6 +68,7 @@ def test_lidar_ignores_goal_marker_and_visual_geoms():
     assert ok and abs(r - 3.0) <= 0.05
 
 
+@pytest.mark.opengl
 def test_camera_image():
     s = empty_system()
     obs = s.observe(with_camera=True)
@@ -95,6 +96,7 @@ def test_floor_and_goal_marker_are_not_contacts():
     assert s.collisions == 0
 
 
+@pytest.mark.opengl
 def test_camera_does_not_see_through_a_close_wall():
     """Regression: a 12 cm near clip plane let the camera see through walls up close."""
     s = empty_system()
@@ -105,6 +107,7 @@ def test_camera_does_not_see_through_a_close_wall():
     assert blue_sky.mean() < 0.01
 
 
+@pytest.mark.opengl
 def test_camera_near_clip_plane_is_about_one_centimeter():
     s = RobotSim()
     znear = s.model.vis.map.znear * s.model.stat.extent
