@@ -6,6 +6,7 @@ This layer has no safety logic and no driver logic. Use RobotSystem for driving.
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass, field
 import re
 from pathlib import Path
 
@@ -13,22 +14,52 @@ import mujoco
 import numpy as np
 
 from . import config as C
+from . import kernels
 
 WORLD_XML = Path(__file__).with_name("world.xml")
 ASSETS = Path(__file__).with_name("assets")
 _OBSTACLES_BLOCK = re.compile(r"<!-- OBSTACLES.*?/OBSTACLES -->", re.S)
 _RAY_GROUPS = np.array([1, 1, 0, 0, 1, 1], dtype=np.uint8)  # skip visual (2) and ceiling (3)
 _WORLD_SOLID_GROUP = np.array([1, 0, 0, 0, 0, 0], dtype=np.uint8)  # world solids only (tires are group 1)
-_VIEW_GROUP = np.array([1, 0, 1, 0, 0, 0], dtype=np.uint8)  # what blocks the viewer: solids and visual detail
+_VIEW_GROUP = np.array([1, 0, 1, 0, 0, 1], dtype=np.uint8)  # what blocks the viewer: solids, visual detail, cats
+_SIGHT_GROUP = np.array([1, 0, 0, 0, 1, 0], dtype=np.uint8)  # what blocks a cat's view: walls and furniture
 _SPAWN_HEIGHT = 0.0505
 
 
-def load_world_xml(include_obstacles: bool = True, extra_world_xml: str = "") -> str:
+def close_renderer(renderer: mujoco.Renderer) -> None:
+    """Free a renderer's OpenGL objects in its own context, then the context. (Renderer.close
+    frees the context first and then the objects in whatever context is current: with two
+    renderers in a process, closing one deleted the other's textures and buffers, and that view
+    went black: the window's view after the robot-camera preview changed size.)"""
+    gl = getattr(renderer, "_gl_context", None)
+    mjr = getattr(renderer, "_mjr_context", None)
+    if gl is not None and mjr is not None:
+        gl.make_current()
+        mjr.free()
+        renderer._mjr_context = None  # freed: close() frees only the context now
+    renderer.close()
+
+
+@dataclass(frozen=True)
+class WorldExtra:
+    """Additions to the world model: assets, bodies, skins, and in-memory files they use."""
+    asset: str = ""
+    worldbody: str = ""
+    deformable: str = ""
+    files: dict = field(default_factory=dict)
+
+
+def load_world_xml(include_obstacles: bool = True, extra_world_xml: str = "", extra: WorldExtra | None = None) -> str:
     xml = WORLD_XML.read_text(encoding="utf-8")
     if not include_obstacles:
         xml = _OBSTACLES_BLOCK.sub("", xml)
-    if extra_world_xml:
-        xml = xml.replace("</worldbody>", extra_world_xml + "\n  </worldbody>", 1)
+    body = extra_world_xml + (extra.worldbody if extra else "")
+    if body:
+        xml = xml.replace("</worldbody>", body + "\n  </worldbody>", 1)
+    if extra and extra.asset:
+        xml = xml.replace("</asset>", extra.asset + "\n  </asset>", 1)
+    if extra and extra.deformable:
+        xml = xml.replace("</mujoco>", f"  <deformable>{extra.deformable}</deformable>\n</mujoco>", 1)
     return xml
 
 
@@ -38,9 +69,12 @@ def yaw_from_quat(q: np.ndarray) -> float:
 
 
 class RobotSim:
-    def __init__(self, include_obstacles: bool = True, extra_world_xml: str = ""):
+    def __init__(self, include_obstacles: bool = True, extra_world_xml: str = "", extra: WorldExtra | None = None):
         assets = {p.name: p.read_bytes() for p in ASSETS.glob("*.png")}
-        self.model = mujoco.MjModel.from_xml_string(load_world_xml(include_obstacles, extra_world_xml), assets)
+        if extra is not None:
+            assets.update(extra.files)
+        self.model = mujoco.MjModel.from_xml_string(load_world_xml(include_obstacles, extra_world_xml, extra), assets)
+        self.pre_render: list = []  # callables run before any render (e.g. posing the cats' skins)
         if abs(self.model.opt.timestep - C.PHYSICS_DT) > 1e-12:
             raise ValueError("world.xml timestep must match config.PHYSICS_DT")
         self.data = mujoco.MjData(self.model)
@@ -95,24 +129,28 @@ class RobotSim:
         mujoco.mj_step(self.model, self.data)
         return self.in_contact()
 
-    def in_contact(self) -> bool:
+    def _robot_contacts(self) -> tuple[bool, bool]:
+        """(the robot touches something solid, the robot touches a cat), now."""
         n = self.data.ncon
         if n == 0:
-            return False
-        pairs = self.data.contact.geom[:n]
-        robot = self._robot_geom[pairs]
-        solid = self._solid_world_geom[pairs]
-        return bool(np.any((robot[:, 0] & solid[:, 1]) | (robot[:, 1] & solid[:, 0])))
+            return False, False
+        return kernels.robot_contacts(self.data.contact.geom[:n], self._robot_geom, self._solid_world_geom,
+                                      self._cat_geom)
+
+    def in_contact(self) -> bool:
+        return self._robot_contacts()[0]
 
     def cat_contacts_now(self) -> dict[int, list[tuple[int, float]]]:
         """Every cat the robot touches now: {cat index: [(contact index, +1 or -1), ...]}. The sign
         turns the contact normal (geom1 -> geom2) into the robot -> cat direction."""
         out: dict[int, list[tuple[int, float]]] = {}
+        if not self._robot_contacts()[1]:
+            return out  # (the usual case: no cat touches the robot)
         for c in range(self.data.ncon):
             g1, g2 = self.data.contact.geom[c]
             for a, b, sign in ((g1, g2, 1.0), (g2, g1, -1.0)):
                 if self._robot_geom[a] and self._cat_geom[b]:
-                    index = int(self.model.body(int(self.model.geom_bodyid[b])).name[3:])
+                    index = int(self.model.body(int(self.model.geom_bodyid[b])).name[3:].split("_")[0])
                     out.setdefault(index, []).append((c, sign))
         return out
 
@@ -150,11 +188,29 @@ class RobotSim:
         bearing = math.atan2(dy, dx) - yaw
         return math.hypot(dx, dy), math.atan2(math.sin(bearing), math.cos(bearing))
 
-    def render_camera(self, size: tuple[int, int] = (240, 320)) -> np.ndarray:
+    def before_render(self) -> None:
+        """Bring visual-only state up to date before drawing (the cats' skinned meshes): run the
+        hooks, then propagate the kinematics, so the skin is drawn from the bone poses just
+        written (not from the last physics step). Physics is unaffected: every step recomputes
+        the kinematics from the same inputs."""
+        if not self.pre_render:
+            return
+        for hook in self.pre_render:
+            hook()
+        mujoco.mj_kinematics(self.model, self.data)
+
+    def render_camera(self, size: tuple[int, int] = (240, 320), posed: bool = False,
+                      reflections: bool = True) -> np.ndarray:
+        """The robot camera's image. posed=True: the caller has just run before_render at this
+        simulated time (the same frame), so the skins are not posed a second time.
+        reflections=False skips the floor's reflection pass (the window's small preview)."""
         if self._camera_renderer is None or (self._camera_renderer.height, self._camera_renderer.width) != size:
             self.close()
             self._camera_renderer = mujoco.Renderer(self.model, height=size[0], width=size[1])
+        if not posed:
+            self.before_render()
         self._camera_renderer.update_scene(self.data, camera="robot_cam", scene_option=self.camera_option)
+        self._camera_renderer.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = reflections
         return self._camera_renderer.render()
 
     def ray_to_solid(self, origin, direction) -> float:
@@ -163,11 +219,34 @@ class RobotSim:
         return float(mujoco.mj_ray(self.model, self.data, np.asarray(origin, float), np.asarray(direction, float),
                                    _WORLD_SOLID_GROUP, 1, self.robot_body, self._ray_hit))
 
+    def sees_robot(self, origin) -> bool:
+        """Whether the robot is in plain sight from a point (a cat's eyes): no wall or furniture
+        between them (the cats are world actors; this is not a sensor of the robot's)."""
+        x, y, _ = self.true_pose()
+        target = np.array([x, y, 0.15])
+        d = target - np.asarray(origin, float)
+        dist = float(np.linalg.norm(d))
+        if dist < 1e-9:
+            return True
+        hit = float(mujoco.mj_ray(self.model, self.data, np.asarray(origin, float), d / dist, _SIGHT_GROUP, 1,
+                                  self.robot_body, self._ray_hit))
+        return hit < 0 or hit > dist - C.CIRCUMSCRIBED_RADIUS - 0.05
+
     def ray_to_view_blocker(self, origin, direction) -> float:
         """Like ray_to_solid, but visual-only detail (chair arms, decor) also counts: anything
         that would block the viewer's line of sight. Viewer camera only."""
         return float(mujoco.mj_ray(self.model, self.data, np.asarray(origin, float), np.asarray(direction, float),
                                    _VIEW_GROUP, 1, self.robot_body, self._ray_hit))
+
+    def rays_to_view_blocker(self, origin, directions: np.ndarray, cutoff: float = mujoco.mjMAXVAL) -> np.ndarray:
+        """ray_to_view_blocker for many directions from one origin in a single call (-1: nothing
+        within `cutoff` metres; a short cutoff makes the call much cheaper)."""
+        n = len(directions)
+        dist = np.empty(n)
+        geom = np.empty(n, dtype=np.int32)
+        mujoco.mj_multiRay(self.model, self.data, np.asarray(origin, float), np.ascontiguousarray(directions, float).ravel(),
+                           _VIEW_GROUP, 1, self.robot_body, geom, dist, None, n, cutoff)
+        return dist
 
     # ----- ground truth (evaluation only, never given to drivers) -----
     def true_pose(self) -> tuple[float, float, float]:
@@ -181,5 +260,5 @@ class RobotSim:
 
     def close(self) -> None:
         if self._camera_renderer is not None:
-            self._camera_renderer.close()
+            close_renderer(self._camera_renderer)
             self._camera_renderer = None

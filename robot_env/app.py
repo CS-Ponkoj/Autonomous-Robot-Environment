@@ -1,12 +1,15 @@
 """Pygame window for manual driving: 3D view, robot camera, lidar map, and status.
 
 Single thread, single event loop. Physics advances in fixed steps by the real time
-that passed (capped), so a slow frame slows the simulation instead of skipping it.
+that passed (capped), so a slow frame slows the simulation instead of skipping it. The window
+(robot_env/display.py) is paced on the app's own 60 Hz schedule (no refresh wait), can be
+resized, maximized, or made fullscreen (F11), and draws at a capped resolution the GPU scales.
 """
 
 from __future__ import annotations
 
 import argparse
+import gc
 import math
 import time
 from dataclasses import dataclass
@@ -18,23 +21,32 @@ import pygame
 
 from . import config as C
 from .layout import RoomMap, Task
-from .cats import MAX_CATS
+from .cats import DEFAULT_CATS, MAX_CATS
+from .display import Display
 from .manual import ManualDriver, ManualInput
 from .safety import is_safe
+from .sim import close_renderer
 from .system import RobotSystem
 from .types import Command, Driver
 
-WINDOW = (1280, 720)
+WINDOW = (1280, 720)  # initial window size; the window can be resized
 FPS = 60
 MAX_FRAME_DT = 0.05
+SHADOW_LIGHTS = 2  # room lights casting shadows in the chase, orbit, and robot-camera views
+# The top view shows the whole floor: a fixed set (no light switching as the robot moves), one
+# light per room; the corridor is lit but casts no shadows there (each shadow light re-draws the
+# whole scene, about 1 ms)
+TOP_SHADOW_LIGHTS = ("light_office", "light_lab", "light_storage", "light_reception")
+INSET_PERIOD = 1 / 10  # s of simulated time between robot-camera inset renders
 VIEWS = ("chase", "top", "orbit", "robot camera")
+HUD_MODES = ("compact", "full", "none")
 HELP = [
     "W/A/S/D or arrows: drive    +/-: speed level    Shift: fastest level",
     "Right-drag: drive with the mouse",
     "Space: emergency brake (release Space, keys and mouse, then press a drive key)",
     "Left-drag: rotate view    Wheel: zoom    C: change view",
     "R: restart    N: next goal    T: continue after contact on/off",
-    "F12: screenshot    H: hide/show panels    Esc: quit",
+    "F11: fullscreen    F12: screenshot    H: panels (compact, full, none)    Esc: quit",
 ]
 SCREENSHOT_DIR = Path(__file__).resolve().parent.parent / "screenshots"
 
@@ -60,6 +72,9 @@ def parse_script(text: str) -> list[ScriptStep]:
     return steps
 
 
+_SEARCHING = object()  # ViewCamera._pick: the search for a new pose is still running
+
+
 class ViewCamera:
     """The viewer's camera. The chase and orbit views follow a SMOOTHED desired pose (so a
     small heading wobble never swings the view), but clearance is a hard limit applied every
@@ -67,19 +82,50 @@ class ViewCamera:
 
     Line of sight: the robot's top corners and a point ahead of it (cut short at the first
     obstacle) must be visible. When furniture hides them, the camera swings sideways and/or
-    looks down more steeply to the nearest clear pose, holds that choice for at least HOLD
-    seconds (no left-right flip-flopping), and eases back to the normal pose once it is clear."""
+    looks down more steeply to the nearest clear pose (closest to the current pose first),
+    holds that choice for at least HOLD seconds (no left-right flip-flopping), and eases back
+    to the normal pose once it is clear.
+
+    Distance: three separate values. The wheel sets the REQUESTED distance (always, even when
+    walls limit the view). A smoothed LIMIT follows the room available around the current and
+    upcoming camera directions, so the camera pulls in gently before a wall would cut it short,
+    and grows back only past a hysteresis margin. The DISPLAYED distance is the smaller of the
+    two, then hard-capped by the clearance right now (the camera is never inside geometry)."""
 
     YAW_TAU = 0.3  # s, heading follow
     LOOK_TAU = 0.08  # s, look-at follow
-    OUT_TAU = 0.4  # s, easing back out after an obstruction clears
+    OUT_TAU = 0.25  # s, easing back out after an obstruction clears
     ELEV_TAU = 0.25  # s, tilting toward the elevation that keeps the robot in view
     OFFSET_TAU = 0.35  # s, swinging to or from a line-of-sight detour
     MARGIN = 0.12  # m kept between the camera and the first surface along its line of sight
     BUBBLE = 0.05  # m kept clear around the camera in every direction (near plane)
     HOLD = 0.6  # s a chosen detour is kept before reconsidering
+    BLOCK_GRACE = 0.25  # s a blocked pose is kept (inside HOLD) before switching anyway
     OFFSETS = (0.0, 20.0, -20.0, 40.0, -40.0, 60.0, -60.0)  # degrees of sideways detour
-    DETOUR_ELEVATIONS = (None, -45.0, -65.0)  # None: the normal elevation
+    DETOUR_ELEVATIONS = (None, -45.0, -65.0, -80.0)  # None: the normal elevation; -80: over the robot
+    ZOOM_STEP = 0.88  # distance factor per wheel notch toward the robot (12 percent)
+    ZOOM_RATE = 45.0  # 1/s: critically damped follow, 90 percent of a notch in 86 ms, no overshoot
+    LIMIT_IN_TAU = 0.10  # s, pulling in ahead of an obstruction
+    LIMIT_HYST = 0.05  # m, the limit grows back only when the room exceeds it by this much
+    LOOKAHEAD = (-16.0, -8.0, 8.0, 16.0)  # degrees around the azimuth the camera turns to, checked for room
+    BEAM = ((0.35, 0.0), (-0.35, 0.0), (0.24, 0.0), (-0.24, 0.0), (0.12, 0.0), (-0.12, 0.0), (0.06, 0.0),
+            (-0.06, 0.0), (0.0, 0.15), (0.0, 0.3), (0.0, -0.06))  # m (sideways, up):
+    # parallel room rays, so an edge (a door jamb) is seen well before the line of sight reaches it
+    LIMIT_IN_RATE = 5.5  # m/s at most when pulling in (a smooth glide, under 0.1 m per 60 Hz frame)
+    LIMIT_OUT_RATE = 2.5  # m/s at most when easing back out
+    LIMITED_CUE = 0.15  # m below the requested distance: show "zoom limited by walls"
+    MAX_SPEED = 3.5  # m/s the camera point may move (about 6 cm per 60 Hz frame)
+    SEARCH_PER_FRAME = 6  # candidate poses checked per frame while looking for a new one
+    MIN_VIEW = 0.60  # m: closer than this the view loses the route around the robot
+    CLOSEST = 0.40  # m: an edge crossing the line of sight may pull the camera this close, smoothly
+    _BEAM_SIDE = np.array([b[0] for b in BEAM])
+    _BEAM_LIFT = np.array([b[1] for b in BEAM])
+    _BEAM_REACH = np.hypot(_BEAM_SIDE, _BEAM_LIFT)
+    KEEP_ROOM = 0.75  # m of room a pose must keep to stay chosen (switch before reaching MIN_VIEW)
+    TAKE_ROOM = 0.90  # m of room a new pose must offer (hysteresis against flip-flopping)
+    FOVY = (45.0, 70.0)  # degrees: normal field of view, and the widest used when the camera is close
+    WIDE_BELOW = 1.2  # m: closer than this the view widens (keeps the robot and its surroundings in frame)
+    ELEV_RATE = 40.0  # degrees/s the camera may tilt
     CORNERS = ((0.12, 0.08), (0.12, -0.08), (-0.12, 0.08), (-0.12, -0.08))  # robot frame, at z 0.16
 
     def __init__(self) -> None:
@@ -95,7 +141,18 @@ class ViewCamera:
         self._init = False
         self._heading = 0.0
         self._look = np.zeros(3)
-        self._dist = self.distance
+        self._want = self.distance  # smoothed requested distance
+        self._want_rate = 0.0  # its rate of change (log distance per second)
+        self._limit = math.inf  # smoothed room available
+        self._growing = False
+        self.room = math.inf
+        self._search = None  # an unfinished search for a new pose (see _pick)
+        self._settled_prev = {}  # last settled elevation per pose (search starts there next frame)
+        self._search_at = 0
+        self.fovy = self.FOVY[0]  # field of view for the main view (degrees)
+        self._shown = None  # last displayed (azimuth, elevation, distance, look-at)
+        self._blocked_for = 0.0
+        self.limited = False  # walls keep the camera closer than requested: the window shows a cue
         self._elev = self.elevation
         self._offset = 0.0  # smoothed sideways detour (degrees)
         self._detour = (0.0, None)  # chosen (offset, elevation override)
@@ -108,7 +165,22 @@ class ViewCamera:
             self.azimuth -= event.rel[0] * 0.3
             self.elevation = float(np.clip(self.elevation - event.rel[1] * 0.3, -89.0, -3.0))
         elif event.type == pygame.MOUSEWHEEL:
-            self.distance = float(np.clip(self.distance * 0.9 ** event.y, 0.5, 10.0))
+            self.distance = float(np.clip(self.distance * self.ZOOM_STEP ** event.y, 0.5, 10.0))
+
+    @classmethod
+    def _follow_zoom(cls, shown: float, rate: float, target: float, dt: float) -> tuple[float, float]:
+        """One frame of the zoom: a critically damped spring on the log of the distance (every
+        notch feels the same near and far), integrated exactly, so it is the same at any frame
+        rate and never overshoots. A notch the other way first stops the old motion, so the view
+        never keeps drifting the wrong way."""
+        err = math.log(shown) - math.log(target)
+        if err * rate > 0.0:  # moving away from the (new) target: stop first
+            rate = 0.0
+        w, t = cls.ZOOM_RATE, max(dt, 0.0)
+        decay = math.exp(-w * t)
+        err_new = (err + (rate + w * err) * t) * decay
+        rate_new = (rate - w * (rate + w * err) * t) * decay
+        return target * math.exp(err_new), rate_new
 
     @staticmethod
     def _alpha(dt: float, tau: float) -> float:
@@ -129,12 +201,13 @@ class ViewCamera:
             return self.cam
 
         self._clock += max(dt, 0.0)
+        self._clear_cache, self._beam_cache = {}, {}  # ray results for this frame (the look-at moves)
         heading = math.degrees(yaw) if view == "chase" else 0.0
         target_look = np.array([x, y, 0.1])
         snap = not self._init
         if snap:
             self._heading, self._look = heading, target_look.copy()
-            self._dist, self._elev = self.distance, self.elevation
+            self._want, self._elev = self.distance, self.elevation
             self._init = True
         else:
             wrap = (heading - self._heading + 180.0) % 360.0 - 180.0  # shortest way round
@@ -146,20 +219,40 @@ class ViewCamera:
         # Line-of-sight detour: keep the current pose while it sees the robot and the way ahead;
         # after HOLD seconds on a detour, go back to the normal pose as soon as that works; when
         # the current pose is blocked, take the nearest clear candidate (current side first).
+        # Every switch respects the hold, except: a blocked pose is left after BLOCK_GRACE, and a
+        # pose running out of room (below KEEP_ROOM) is left at once, before the view collapses.
         normal = (0.0, None)
-        if self._pose_sees(sim, *self._detour, targets):
+        sees = self._pose_sees(sim, *self._detour, targets)
+        roomy = sees and self._pose_sees(sim, *self._detour, targets, self.KEEP_ROOM)
+        if snap:
+            self.blocked = False
+            if not roomy:
+                choice = self._pick(sim, targets, budget=None)  # first frame: search everything now
+                self._detour = choice or self._detour
+                self.blocked = choice is None
+        elif roomy:
+            self._blocked_for = 0.0
+            self._search = None  # no switch needed any more
             self.blocked = False
             if self._detour != normal and self._clock >= self._hold_until \
-                    and self._pose_sees(sim, *normal, targets):
+                    and self._pose_sees(sim, *normal, targets, self.TAKE_ROOM):
                 self._detour, self._hold_until = normal, self._clock + self.HOLD
         else:
-            choice = self._choose_detour(sim, targets)
-            if choice is not None and choice != self._detour:
-                self._detour, self._hold_until = choice, self._clock + self.HOLD
-            self.blocked = choice is None
+            self._blocked_for += max(dt, 0.0)
+            cramped = sees  # sees the robot but is running out of room: leave now
+            if cramped or self._clock >= self._hold_until or self._blocked_for >= self.BLOCK_GRACE:
+                choice = self._pick(sim, targets)
+                if choice is _SEARCHING:
+                    pass  # the search continues next frame; keep the current pose meanwhile
+                elif choice is not None and choice != self._detour:
+                    self._detour, self._hold_until = choice, self._clock + self.HOLD
+                    self._blocked_for = 0.0
+                if choice is not _SEARCHING:
+                    self.blocked = choice is None and not sees
         offset, elev_override = self._detour
         if snap:
             self._offset = offset  # first frame after a reset: start at the chosen pose
+        prev_offset, prev_elev = self._offset, self._elev
         self._offset += (offset - self._offset) * self._alpha(dt, self.OFFSET_TAU)
         self.cam.azimuth = self._heading + self.azimuth + self._offset
 
@@ -168,19 +261,97 @@ class ViewCamera:
         target_elev = self._settled_elevation(sim, self.cam.azimuth, elev_override)
         if snap:
             self._elev = target_elev  # first frame after a reset: start at a clear angle
-        self._elev += (target_elev - self._elev) * self._alpha(dt, self.ELEV_TAU)
+        step = (target_elev - self._elev) * self._alpha(dt, self.ELEV_TAU)
+        self._elev += float(np.clip(step, -self.ELEV_RATE * max(dt, 0.0), self.ELEV_RATE * max(dt, 0.0)))
+        if not snap and self.cam.distance > 0:
+            # Swing and tilt only as fast as the distance can glide: if the new angle would cut the
+            # camera short by more than one frame's glide, keep the old angle while it pulls in.
+            reach = self.cam.distance - self.LIMIT_IN_RATE * max(dt, 0.0)
+            new_az = self.cam.azimuth
+            if self._clear_distance(sim, new_az, self._elev) < reach - 1e-3:
+                self._offset, self._elev = prev_offset, prev_elev
+                self.cam.azimuth = self._heading + self.azimuth + self._offset
         self.cam.elevation = self._elev
 
-        # Distance: ease back out slowly, pull in immediately (hard cap, every frame, last).
-        if self.distance > self._dist:
-            self._dist += (self.distance - self._dist) * self._alpha(dt, self.OUT_TAU)
+        # Distance: requested (wheel), smoothed limit (room around the current and upcoming
+        # directions), and the hard clearance cap right now (applied last, every frame).
+        az, el = self.cam.azimuth, self.cam.elevation
+        was_free = self._limit >= self._want - 1e-6  # the walls did not hold the camera in last frame
+        if snap:
+            self._want, self._want_rate = self.distance, 0.0
         else:
-            self._dist = self.distance
-        clear = self._clear_distance(sim, self.cam.azimuth, self.cam.elevation)
-        clear = self._bubble_distance(sim, self.cam.azimuth, self.cam.elevation, min(self._dist, clear))
-        self.cam.distance = min(self._dist, clear)
-        self._dist = self.cam.distance if clear < self._dist else self._dist
+            self._want, self._want_rate = self._follow_zoom(self._want, self._want_rate, self.distance, dt)
+        clear = self._clear_distance(sim, az, el)
+        hard = self._bubble_distance(sim, az, el, min(self._want, clear))  # never inside geometry, now
+        hard_room = hard if self.distance <= self._want else self._bubble_distance(sim, az, el, min(self.distance, clear))
+        # Room around where the camera is and where it is heading (its target side and tilt).
+        heading_az = heading + self.azimuth + offset  # where the camera is turning to (unsmoothed heading)
+        near = self._beam_room(sim, az, el)  # edges about to cross the line of sight as the robot moves
+        goal_clear = self._clear_distance(sim, heading_az, target_elev)
+        ahead = min([self._beam_room(sim, az, target_elev), goal_clear, self._beam_room(sim, heading_az, target_elev),
+                     self._bubble_distance(sim, heading_az, target_elev, min(goal_clear, self.distance))]
+                    + [self._clear_distance(sim, az, el + d) for d in (-6.0, -3.0, 3.0)]
+                    + [self._clear_distance(sim, heading_az + d, e) for d in self.LOOKAHEAD for e in (el, target_elev)])
+        # Directions the camera is not facing yet pull it in early, but never below MIN_VIEW: a door
+        # frame beside the robot is not a reason to collapse the view (if the line of sight itself
+        # gets that tight, the pose is switched for a roomier one).
+        room = min(hard_room, max(near, self.CLOSEST), max(ahead, self.MIN_VIEW))
+        room = min(room, 2.0 * self.distance)  # beyond this the limit does not matter
+        self.room = room  # what the walls allow around the current and upcoming pose (diagnostics, cue)
+        if snap or self._limit == math.inf or (was_free and room >= self._limit):
+            # nothing to ease: the limit is not what the camera shows (the zoom spring is), so it
+            # follows the room at once and never slows the user's zoom
+            self._limit = room
+        elif room < self._limit:
+            self._growing = False
+            step = (room - self._limit) * self._alpha(dt, self.LIMIT_IN_TAU)
+            self._limit += max(step, -self.LIMIT_IN_RATE * dt)
+        elif room > self._limit + self.LIMIT_HYST or (self._growing and room > self._limit + 0.005):
+            # hysteresis on entry only: once easing out, go all the way back to the room
+            self._growing = True
+            step = (room - self._limit) * self._alpha(dt, self.OUT_TAU)
+            self._limit += min(step, self.LIMIT_OUT_RATE * dt)
+        else:
+            self._growing = False
+        self.cam.distance = min(self._want, self._limit, hard)
+        if not snap and self._shown is not None:
+            self._limit_step(sim, dt)
+        # close camera: widen the view smoothly (a real camera operator would use a wider lens)
+        lo, hi = self.FOVY
+        t = float(np.clip((self.WIDE_BELOW - self.cam.distance) / (self.WIDE_BELOW - self.MIN_VIEW), 0.0, 1.0))
+        self.fovy = lo + (hi - lo) * t
+        self._shown = (self.cam.azimuth, self.cam.elevation, self.cam.distance, np.array(self.cam.lookat))
+        self.limited = self.distance - self.cam.distance > self.LIMITED_CUE
         return self.cam
+
+    def _limit_step(self, sim, dt: float) -> None:
+        """Cap how far the camera moves in one frame (MAX_SPEED): if the new pose is further,
+        show the point part of the way there (angles and distance blended) and let the filters
+        continue from it. Clearance still wins: the blended pose is capped by the clearance at
+        its own angle, so a sudden obstacle can still pull the camera in."""
+        az0, el0, d0, look0 = self._shown
+        p0 = _camera_point(look0, az0, el0, d0)
+        az1, el1, d1 = self.cam.azimuth, self.cam.elevation, self.cam.distance
+        look1 = np.array(self.cam.lookat)
+        limit = self.MAX_SPEED * max(dt, 1e-6)
+        # The user's own zoom (the camera showing the requested distance) is never slowed: only
+        # the turning and the look-at count against the cap then.
+        zooming = abs(d1 - self._want) < 1e-9
+        if np.linalg.norm(_camera_point(look1, az1, el1, d0 if zooming else d1) - p0) <= limit:
+            return
+        daz = (az1 - az0 + 180.0) % 360.0 - 180.0
+        lo, hi = 0.0, 1.0
+        for _ in range(12):  # largest blend whose camera point stays within the step
+            f = (lo + hi) / 2
+            q = _camera_point(look1, az0 + daz * f, el0 + (el1 - el0) * f, d0 if zooming else d0 + (d1 - d0) * f)
+            lo, hi = (f, hi) if np.linalg.norm(q - p0) <= limit else (lo, f)
+        az, el = az0 + daz * lo, el0 + (el1 - el0) * lo
+        dist = d1 if zooming else d0 + (d1 - d0) * lo
+        dist = min(dist, self._clear_distance(sim, az, el))
+        dist = self._bubble_distance(sim, az, el, dist)
+        self.cam.azimuth, self.cam.elevation, self.cam.distance = az, el, dist
+        self._elev = el  # the filters continue from what is shown
+        self._offset = az - (self._heading + self.azimuth)
 
     def _bubble_distance(self, sim, azimuth: float, elevation: float, dist: float) -> float:
         """Shorten `dist` until a BUBBLE-sized neighbourhood around the camera is clear (the line
@@ -215,10 +386,27 @@ class ViewCamera:
         the detour's) down to -85 degrees, at which the wanted distance is clear."""
         start = self.elevation if elev_override is None else min(self.elevation, elev_override)
         wanted = min(self.distance, 0.9)
-        for el in np.arange(start, -85.0, -1.0):
-            if self._clear_distance(sim, azimuth, el) >= wanted:
-                return float(el)
-        return -85.0
+
+        def ok(el):
+            return self._clear_distance(sim, azimuth, el) >= wanted and self._beam_room(sim, azimuth, el) >= wanted
+        # Start from last frame's answer for this pose (the scene changes little between frames):
+        # walk up while the next shallower angle is clear, or down until one is.
+        key = (round(azimuth - self._heading - self.azimuth, 1), elev_override)
+        el = self._settled_prev.get(key)
+        if el is None or el > start:
+            el = start
+        el = max(min(el, start), -85.0)
+        if ok(el):
+            while el + 2.0 <= start and ok(el + 2.0):
+                el += 2.0
+            if el + 2.0 > start and el < start and ok(start):
+                el = start
+        else:
+            while el > -85.0 and not ok(el):
+                el -= 2.0
+            el = max(el, -85.0)
+        self._settled_prev[key] = el
+        return float(el)
 
     def _camera_position(self, sim, azimuth: float, elevation: float) -> np.ndarray:
         dist = min(self.distance, self._clear_distance(sim, azimuth, elevation))
@@ -226,9 +414,15 @@ class ViewCamera:
         back = np.array([-math.cos(el) * math.cos(az), -math.cos(el) * math.sin(az), -math.sin(el)])
         return np.asarray(self.cam.lookat) + back * dist
 
-    def _pose_sees(self, sim, offset: float, elev_override, targets) -> bool:
+    def _pose_sees(self, sim, offset: float, elev_override, targets, room: float = 0.0) -> bool:
+        """The pose (judged where it settles) sees the robot and the way ahead, and leaves at least
+        `room` metres (capped by the requested distance) for the camera."""
         azimuth = self._heading + self.azimuth + offset
         elevation = self._settled_elevation(sim, azimuth, elev_override)  # judged where it will settle
+        if room > 0:
+            space = min(self._clear_distance(sim, azimuth, elevation), self._beam_room(sim, azimuth, elevation))
+            if space < min(room, self.distance):
+                return False
         pos = self._camera_position(sim, azimuth, elevation)
         for p in targets:
             d = p - pos
@@ -240,26 +434,82 @@ class ViewCamera:
                 return False
         return True
 
-    def _choose_detour(self, sim, targets):
-        """The nearest clear (offset, elevation) pose: smallest detour first, the current side
-        before the other side. None when nothing is clear."""
-        side = 1.0 if self._detour[0] >= 0 else -1.0
-        offsets = sorted(self.OFFSETS, key=lambda o: (abs(o), o * side < 0))
-        for elev in self.DETOUR_ELEVATIONS:
-            for offset in offsets:
-                if self._pose_sees(sim, offset, elev, targets):
-                    return (offset, elev)
-        return None
+    def _pick(self, sim, targets, budget: int | None = SEARCH_PER_FRAME):
+        """A usable new pose (sees the robot and offers TAKE_ROOM), else any pose that sees it;
+        None when nothing qualifies. The search checks at most `budget` candidates per frame (it
+        continues next frame and returns _SEARCHING meanwhile), so it never stalls a frame."""
+        if self._search is None:
+            order = self._candidates()
+            self._search = [(pose, self.TAKE_ROOM) for pose in order] + [(pose, 0.0) for pose in order]
+            self._search_at = 0
+        left = len(self._search) if budget is None else budget
+        while left > 0 and self._search_at < len(self._search):
+            pose, room = self._search[self._search_at]
+            self._search_at += 1
+            left -= 1
+            if self._pose_sees(sim, *pose, targets, room):
+                self._search = None
+                return pose
+        if self._search_at >= len(self._search):
+            self._search = None
+            return None
+        return _SEARCHING
+
+    def _candidates(self) -> list:
+        """Every (offset, elevation) pose, closest to the current one first (continuity, then the
+        smallest detour; the current side wins ties)."""
+        cur_offset, cur_elev = self._detour
+        levels = list(self.DETOUR_ELEVATIONS)
+        cur_level = levels.index(cur_elev)
+        side = 1.0 if cur_offset >= 0 else -1.0
+
+        def cost(pose):
+            offset, elev = pose
+            return (abs(offset - cur_offset) / 20.0 + abs(levels.index(elev) - cur_level) + abs(offset) / 40.0
+                    + levels.index(elev) * 0.5, offset * side < 0)
+        return sorted(((o, e) for e in levels for o in self.OFFSETS), key=cost)
+
+    def _beam_room(self, sim, azimuth: float, elevation: float) -> float:
+        """Room along rays parallel to the line of sight, offset sideways and up: an edge (a door
+        frame) is seen before the line of sight itself reaches it, so the camera glides in early."""
+        key = (round(azimuth, 2), round(elevation, 2))
+        cache = getattr(self, "_beam_cache", None)
+        if cache is not None and key in cache:
+            return cache[key]
+        az, el = math.radians(azimuth), math.radians(elevation)
+        ca, sa, ce, se = math.cos(az), math.sin(az), math.cos(el), math.sin(el)
+        back = np.array([-ce * ca, -ce * sa, -se])
+        right = np.array([sa, -ca, 0.0])  # horizontal, perpendicular to the line of sight
+        up = np.array([-se * ca, -se * sa, ce])  # perpendicular to both (camera up)
+        offsets = self._BEAM_SIDE[:, None] * right + self._BEAM_LIFT[:, None] * up
+        look = np.asarray(self.cam.lookat, dtype=float)
+        # one batched cast from the look-at: does each parallel ray start in open space?
+        gaps = sim.rays_to_view_blocker(look, offsets / self._BEAM_REACH[:, None], self._BEAM_REACH.max() + 0.06)
+        best = math.inf
+        for i in range(len(offsets)):
+            if 0 <= gaps[i] <= self._BEAM_REACH[i] + 0.05:
+                continue  # this ray would start inside or behind a wall next to the robot: not room ahead
+            hit = sim.ray_to_view_blocker(look + offsets[i], back)
+            if hit >= 0:
+                best = min(best, max(hit - self.MARGIN, 0.02))
+        if cache is not None:
+            cache[key] = best
+        return best
 
     def _clear_distance(self, sim, azimuth: float, elevation: float) -> float:
         """Distance the camera may sit behind the look-at point without entering geometry
         (solids and visual detail, so it never sits inside a chair's arms)."""
+        key = (round(azimuth, 2), round(elevation, 2))
+        cache = getattr(self, "_clear_cache", None)
+        if cache is not None and key in cache:
+            return cache[key]
         az, el = math.radians(azimuth), math.radians(elevation)
         back = np.array([-math.cos(el) * math.cos(az), -math.cos(el) * math.sin(az), -math.sin(el)])
         hit = sim.ray_to_view_blocker(self.cam.lookat, back)
-        if hit < 0:
-            return math.inf
-        return max(hit - self.MARGIN, 0.02)
+        value = math.inf if hit < 0 else max(hit - self.MARGIN, 0.02)
+        if cache is not None:
+            cache[key] = value
+        return value
 
 
 @dataclass
@@ -280,14 +530,18 @@ class App:
         pygame.display.init()
         pygame.font.init()
         pygame.event.set_blocked([pygame.JOYDEVICEADDED, pygame.JOYDEVICEREMOVED])
-        self.screen = pygame.display.set_mode(WINDOW)
-        pygame.display.set_caption("Autonomous Robot Environment")
+        self.display = Display(WINDOW, "Autonomous Robot Environment")
         self.font = pygame.font.SysFont("consolas", 16)
         self.big = pygame.font.SysFont("consolas", 30, bold=True)
         self.clock = pygame.time.Clock()
         self.system = RobotSystem(cats=cats, cat_seed=cat_seed)
         self.room = RoomMap(self.system.sim.model)
-        self.renderer = mujoco.Renderer(self.system.sim.model, height=WINDOW[1], width=WINDOW[0])
+        self.renderer = None
+        self._make_renderer()
+        self._inset = None  # cached robot-camera inset and the simulated time it shows
+        self._shadow_lights = None  # the room lights that may cast shadows (from the model)
+        self._inset_time = -math.inf
+        self.frame_times: list[float] = []  # seconds between presented frames (measured)
         self.view = ViewCamera()
         self.overview_option = mujoco.MjvOption()  # default groups: ceiling (3) hidden
         self.view.mode = view
@@ -297,7 +551,7 @@ class App:
         # (Space) and focus loss always stops; release-to-stop applies only to manual driving.
         self.driver: Driver = driver or ManualDriver(self.input)
         self.continue_after_contact = False
-        self.show_help = True
+        self.hud = "compact"  # H cycles: compact (driving), full (diagnostics), none
         self.seed = seed
         self.frames_left = frames
         self.screenshot = screenshot
@@ -311,6 +565,26 @@ class App:
         self.sim_elapsed = 0.0
         self.wall_elapsed = 0.0
         self.new_episode(seed)
+
+    @property
+    def screen(self) -> pygame.Surface:
+        """The frame being drawn (render resolution; the GPU scales it to the window)."""
+        return self.display.surface
+
+    def _make_renderer(self) -> None:
+        w, h = self.screen.get_size()
+        if self.renderer is not None:
+            close_renderer(self.renderer)
+        self.renderer = mujoco.Renderer(self.system.sim.model, height=h, width=w)
+
+    @property
+    def show_help(self) -> bool:
+        """Panels shown at all (compact or full)."""
+        return self.hud != "none"
+
+    @show_help.setter
+    def show_help(self, on: bool) -> None:
+        self.hud = "full" if on else "none"
 
     # ----- episodes -----
     def new_episode(self, seed: int) -> None:
@@ -351,8 +625,10 @@ class App:
     # ----- input -----
     def handle_events(self) -> bool:
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+            if event.type in (pygame.QUIT, pygame.WINDOWCLOSE):
                 return False
+            if self.display.handle_event(event):
+                self._make_renderer()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     return False
@@ -366,7 +642,7 @@ class App:
                 elif event.key == pygame.K_t:
                     self.continue_after_contact = not self.continue_after_contact
                 elif event.key == pygame.K_h:
-                    self.show_help = not self.show_help
+                    self.hud = HUD_MODES[(HUD_MODES.index(self.hud) + 1) % len(HUD_MODES)]
                 elif event.key == pygame.K_F12:
                     self.save_screenshot()
             self.view.handle_event(event)
@@ -447,22 +723,59 @@ class App:
         camera = self.view.apply(s.sim, self._frame_dt)  # viewer only
         # The robot's own camera shows the ceiling; overview cameras hide it (cutaway).
         option = s.sim.camera_option if camera == "robot_cam" else self.overview_option
+        vis = s.sim.model.vis.global_
+        normal_fovy = vis.fovy
+        if VIEWS[self.view.mode] in ("chase", "orbit"):
+            vis.fovy = self.view.fovy  # free-camera field of view (the robot camera has its own)
+        s.sim.before_render()  # pose the visual-only skins (cats) for this frame
+        self._choose_shadow_lights(camera)
         self.renderer.update_scene(s.sim.data, camera=camera, scene_option=option)
-        self.screen.blit(_surface(self.renderer.render()), (0, 0))
+        vis.fovy = normal_fovy
+        image = self.renderer.render()
+        self.screen.blit(_surface(image), (0, 0))
 
-        if not self.show_help:
+        if self.hud == "none":
             _text_box(self.screen, self.font, ["H: show panels"], (24, 20))
             self.draw_banners()
             return
+        width, height = self.screen.get_size()
+        compact = self.hud == "compact"
         if camera != "robot_cam":  # the main view already shows the robot camera: no duplicate inset
-            cam_rect = pygame.Rect(WINDOW[0] - 336, 16, 320, 240)
-            self.screen.blit(_surface(s.sim.render_camera()), cam_rect.topleft)
+            cam_rect = pygame.Rect(width - 256, 16, 240, 180) if compact else pygame.Rect(width - 336, 16, 320, 240)
+            stale = self._inset is None or self._inset.get_size() != cam_rect.size
+            if stale or abs(s.time - self._inset_time) >= INSET_PERIOD - 1e-9:
+                # rendered at the shown size, without shadow or floor-reflection passes (each
+                # re-draws the whole scene, and the small inset shows neither); the skins were
+                # posed for this frame
+                m = s.sim.model
+                cast = m.light_castshadow.copy()
+                m.light_castshadow[:] = 0
+                try:
+                    image = s.sim.render_camera((cam_rect.height, cam_rect.width), posed=True, reflections=False)
+                finally:
+                    m.light_castshadow[:] = cast
+                self._inset_pixels = image  # the cached surface shares these pixels
+                self._inset, self._inset_time = _surface(image), s.time
+            self.screen.blit(self._inset, cam_rect.topleft)
             pygame.draw.rect(self.screen, (235, 240, 245), cam_rect, 2)
             _text_box(self.screen, self.font, ["robot camera"], (cam_rect.x + 8, cam_rect.bottom + 9))
-        self.draw_lidar(pygame.Rect(WINDOW[0] - 236, WINDOW[1] - 236, 220, 220))
+        lidar = 160 if compact else 220
+        self.draw_lidar(pygame.Rect(width - lidar - 16, height - lidar - 16, lidar, lidar))
 
         obs = s.observe()
         res = s.last_result
+        if compact:  # driving essentials only, so the view stays clear (H: full diagnostics)
+            safety = ", ".join(res.reasons) if res.reasons else "ok"
+            if "clearance" in res.reasons:
+                safety += f"   free moves: {self.free_moves_text()}"
+            _text_box(self.screen, self.font, [
+                f"{self.speed_level_text()}   goal {obs.goal_distance:4.2f} m at {math.degrees(obs.goal_bearing):+4.0f} deg"
+                f"   time {self.episode_time():5.1f}/{C.EPISODE_TIME_LIMIT:.0f} s",
+                f"safety: {safety}   collisions {s.collisions}   {self.clock.get_fps():3.0f} FPS",
+            ], (24, 20))
+            _text_box(self.screen, self.font, ["H: more    C: view    F11: fullscreen    Esc: quit"], (24, height - 36))
+            self.draw_banners()
+            return
         fresh = s.command_age is not None and s.command_age <= C.COMMAND_LIFETIME
         req = s.requested if (fresh and (self.input.drive_input_held or not self.manual_driving)) else None
         rtf = self.sim_elapsed / self.wall_elapsed if self.wall_elapsed > 0 else 0.0
@@ -480,8 +793,33 @@ class App:
             f"{self.clock.get_fps():4.0f} FPS   real-time factor {rtf:4.2f}",
         ]
         _text_box(self.screen, self.font, lines, (24, 20))
-        _text_box(self.screen, self.font, HELP, (24, WINDOW[1] - 20 * len(HELP) - 16))
+        _text_box(self.screen, self.font, HELP, (24, height - 20 * len(HELP) - 16))
         self.draw_banners()
+
+    def _choose_shadow_lights(self, camera) -> None:
+        """Shadows from the SHADOW_LIGHTS room lights nearest the robot (the rooms in view); the
+        top view, which shows every room, uses the fixed TOP_SHADOW_LIGHTS. Each shadow-casting
+        light re-draws the whole scene (about 1 ms each), so this is the main rendering cost."""
+        m = self.system.sim.model
+        if self._shadow_lights is None:
+            self._shadow_lights = np.flatnonzero(m.light_castshadow).copy()
+            names = {mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_LIGHT, int(k)) for k in self._shadow_lights}
+            self._top_lights = np.array([k for k in self._shadow_lights
+                                         if mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_LIGHT, int(k)) in TOP_SHADOW_LIGHTS])
+            if not set(TOP_SHADOW_LIGHTS) <= names:
+                self._top_lights = self._shadow_lights  # another world: every light
+        lights = self._shadow_lights
+        if VIEWS[self.view.mode] == "top":
+            m.light_castshadow[lights] = 0
+            m.light_castshadow[self._top_lights] = 1
+            return
+        if len(lights) <= SHADOW_LIGHTS:
+            m.light_castshadow[lights] = 1
+            return
+        x, y, _ = self.system.sim.true_pose()
+        d = np.hypot(m.light_pos[lights, 0] - x, m.light_pos[lights, 1] - y)
+        m.light_castshadow[lights] = 0
+        m.light_castshadow[lights[np.argsort(d)[:SHADOW_LIGHTS]]] = 1
 
     def draw_banners(self) -> None:
         obs = self.system.observe()
@@ -492,14 +830,18 @@ class App:
                     + " and press again to drive", (240, 200, 90), y=200)
         if not self.input.focused:
             _banner(self.screen, self.big, "WINDOW NOT FOCUSED - STOPPED", (240, 170, 40), y=255)
-        if self.view.blocked and VIEWS[self.view.mode] in ("chase", "orbit"):
-            _text_box(self.screen, self.font, ["view blocked by furniture: press C for another view"], (24, 300))
+        if VIEWS[self.view.mode] in ("chase", "orbit"):
+            if self.view.blocked:
+                _text_box(self.screen, self.font, ["view blocked by furniture: press C for another view"], (24, 300))
+            elif self.view.limited:
+                _text_box(self.screen, self.font, ["zoom limited by walls"], (24, 300))
         status = self.episode.status
         if status != "running":
             text = {"success": "GOAL REACHED!", "collision": "COLLISION - episode over",
                     "timeout": "TIME LIMIT - episode over"}[status]
             color = (60, 200, 90) if status == "success" else (230, 70, 60)
-            _banner(self.screen, self.big, text + "   (R: restart, N: next goal)", color, y=WINDOW[1] // 2 - 20)
+            _banner(self.screen, self.big, text + "   (R: restart, N: next goal)", color,
+                    y=self.screen.get_height() // 2 - 20)
         if obs.contact:
             pygame.draw.rect(self.screen, (240, 60, 50), self.screen.get_rect(), 6)
 
@@ -529,7 +871,7 @@ class App:
         pygame.draw.rect(panel, (255, 205, 0), pygame.Rect(cx - hw, cy - hl, 2 * hw, 2 * hl), 1)
         pygame.draw.polygon(panel, (255, 205, 0), [(cx, cy - hl), (cx - 4, cy - hl + 7), (cx + 4, cy - hl + 7)])
         self.screen.blit(panel, rect.topleft)
-        _text_box(self.screen, self.font, ["lidar (up = forward)"], (rect.x + 8, rect.y - 25))
+        _text_box(self.screen, self.font, ["lidar"], (rect.x, rect.y - 25))  # forward is up (the arrow)
 
     def save_screenshot(self, path: Path | None = None) -> Path:
         path = path or SCREENSHOT_DIR / f"screenshot_{time.strftime('%Y%m%d_%H%M%S')}.png"
@@ -539,8 +881,44 @@ class App:
 
     # ----- main loop -----
     def run(self) -> dict:
+        # Everything built so far (world, renderer, cats) lives for the whole run: moved out of the
+        # garbage collector's view, a full collection no longer walks it (a 20+ ms frame). Only
+        # when the caller has frozen nothing itself (its own freeze is never undone), and undone
+        # however the run ends; the window and renderers are closed however it ends, too.
+        froze = gc.isenabled() and gc.get_freeze_count() == 0
+        if froze:
+            gc.collect()
+            gc.freeze()
+        try:
+            try:
+                summary = self._run_loop()
+            except BaseException:
+                self._close_all()  # the run's own error is the one raised
+                raise
+            failed = self._close_all()
+            if failed is not None:
+                raise failed
+            return summary
+        finally:
+            if froze:
+                gc.unfreeze()  # collectable again (a process may run more than one App)
+
+    def _close_all(self) -> Exception | None:
+        """Close the main renderer, the system (with the robot camera and log), the window, and
+        pygame, each one even if an earlier one fails; returns the first failure (or None)."""
+        failed = None
+        for close in (lambda: close_renderer(self.renderer), self.system.close, self.display.close, pygame.quit):
+            try:
+                close()
+            except Exception as e:  # keep closing the rest
+                failed = failed or e
+        return failed
+
+    def _run_loop(self) -> dict:
         running = True
         last = time.perf_counter()
+        self._last_present = None
+        self._next_slot = None
         while running:
             self._advance_script()
             running = self.handle_events()
@@ -550,8 +928,17 @@ class App:
             self.simulate(real_dt)
             self._frame_dt = min(real_dt, MAX_FRAME_DT)
             self.draw()
-            pygame.display.flip()
-            self.clock.tick(FPS)
+            # Even application pacing: each frame is handed over at its slot of a fixed 1/FPS
+            # schedule (resynced after a late frame). Not synchronized to the display refresh, so
+            # a display at another rate or phase can still repeat or skip a refresh.
+            self._next_slot = present_deadline(self._next_slot, time.perf_counter())
+            _wait_until(self._next_slot)
+            self.display.present()  # no vsync wait; the window system shows the frame
+            self.clock.tick()
+            done = time.perf_counter()
+            if self._last_present is not None:
+                self.frame_times.append(done - self._last_present)
+            self._last_present = done
             if self.frames_left is not None:
                 self.frames_left -= 1
                 if self.frames_left <= 0:
@@ -565,9 +952,6 @@ class App:
             "goal_distance": self.system.observe().goal_distance, "fps": self.clock.get_fps(),
             "real_time_factor": self.sim_elapsed / self.wall_elapsed if self.wall_elapsed else 0.0,
         }
-        self.renderer.close()
-        self.system.close()
-        pygame.quit()
         return summary
 
     def _advance_script(self) -> None:
@@ -592,9 +976,36 @@ class App:
         self._script_keys = keys
 
 
+def _camera_point(look, azimuth: float, elevation: float, distance: float) -> np.ndarray:
+    az, el = math.radians(azimuth), math.radians(elevation)
+    back = np.array([-math.cos(el) * math.cos(az), -math.cos(el) * math.sin(az), -math.sin(el)])
+    return np.asarray(look, dtype=float) + back * distance
+
+
+def present_deadline(slot: float | None, now: float, fps: float = FPS) -> float:
+    """The next frame's slot on a fixed 1/fps schedule. A frame that is already late (the slot
+    passed by more than one period) starts a new schedule from now instead of rushing to catch up."""
+    period = 1.0 / fps
+    if slot is None or now > slot + period:
+        return now
+    return slot + period
+
+
+def _wait_until(t: float, clock=time.perf_counter, sleep=time.sleep) -> None:
+    """Sleep coarsely, then spin for the last 2 ms (Windows sleeps are coarse)."""
+    while True:
+        left = t - clock()
+        if left <= 0:
+            return
+        if left > 0.002:
+            sleep(left - 0.002)
+
+
 def _surface(image: np.ndarray) -> pygame.Surface:
+    """A surface showing the RGB image, sharing its pixels (no copy): the caller keeps the array
+    alive as long as the surface is used."""
     h, w, _ = image.shape
-    return pygame.image.frombuffer(image.tobytes(), (w, h), "RGB")
+    return pygame.image.frombuffer(np.ascontiguousarray(image, dtype=np.uint8), (w, h), "RGB")
 
 
 def _cmd(c) -> str:
@@ -615,7 +1026,7 @@ def _banner(screen, font, text, color, y) -> None:
     surf = font.render(text, True, color)
     box = pygame.Surface((surf.get_width() + 30, surf.get_height() + 16), pygame.SRCALPHA)
     box.fill((10, 14, 22, 210))
-    x = (WINDOW[0] - box.get_width()) // 2
+    x = (screen.get_width() - box.get_width()) // 2
     screen.blit(box, (x, y))
     screen.blit(surf, (x + 15, y + 8))
 
@@ -624,8 +1035,8 @@ def main(argv: list[str] | None = None) -> dict:
     p = argparse.ArgumentParser(description="Drive the robot by hand.")
     p.add_argument("--seed", type=int, default=C.HELDOUT_SEEDS[0], help="goal seed (start and goal positions)")
     p.add_argument("--view", type=int, default=0, help="0 chase, 1 top, 2 orbit, 3 robot camera")
-    p.add_argument("--cats", type=int, default=0, choices=range(0, MAX_CATS + 1),
-                   help=f"number of wandering cats, 0 to {MAX_CATS} (default 0: off)")
+    p.add_argument("--cats", type=int, default=DEFAULT_CATS, choices=range(0, MAX_CATS + 1),
+                   help=f"number of wandering cats, 0 to {MAX_CATS} (default {DEFAULT_CATS}; 0 turns them off)")
     p.add_argument("--cat-seed", type=int, default=0, help="seed for the cats' behavior (independent of the goal)")
     p.add_argument("--speed-level", type=int, default=C.DEFAULT_SPEED_LEVEL + 1,
                    choices=range(1, len(C.SPEED_LEVELS) + 1),

@@ -20,6 +20,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from . import config as C
+from . import kernels
 from .types import STOP, Command, Observation
 
 # Reasons that count against the driver (interventions). Operator stops and
@@ -174,17 +175,10 @@ def is_safe(command: Command, obs: Observation, points: np.ndarray | None = None
         return True
     v0, w0 = obs.velocity_estimate
     poses = predict_poses(v0, w0, command.v, command.omega)
-    X, Y, TH = poses[:, 0:1], poses[:, 1:2], poses[:, 2:3]
-    dx, dy = pts[None, :, 0] - X, pts[None, :, 1] - Y
-    c, s = np.cos(TH), np.sin(TH)
-    lx, ly = c * dx + s * dy, -s * dx + c * dy
-    dist = footprint_distance(lx, ly)  # (poses, points)
-    d0 = footprint_distance(pts[:, 0], pts[:, 1])
-    dmin = dist.min(axis=0)
-    outside = d0 >= C.SAFETY_BUFFER
-    ok_outside = dmin[outside] >= C.SAFETY_BUFFER
-    ok_inside = dmin[~outside] >= d0[~outside] - 1e-4  # escaping must not get closer to anything
-    return bool(ok_outside.all() and ok_inside.all())
+    # every point keeps SAFETY_BUFFER from the footprint at every predicted pose; a point already
+    # closer must not get closer (escaping is allowed) (kernels.swept_clear)
+    return bool(kernels.swept_clear(poses, np.ascontiguousarray(pts, dtype=float), C.FOOTPRINT_HALF_LENGTH,
+                                    C.FOOTPRINT_HALF_WIDTH, C.SAFETY_BUFFER))
 
 
 MIN_SCALE = 0.1  # below this fraction of the requested speed, stop instead of creeping

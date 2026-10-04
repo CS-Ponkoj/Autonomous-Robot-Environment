@@ -17,5 +17,5 @@ if (-not (Test-Path ".venv\Scripts\python.exe")) {
 if ($LASTEXITCODE -ne 0) { throw "Upgrading pip failed." }
 & .venv\Scripts\python.exe -m pip install -r requirements.txt
 if ($LASTEXITCODE -ne 0) { throw "Installing requirements failed." }
-& .venv\Scripts\python.exe -c "import mujoco, gymnasium, pygame; print('Setup OK: MuJoCo', mujoco.__version__, '/ Gymnasium', gymnasium.__version__)"
+& .venv\Scripts\python.exe -c "import mujoco, gymnasium, pygame, numba; from robot_env import kernels; t = kernels.warm(); print('Setup OK: MuJoCo', mujoco.__version__, '/ Gymnasium', gymnasium.__version__, '/ Numba', numba.__version__, '(cat kernels compiled in %.1f s)' % t)"
 if ($LASTEXITCODE -ne 0) { throw "Package check failed." }

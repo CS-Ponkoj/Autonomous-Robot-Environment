@@ -605,7 +605,7 @@ HEADER = """<!--
   <option timestep="0.0005" integrator="implicitfast" cone="elliptic" impratio="1"/>
 
   <visual>
-    <global offwidth="1280" offheight="720"/>
+    <global offwidth="2560" offheight="1440"/>
     <quality shadowsize="4096" offsamples="4"/>
     <headlight ambient="0.3 0.3 0.3" diffuse="0.18 0.18 0.18" specular="0.03 0.03 0.03"/>
     <!-- Clip planes are fractions of the model extent; znear keeps cameras from seeing

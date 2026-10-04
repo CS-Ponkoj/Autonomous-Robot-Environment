@@ -259,3 +259,17 @@ def test_tire_contacts_are_single_points_and_the_solver_is_quiet():
             s.advance(C.PHYSICS_DT)
         assert sum(int(w.number) for w in s.sim.data.warning) == 0
     s.close()
+
+
+def test_config_doors_match_the_generated_door_frames(sim):
+    """config.DOORS (where cats never rest) is the centre of every door frame in the world."""
+    m = sim.model
+    names = [m.geom(g).name for g in range(m.ngeom)]
+    centres = []
+    for name in names:
+        if name.endswith("_jambL"):
+            a, b = m.geom(name).pos, m.geom(name[:-1] + "R").pos
+            centres.append(((a[0] + b[0]) / 2, (a[1] + b[1]) / 2))
+    assert len(centres) == len(C.DOORS)
+    for door in C.DOORS:
+        assert min(math.hypot(door[0] - x, door[1] - y) for x, y in centres) < 1e-6, door

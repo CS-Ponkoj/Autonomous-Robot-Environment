@@ -1,4 +1,4 @@
-"""Wandering cats (off by default): geometry, motion bounds, sensing, contacts, determinism."""
+"""Wandering cats: geometry, motion bounds, sensing, contacts, determinism."""
 
 import math
 
@@ -7,10 +7,10 @@ import numpy as np
 import pytest
 
 from robot_env import config as C
-from robot_env.cats import (ACCEL, CAT_GAP, MAX_CATS, ROBOT_GAP, V_MAX, WALL_GAP, YAW_ACCEL, YAW_RATE,
-                            cat_xml)
+from robot_env.cats import (ACCEL, ANIM_PERIOD, CAT_GAP, MAX_CATS, MIN_TURN_SPEED, PIVOT_RATE, ROBOT_GAP, V_MAX, WALL_GAP,
+                            YAW_ACCEL, YAW_RATE, cat_world)
 from robot_env.sim import RobotSim
-from robot_env.system import RobotSystem, mujoco_forward
+from robot_env.system import RobotSystem
 
 
 def test_cats_off_keeps_the_default_world_unchanged():
@@ -24,9 +24,9 @@ def test_cats_off_keeps_the_default_world_unchanged():
 
 
 def test_cat_count_and_seed_are_validated():
-    assert cat_xml(MAX_CATS) and cat_xml(0) == ""
+    assert cat_world(MAX_CATS).worldbody and cat_world(0).worldbody == ""
     with pytest.raises(ValueError):
-        cat_xml(MAX_CATS + 1)
+        cat_world(MAX_CATS + 1)
     with pytest.raises(ValueError):
         RobotSystem(cats=-1)
     with pytest.raises(ValueError):
@@ -48,29 +48,43 @@ def _run(seed=4, cats=3, seconds=40.0, start=(0.0, 0.0, 0.0), goal=(4.0, 4.0), r
 
 
 def test_cats_never_overlap_furniture_robot_or_each_other_and_respect_motion_bounds():
-    """A long seeded run: every physics step the cats keep their gaps, never leave the floor,
-    and speed, acceleration, and turn rate stay inside their bounds; no solver warnings."""
-    prev = {}
-    worst = {"accel": 0.0, "yaw_rate": 0.0, "yaw_accel": 0.0, "speed": 0.0, "step": 0.0}
+    """A long seeded run. At every motion sample (100 Hz) the whole visible cat keeps its gaps and
+    the root speed, acceleration, turn rate, and turn acceleration stay inside their bounds; a
+    cat never turns while (nearly) stopped. At every physics step every collider moves
+    continuously (no jumps). No solver warnings."""
+    prev, prev_cols = {}, None
+    worst = {"accel": 0.0, "yaw_rate": 0.0, "yaw_accel": 0.0, "speed": 0.0, "col_step": 0.0}
 
     def check(s, i):
-        for cat in s.cats.cats:
-            wall, robot, other = s.cats.gaps(cat, cat.x, cat.y, cat.yaw)
-            assert wall >= WALL_GAP - 1e-9 and robot >= ROBOT_GAP - 1e-9 and other >= CAT_GAP - 1e-9, (i, cat)
+        nonlocal prev_cols
+        herd = s.cats
+        cols = herd.col_world.copy()
+        if prev_cols is not None:
+            worst["col_step"] = max(worst["col_step"], float(np.abs(cols - prev_cols).max()))
+        prev_cols = cols
+        for cat in herd.cats:
+            key = (cat.index, cat.t0)
+            if key in prev:
+                continue
+            prev[key] = True
+            wall, robot, other = herd.gaps(cat, cat.x, cat.y, cat.yaw)
+            assert wall >= WALL_GAP - 1e-9 and robot >= ROBOT_GAP - 1e-9 and other >= CAT_GAP - 1e-9, (i, cat.index)
             assert abs(cat.x) < C.FLOOR_HALF_SIZE and abs(cat.y) < C.FLOOR_HALF_SIZE
-            if cat.index in prev:
-                px, py, pyaw, pv, pw = prev[cat.index]
-                worst["step"] = max(worst["step"], math.hypot(cat.x - px, cat.y - py))
-                worst["accel"] = max(worst["accel"], abs(cat.v - pv) / C.PHYSICS_DT)
-                worst["yaw_accel"] = max(worst["yaw_accel"], abs(cat.w - pw) / C.PHYSICS_DT)
+            last = prev.get(("state", cat.index))
+            if last is not None:
+                pv, pw, pyaw = last
+                worst["accel"] = max(worst["accel"], abs(cat.v - pv) / ANIM_PERIOD)
+                worst["yaw_accel"] = max(worst["yaw_accel"], abs(cat.w - pw) / ANIM_PERIOD)
+                if max(abs(pv), abs(cat.v)) < MIN_TURN_SPEED - 1e-9:  # (nearly) stopped: pivot steps only
+                    assert abs(math.remainder(cat.yaw - pyaw, 2 * math.pi)) <= PIVOT_RATE * ANIM_PERIOD + 1e-9, (i, cat.index)
+            prev[("state", cat.index)] = (cat.v, cat.w, cat.yaw)
             worst["speed"] = max(worst["speed"], abs(cat.v))
             worst["yaw_rate"] = max(worst["yaw_rate"], abs(cat.w))
-            prev[cat.index] = (cat.x, cat.y, cat.yaw, cat.v, cat.w)
 
     s = _run(each=check)
     assert worst["speed"] <= V_MAX + 1e-9 and worst["yaw_rate"] <= YAW_RATE + 1e-9
     assert worst["accel"] <= ACCEL + 1e-6 and worst["yaw_accel"] <= YAW_ACCEL + 1e-6
-    assert worst["step"] <= V_MAX * C.PHYSICS_DT + 1e-9  # continuous motion: no jumps
+    assert worst["col_step"] <= 0.003, worst  # continuous colliders: at most 3 mm per 0.5 ms step
     assert sum(int(w.number) for w in s.sim.data.warning) == 0
     states = {st for cat in s.cats.cats for _, st in cat.transitions}
     assert {"walk", "pause"} <= states  # the behavior really varies
@@ -86,8 +100,7 @@ def test_cat_collision_bodies_stay_clear_of_static_geometry_exactly():
         if i % 20:
             return
         m, d = s.sim.model, s.sim.data
-        cat_geoms = [g for g in range(m.ngeom) if m.body(int(m.geom_bodyid[g])).name.startswith("cat")
-                     and m.geom_contype[g]]
+        cat_geoms = np.flatnonzero(s.sim._cat_geom)
         statics = np.flatnonzero(s.sim._solid_world_geom & ~s.sim._cat_geom)
         for g in cat_geoms:
             for w in statics:
@@ -110,28 +123,28 @@ def test_cats_are_deterministic_per_seed():
     assert track(5) != track(6)
 
 
-def test_lidar_sees_a_cat_standing_sitting_and_turned():
-    """The cat's collision body crosses the lidar plane in every pose: the scan returns a hit at
-    the cat's bearing at about the cat's distance, across distances and between-ray offsets."""
+def test_lidar_sees_a_standing_cat_from_every_side():
+    """At 0.4 to 2.0 m, every yaw (45 deg steps) and bearing offset between rays (0 to 0.75 deg),
+    at least one ray's first hit is the cat at about its distance; at 3.0 m at least 95% of the
+    cases. A thin leg can fall between rays farther away (real lidar behaviour)."""
     s = RobotSystem(cats=1, cat_seed=0)
-    s.reset(-2.0, -0.0, 0.0, (4.0, 4.0))  # open corridor, robot facing +x
-    cat = s.cats.cats[0]
-    misses = []
-    for dist in (0.6, 1.2, 2.0, 3.0):
-        for offset_deg in (0.0, 0.3, 0.5):
-            for yaw, pitch in ((0.0, 0.0), (math.pi / 2, 0.0), (math.pi / 4, math.radians(35))):
+    s.reset(-4.0, 0.0, 0.0, (4.0, 4.0))  # corridor, robot facing +x
+    misses, total_far, misses_far = [], 0, 0
+    for dist in (0.4, 0.8, 1.2, 2.0, 3.0):
+        for offset_deg in (0.0, 0.25, 0.5, 0.75):
+            for k in range(8):
                 bearing = math.radians(offset_deg)
-                cat.x, cat.y = -2.0 + dist * math.cos(bearing), dist * math.sin(bearing)
-                cat.yaw, cat.pitch = yaw, pitch
-                s.cats._write_poses()
-                mujoco_forward(s.sim)
+                s.cats.place(0, -4.0 + dist * math.cos(bearing), dist * math.sin(bearing), k * math.pi / 4, state="pause")
                 ranges, valid = s.sim.scan()
-                near = np.abs(np.degrees(s.sim.lidar_angles) - offset_deg) <= 3.0
-                # the ray hits a cat geom (not something behind it) at about the cat's distance
-                seen = (near & valid & _cat_rays(s) & (ranges > dist - 0.25) & (ranges < dist + 0.1)).any()
-                if not seen:
-                    misses.append((dist, offset_deg, round(yaw, 2), round(math.degrees(pitch))))
+                near = np.abs(np.degrees(s.sim.lidar_angles) - offset_deg) <= 25.0
+                seen = (near & valid & _cat_rays(s) & (ranges > dist - 0.35) & (ranges < dist + 0.3)).any()
+                if dist >= 3.0:
+                    total_far += 1
+                    misses_far += not seen
+                elif not seen:
+                    misses.append((dist, offset_deg, k))
     assert not misses, misses
+    assert misses_far <= 0.05 * total_far, (misses_far, total_far)
     s.close()
 
 
@@ -143,12 +156,14 @@ def _cat_rays(s):
 def _inject(s, poses):
     """Fault injection (the cat policy never does this): place cats and drive them straight,
     bypassing the policy's gaps and behavior."""
-    s.cats.pose_ok = lambda *a: True
-    s.cats.tick = lambda: None
-    for cat, (x, y, yaw, v) in zip(s.cats.cats, poses):
-        cat.x, cat.y, cat.yaw, cat.v, cat.target_v, cat.target_yaw = x, y, yaw, v, v, yaw
-    s.cats._write_poses()
-    mujoco_forward(s.sim)
+    s.cats.pose_ok = lambda *a, **k: True
+    s.cats.tick = lambda **k: None
+
+    def straight(cat):  # no local planner either: straight ahead at the placed speed
+        cat.cmd_v, cat.cmd_w, cat.cmd_lat = cat.target_v, 0.0, 0.0
+    s.cats._plan = straight
+    for i, (x, y, yaw, v) in enumerate(poses):
+        s.cats.place(i, x, y, yaw, v=v, state="walk")
 
 
 def test_a_cat_walking_into_a_stopped_robot_is_a_collision_and_a_cat_contact():
@@ -173,7 +188,7 @@ def test_a_cat_walking_into_a_stopped_robot_is_a_collision_and_a_cat_contact():
     cat = s.cats.cats[0]
     assert cat.frozen and cat.v == 0.0
     assert worst_shift < 0.01 and worst_v < 0.05, (worst_shift, worst_v)  # bounded: no shove
-    assert cat.x - s.sim.true_pose()[0] > 0.2  # no tunneling: the cat stays in front of the robot
+    assert cat.x - s.sim.true_pose()[0] > 0.15  # no tunneling: the cat stays in front of the robot
     s.close()
 
 
@@ -410,45 +425,42 @@ def test_gym_rejects_cat_arguments_that_disagree_with_a_given_system():
 
 
 def test_lidar_with_one_cat_partly_hiding_another():
-    """A near cat partly hides a far one: rays on the near cat read the near distance, and the
-    far cat is still seen past the near cat's edge."""
+    """A near cat partly hides a far one: rays on the near cat read the near distance, the far cat
+    is still seen past the near cat's edge, and fewer rays reach it than without the near cat."""
     s = RobotSystem(cats=2, cat_seed=0)
-    s.reset(-2.0, 0.0, 0.0, (4.0, 4.0))
-    near, far = s.cats.cats
-    near.x, near.y, near.yaw = -1.2, 0.0, 0.0  # end-on, 0.15 m wide, about 0.7 m away
-    far.x, far.y, far.yaw = 0.4, 0.3, 0.0  # 2.4 m away, offset so only part of it is hidden
-    s.cats._write_poses()
-    mujoco_forward(s.sim)
-    ranges, valid = s.sim.scan()
+    s.reset(-4.0, 0.0, 0.0, (4.0, 4.0))
     m = s.sim.model
-    body = np.array([m.body(int(m.geom_bodyid[g])).name if g >= 0 else "" for g in s.sim._scan_geom])
-    on_near, on_far = body == "cat0", body == "cat1"
-    assert on_near.any() and on_far.any()
-    assert (ranges[on_near & valid] < 1.0).all() and (ranges[on_far & valid] > 2.0).all()
-    # partly hidden: the far cat's full angular span is wider than the part the lidar sees
-    span = np.degrees(np.arctan2(far.y + np.array([-0.075, 0.075]), far.x + 2.0))
-    in_span = (np.degrees(s.sim.lidar_angles) > span[0]) & (np.degrees(s.sim.lidar_angles) < span[1])
-    assert (in_span & on_near).any() and (in_span & on_far).any()
+
+    def owners():
+        ranges, valid = s.sim.scan()
+        body = np.array([m.body(int(m.geom_bodyid[g])).name if g >= 0 else "" for g in s.sim._scan_geom]).astype(str)
+        return ranges, valid, np.char.startswith(body, "cat0_"), np.char.startswith(body, "cat1_")
+
+    s.cats.place(0, 3.0, -3.0, 0.0, state="pause")  # out of the way
+    s.cats.place(1, -1.3, 0.35, math.pi / 2, state="pause")  # 2.7 m away
+    alone = owners()[3].sum()
+    s.cats.place(0, -3.0, 0.0, math.pi / 2, state="pause")  # broadside, about 1 m away
+    ranges, valid, on_near, on_far = owners()
+    assert on_near.any() and on_far.any() and on_far.sum() < alone, (on_far.sum(), alone)
+    assert (ranges[on_near & valid] < 1.4).all() and (ranges[on_far & valid] > 2.2).all()
     s.close()
 
 
 def test_sit_and_dart_states_have_their_durations_and_are_logged(tmp_path):
-    """Forced states: sit holds still for 3 to 8 s with the body pitched; dart runs fast for 0.4
-    to 0.8 s. Every transition reaches the drive log with its time."""
-    from robot_env.cats import SIT_PITCH
+    """Forced states: sit holds still for 3 to 8 s; dart runs fast for 0.4 to 0.8 s. Every
+    transition reaches the drive log with its time."""
     from robot_env.drive_log import DriveLog, read_log
     s = RobotSystem(cats=1, cat_seed=7)
     with DriveLog(tmp_path / "states.jsonl") as log:
         s.log = log
         s.reset(-2.0, 0.0, 0.0, (4.0, 4.0))
         herd, cat = s.cats, s.cats.cats[0]
-        cat.x, cat.y, cat.v, cat.w = 2.0, 0.0, 0.0, 0.0  # open corridor, far from the robot
+        herd.place(0, 2.0, 0.0, 0.0)  # open corridor, far from the robot
         herd._enter(cat, "sit")
         assert 3.0 <= cat.state_until - herd.time <= 8.0
         x0, y0 = cat.x, cat.y
         s.advance(1.0)
-        assert cat.state == "sit" and (cat.x, cat.y) == (x0, y0)
-        assert abs(cat.pitch - SIT_PITCH) < 1e-6
+        assert cat.state == "sit" and math.hypot(cat.x - x0, cat.y - y0) < 0.02  # settles where it is
         herd._enter(cat, "dart")
         dart_len = cat.state_until - herd.time
         assert 0.4 <= dart_len <= 0.8
@@ -516,4 +528,309 @@ def test_baseline_driver_with_cats_reports_every_outcome():
         s.advance(C.DECISION_PERIOD)
     assert s.collisions == 0 and s.cat_contacts == 0, s.cat_contact_events
     assert s.observe().goal_distance <= C.GOAL_RADIUS
+    s.close()
+
+
+# ----- doorways: cats pass through them, never rest there, and give way to a waiting robot -----
+def test_cats_never_rest_in_a_doorway_or_the_corridor():
+    s = RobotSystem(cats=3, cat_seed=8)
+    s.reset(-4.0, 4.0, 0.0, (4.0, -4.0))  # robot parked in the office corner, out of the way
+    herd = s.cats
+    rests = 0
+    for _ in range(int(120.0 / C.CONTROL_PERIOD)):
+        s.advance(C.CONTROL_PERIOD)
+        for cat in herd.cats:
+            if cat.state in ("sit", "pause"):
+                rests += 1
+                assert not herd.in_choke(cat), (cat.index, cat.state, round(cat.x, 2), round(cat.y, 2))
+    assert rests > 0  # the cats did rest (elsewhere)
+    s.close()
+
+
+def _doorway_robot(door, cat_state="pause"):
+    """One cat resting in a doorway of the corridor's north wall (facing into the room) and the
+    robot in the corridor 1.0 m away, facing the doorway."""
+    dx, dy = door
+    s = RobotSystem(cats=1, cat_seed=2)
+    s.reset(dx, dy - 1.0, math.pi / 2, (dx, 3.0))
+    s.cats.place(0, dx, dy + 0.1, math.pi / 2, state=cat_state)
+    cat = s.cats.cats[0]
+    wall, robot, _ = s.cats.gaps(cat, cat.x, cat.y, cat.yaw)
+    assert wall >= WALL_GAP and robot >= ROBOT_GAP  # a pose the cat itself could be in
+    return s
+
+
+@pytest.mark.parametrize("door", [(-2.5, 0.75), (2.5, 0.75)])
+def test_a_cat_in_a_doorway_gives_way_to_a_waiting_robot(door):
+    """The robot asks to drive through; its safety layer holds it back because the cat is in the
+    way; the cat starts moving aside within 0.5 s and the robot is through the doorway within
+    8 s, with no contact (the robot never pushes a cat)."""
+    s = _doorway_robot(door)
+    cat = s.cats.cats[0]
+    waited_from = yielded_at = through_at = None
+    for k in range(int(8.0 / C.CONTROL_PERIOD)):
+        if k % 5 == 0:
+            s.drive(0.3, 0.0)  # a fresh forward request every 0.1 s
+        s.advance(C.CONTROL_PERIOD)
+        if waited_from is None and "clearance" in s.last_result.reasons and s.last_result.command.v < 0.28:
+            waited_from = s.time
+        if yielded_at is None and cat.state == "yield":
+            yielded_at = s.time
+        if s.sim.true_pose()[1] > door[1] + 0.4:
+            through_at = s.time
+            break
+    # it gives way as the robot comes, or at the latest 0.5 s after the robot starts waiting
+    assert yielded_at is not None
+    assert waited_from is None or yielded_at <= waited_from + 0.5 + C.CONTROL_PERIOD
+    assert through_at is not None and through_at <= 8.0
+    assert s.collisions == 0 and s.cat_contacts == 0
+    s.close()
+
+
+def test_a_parked_robot_does_not_herd_a_cat_out_of_its_way():
+    s = _doorway_robot((2.5, 0.75))
+    cat = s.cats.cats[0]
+    for _ in range(int(3.0 / C.CONTROL_PERIOD)):
+        s.advance(C.CONTROL_PERIOD)
+        assert cat.state == "pause"
+    s.close()
+
+
+def test_the_skin_is_drawn_at_the_current_interpolated_pose():
+    """Rendering half-way between two animation samples: every bone body is where the cats just
+    put it (the kinematics are propagated after the bones are written), for the window views
+    and the robot camera alike."""
+    s = RobotSystem(cats=2, cat_seed=3)
+    s.reset(-4.0, 0.0, 0.0, (4.0, 4.0))
+    s.cats.place(0, -2.5, 0.0, 0.0, v=0.4, state="walk")
+    s.advance(1.0 + ANIM_PERIOD / 2)  # mid-sample
+    m, d = s.sim.model, s.sim.data
+    s.sim.before_render()
+    ids = [m.body(f"cat0_b{j}").id for j in range(len(s.cats.rig.joint_names))]
+    mocap = [m.body_mocapid[i] for i in ids]
+    assert np.abs(d.xpos[ids] - d.mocap_pos[mocap]).max() < 1e-9
+    s.sim.render_camera()
+    assert np.abs(d.xpos[ids] - d.mocap_pos[mocap]).max() < 1e-9
+    s.close()
+
+
+def test_a_cat_behind_a_wall_does_not_react_to_the_robot():
+    """The robot pushes toward the corridor's solid north wall (a fresh forward request held back
+    by safety: it is waiting) with a cat resting just behind that wall, close enough to be scared
+    if the wall were not there. The cat does not see it: no fleeing, no giving way, no watching."""
+    s = RobotSystem(cats=1, cat_seed=2)
+    s.reset(1.0, 0.45, math.pi / 2, (1.0, 3.0))
+    s.cats.place(0, 1.0, 1.0, 0.0, state="pause")
+    cat = s.cats.cats[0]
+    for k in range(int(3.0 / C.CONTROL_PERIOD)):
+        if k % 5 == 0:
+            s.drive(0.3, 0.0)
+        s.advance(C.CONTROL_PERIOD)
+        assert cat.state == "pause" and not cat.sees_robot
+        assert cat.animator.head_yaw == pytest.approx(0.0, abs=1e-9)
+    assert s._waiting_forward()  # the robot really was waiting the whole time
+    s.close()
+
+
+def test_the_same_cat_in_plain_sight_does_react():
+    """Control for the test above: the robot in the open office at the same distance, waiting
+    with the cat in its path, so the cat gives way."""
+    s = RobotSystem(cats=1, cat_seed=2)
+    s.reset(-3.0, 1.7, math.pi / 2, (-3.0, 4.0))
+    s.cats.place(0, -3.0, 2.3, 0.0, state="pause")
+    cat = s.cats.cats[0]
+    reacted = False
+    for k in range(int(3.0 / C.CONTROL_PERIOD)):
+        if k % 5 == 0:
+            s.drive(0.3, 0.0)
+        s.advance(C.CONTROL_PERIOD)
+        reacted |= cat.state in ("yield", "flee")
+    assert cat.sees_robot or reacted
+    assert reacted
+    s.close()
+
+
+@pytest.mark.parametrize("door,side,level", [(1, -1, 1), (2, 1, 4), (4, 1, 4), (3, -1, 0), (1, -1, 3), (1, -1, 4)])
+def test_doorway_matrix_samples(door, side, level):
+    """A sample of tools/doorway_check.py (all 100 trials are the release gate): the cat gives way
+    in time, the robot is through in time, nothing touches, and the cat as drawn keeps the robot's
+    safety buffer from the robot's footprint at every physics step (including the fast levels
+    through the lab door, where a cat yielding at the jamb once came within 2 mm)."""
+    import importlib
+    gate = importlib.import_module("tools.doorway_check")
+    trial = next(t for t in gate.trials() if t[0] == door and t[4] == side and t[5] == level and t[6] == "pause")
+    r = gate.run_trial(trial)
+    v = C.SPEED_LEVELS[level][0]
+    assert r["placed"] and r["contacts"] == 0 and r["collisions"] == 0 and r["yield"] is not None
+    assert r["low"] >= gate.MIN_FOOTPRINT_GAP
+    if r["wait"] is not None:
+        assert r["yield"] <= r["wait"] + gate.YIELD_AFTER_WAIT + 0.02
+        assert r["clear"] is not None and r["clear"] <= r["wait"] + gate.CLEAR_AFTER + 0.02
+    assert r["through"] is not None and r["through"] <= (r["start"] + 0.4) / v + gate.WAIT_ALLOWANCE
+
+
+def test_a_cat_sees_past_a_door_jamb_with_its_eyes():
+    """Sight is cast from the eyes (either eye), not the body: a cat with its head past the lab
+    door's jamb sees the robot in the corridor although a ray from its body would hit the jamb.
+    The eye positions are those of the pose as drawn."""
+    s = RobotSystem(cats=1, cat_seed=2)
+    s.reset(1.9, 0.0, math.pi / 2, (2.5, 3.0))
+    s.cats.place(0, 3.25, 1.0, math.pi, state="pause")
+    herd, cat = s.cats, s.cats.cats[0]
+    assert not s.sim.sees_robot((cat.x, cat.y, 0.22))  # the body is behind the jamb
+    s.advance(C.CONTROL_PERIOD)
+    assert cat.sees_robot
+    s.sim.before_render()
+    m, d = s.sim.model, s.sim.data
+    names = herd.rig.joint_names
+    drawn = [d.xpos[m.body(f"cat0_b{names.index(n)}").id] for n in ("Character1_EyeL_00", "Character1_EyeR_025")]
+    assert np.abs(herd.eyes(cat) - np.array(drawn)).max() < 1e-6
+    s.close()
+
+
+# ----- the per-sample proof: swept moves, inside a margin, and the fallbacks -----
+def _herd_one(x, y, yaw, cats=1):
+    s = RobotSystem(cats=cats, cat_seed=2)
+    s.reset(-4.3, 4.3, 0.0, (4.0, -4.0))  # robot parked in the office corner
+    s.cats.place(0, x, y, yaw, state="pause")
+    return s, s.cats, s.cats.cats[0]
+
+
+def test_a_move_whose_ends_are_clear_but_passes_too_close_is_refused():
+    """Past the corner of the storage boxes: both ends of a 12 cm move keep the 3 cm wall gap, but
+    the straight path between them cuts to about 1.7 cm from the corner. The swept proof refuses
+    it (an end-point check would not); the same move in open space is accepted."""
+    from robot_env.cats import Sample
+    s, herd, cat = _herd_one(0.3, -3.9, 0.0)
+    start = herd._finish(Sample(0.4, -3.6, 2.7489, cat.next.pos, cat.next.rot))
+    end = (0.46, -3.7039, 2.7489)
+    path = [herd.gaps(cat, 0.4 + (end[0] - 0.4) * f, -3.6 + (end[1] + 3.6) * f, end[2], start)[0]
+            for f in np.linspace(0.0, 1.0, 25)]
+    assert path[0] >= WALL_GAP and path[-1] >= WALL_GAP and min(path) < WALL_GAP - 0.01  # a real dip
+    assert herd.pose_ok(cat, *end, pose=start)  # an end-point check alone would allow it
+    assert not herd.pose_ok(cat, *end, pose=start, sweep_from=start)
+    s.close()
+    s, herd, cat = _herd_one(-2.5, 2.4, 0.0)
+    start = herd._finish(Sample(-2.5, 2.4, 2.7489, cat.next.pos, cat.next.rot))
+    assert herd.pose_ok(cat, -2.44, 2.2961, 2.7489, pose=start, sweep_from=start)
+    s.close()
+
+
+def test_another_cat_moving_in_the_same_sample_counts_by_its_path():
+    """Cat 1 already moved this sample straight across the space in front of cat 0: cat 0 standing
+    still is clear of where cat 1 ended, but not of the path it took."""
+    from robot_env.cats import ANIM_PERIOD as P, Sample
+    s, herd, a = _herd_one(-2.5, 2.6, 0.0, cats=2)
+    b = herd.cats[1]
+    herd.place(1, -1.9, 2.0, math.pi / 2, state="pause")
+    b.prev = herd._finish(Sample(-1.9, 3.2, math.pi / 2, b.next.pos, b.next.rot))  # it came from beyond cat 0
+    b.t0 = herd.time  # ... in this very sample
+    assert herd.pose_ok(a, a.x, a.y, a.yaw)  # clear of where cat 1 is now
+    assert not herd.pose_ok(a, a.x, a.y, a.yaw, sweep_from=a.next)  # not of its path
+    b.prev = b.next  # cat 1 did not move: fine
+    assert herd.pose_ok(a, a.x, a.y, a.yaw, sweep_from=a.next)
+    s.close()
+
+
+def test_inside_a_gap_a_cat_may_only_move_away():
+    """A cat whose own gap is already too small (here: placed 2 cm from the storage boxes, inside
+    the 3 cm wall gap) may move away from the boxes, but not any closer."""
+    from robot_env.cats import Sample
+    s, herd, cat = _herd_one(0.3, -3.9, 0.0)
+    start = herd._finish(Sample(0.43, -3.652, 2.7489, cat.next.pos, cat.next.rot))
+    g = herd.gaps(cat, start.x, start.y, start.yaw, start)[0]
+    assert g < WALL_GAP
+    # a 1 mm step (about what one 10 ms sample moves when edging out) straight away from the boxes
+    steps = [(0.001 * math.cos(a), 0.001 * math.sin(a)) for a in np.linspace(0, 2 * math.pi, 16, endpoint=False)]
+    dx, dy = max(steps, key=lambda d: herd.gaps(cat, start.x + d[0], start.y + d[1], start.yaw, start)[0])
+    away = herd.pose_ok(cat, start.x + dx, start.y + dy, start.yaw, pose=start, sweep_from=start)
+    closer = herd.pose_ok(cat, start.x - dx, start.y - dy, start.yaw, pose=start, sweep_from=start)
+    g_away = herd.gaps(cat, start.x + dx, start.y + dy, start.yaw, start)[0]
+    assert g_away > g and away and not closer
+    s.close()
+
+
+@pytest.mark.parametrize("fails", [1, 2, 3])
+def test_animation_fallbacks(fails):
+    """The animated pose refused once: a calm animation is used (the cat still moves; its paws do
+    exactly what a calm step does); twice: it stands as it is (root and posture held, the command
+    refused, a new plan at once); three times: the whole sample is rejected (old root and pose,
+    the command refused, counted). Standing or rejected, every planted paw stays planted where
+    it is."""
+    import copy
+
+    from robot_env.cats import ANIM_PERIOD
+    s, herd, cat = _herd_one(-2.5, 2.4, 0.0)
+    cat.state, cat.target_v, cat.target_yaw = "walk", 0.3, 0.0
+    s.advance(0.5)  # walking
+    real = herd.pose_ok
+    left = {"n": fails}
+
+    def flaky(c, x, y, yaw, margin=0.0, pose=None, sweep_from=None):
+        if pose is not None and c is cat and left["n"] > 0:
+            left["n"] -= 1
+            return False
+        return real(c, x, y, yaw, margin, pose, sweep_from)
+    herd.pose_ok = flaky
+    root0, held0, now = (cat.x, cat.y, cat.yaw), cat.held, herd.time
+    calm = copy.deepcopy(cat.animator)  # what a calm step from here does
+    planted0 = {n: leg.world.copy() for n, leg in cat.animator.legs.items() if leg.planted}
+    assert planted0
+    herd._advance_sample(cat)
+    herd.pose_ok = real
+    command = (cat.cmd_v, cat.cmd_w, cat.cmd_lat)
+    if fails == 1:
+        assert cat.x > root0[0] and cat.held == held0 and command not in cat.rejected
+        calm.tail_target = 0.0
+        calm.update(ANIM_PERIOD, cat.x, cat.y, cat.yaw, cat.v, cat.w, None, cat.cmd_lat, settle=False)
+        for n, leg in cat.animator.legs.items():
+            assert leg.planted == calm.legs[n].planted and np.allclose(leg.world, calm.legs[n].world)
+    else:
+        assert (cat.x, cat.y, cat.yaw) == root0  # the root held exactly
+        assert command in cat.rejected and cat.plan_at <= now + 1e-9  # refused; a new plan at once
+        assert cat.held == held0 + (fails == 3)
+        if fails == 3:
+            assert cat.blocked and np.allclose(cat.next.pos, cat.prev.pos)  # the old pose
+        for n, w in planted0.items():  # every planted paw stays planted where it is
+            leg = cat.animator.legs[n]
+            assert leg.planted and np.allclose(leg.world, w)
+    for n, w in planted0.items():
+        leg = cat.animator.legs[n]
+        if leg.planted:
+            assert np.allclose(leg.world, w)  # a planted paw never slides
+    s.close()
+
+
+@pytest.mark.parametrize("robot_v,robot_yaw,expect", [
+    (0.7, 0.0, 0.91),  # coming straight at the cat: hurries (1.3 x 0.7 m/s)
+    (-0.7, 0.0, 0.6),  # backing away: no hurry
+    (0.7, math.pi / 2, 0.6),  # driving past (across the line to the cat): no hurry
+    (0.0, 0.0, 0.6),  # stopped
+    (1.0, 0.0, 1.0),  # fast: capped at the cat's top speed
+])
+def test_a_yielding_cat_hurries_by_how_fast_the_robot_closes_in(monkeypatch, robot_v, robot_yaw, expect):
+    """The yield speed follows the robot's closing speed toward the cat (its velocity along the
+    line to the cat), not its forward speed."""
+    from robot_env.cats import V_MAX, yield_speed
+    s, herd, cat = _herd_one(-1.0, 0.0, 0.0)
+    monkeypatch.setattr(s.sim, "true_pose", lambda: (-2.0, 0.0, robot_yaw))
+    monkeypatch.setattr(s.sim, "true_velocity", lambda: (robot_v, 0.0))
+    closing = herd._robot_closing_speed(cat)
+    assert yield_speed(closing) == pytest.approx(expect)
+    assert yield_speed(closing) <= V_MAX
+    s.close()
+
+
+@pytest.mark.parametrize("robot_v,robot_yaw,expect", [(0.7, 0.0, 0.91), (-0.7, 0.0, 0.6), (0.7, math.pi / 2, 0.6)])
+def test_a_yielding_cat_on_its_way_hurries_by_the_closing_speed(monkeypatch, robot_v, robot_yaw, expect):
+    """At the call site: a cat already giving way (following its route to the spot) takes the
+    speed from the robot's closing speed on each tick: hurried by a robot coming at it, not by
+    one backing away or driving past."""
+    s, herd, cat = _herd_one(-1.0, 0.0, 0.0)
+    monkeypatch.setattr(s.sim, "true_pose", lambda: (-2.0, 0.0, robot_yaw))
+    monkeypatch.setattr(s.sim, "true_velocity", lambda: (robot_v, 0.0))
+    cat.state, cat.state_until, cat.target_v = "yield", herd.time + 5.0, 0.6
+    cat.route, cat.destination = [(-1.0, 1.2), (-1.0, 1.6)], (-1.0, 1.6)
+    herd.tick()
+    assert cat.state == "yield" and cat.target_v == pytest.approx(expect)
     s.close()

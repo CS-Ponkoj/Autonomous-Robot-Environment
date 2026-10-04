@@ -11,6 +11,7 @@ _private/
 data/
 logs/
 models/
+MUJOCO_LOG.TXT
 
 # Working notes stay local; README.md is the only published Markdown file
 *.md

@@ -1,0 +1,40 @@
+{
+ "asset": "cat",
+ "title": "Cat",
+ "creator": "Vr-cvantorium",
+ "creator_url": "https://sketchfab.com/Vr-cvantorium",
+ "source_url": "https://sketchfab.com/3d-models/cat-a503ae2a7bdd43ada7f3bea3ae0a523f",
+ "obtained_from": "Objaverse 1.0 mirror, https://huggingface.co/datasets/allenai/objaverse (glbs/000-070/a503ae2a7bdd43ada7f3bea3ae0a523f.glb)",
+ "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+ "license_url": "http://creativecommons.org/licenses/by/4.0/",
+ "modified": "Converted to a MuJoCo skin rig (axes, scale, bind data), coat textures recoloured and repainted; the original model is unchanged in source/.",
+ "source_file": "robot_env/assets/cat/source/cat_vr-cvantorium.glb",
+ "source_sha256": "ce9a61ee8d9c0edb49834d23e1b3f3d586c9eb19997f122fabdf3d4d61a7d78d",
+ "source_bytes": 2287576,
+ "converted_file": "robot_env/assets/cat/cat_rig.npz",
+ "converted_bytes": 399027,
+ "textures": {
+  "anisotropic2": "cat_anisotropic2.png",
+  "anisotropic1": "cat_anisotropic1.png",
+  "anisotropic3": "cat_anisotropic3.png"
+ },
+ "joints": 34,
+ "vertices": 10741,
+ "faces": 19528,
+ "scale_to_metres": 0.0031764126707996146,
+ "conversion": {
+  "command": "python tools/convert_cat.py",
+  "python": "3.11.5",
+  "date": "2026-10-04"
+ },
+ "coats": {
+  "command": "python tools/make_coats.py",
+  "files": {
+   "brown_tabby": "cat_anisotropic1.png",
+   "ginger_mackerel": "coat_ginger_mackerel.png",
+   "black_tuxedo": "coat_black_tuxedo.png",
+   "grey_tabby": "coat_grey_tabby.png"
+  },
+  "note": "coats painted from 3D body patterns; only fine hair detail kept from the source"
+ }
+}

@@ -13,7 +13,7 @@ automatic driver will use later.
 sit, and walk around it: chase view, then the robot's own camera, then the top view at the
 goal. Full-quality video: [docs/demo.mp4](docs/demo.mp4). Recorded with
 `.venv\Scripts\python tools\make_media.py` (goal seed 1000, speed level 2, 3 cats, cat seed 16).
-Cats are off by default.*
+The window starts with three cats; `--cats 0` turns them off.*
 
 | | |
 |---|---|
@@ -62,8 +62,11 @@ In PowerShell, in this folder:
 ```
 
 This creates `.venv\` and installs the pinned packages from `requirements.txt`
-(MuJoCo, Gymnasium, Pygame, NumPy, pytest). It ends with "Setup OK" and the
-installed versions.
+(MuJoCo, Gymnasium, Pygame, NumPy, Numba, pytest). It ends with "Setup OK" and the
+installed versions. Numba compiles the cats' numeric code (their skeletons, clearance checks, and
+planning) on the first run, which takes a few seconds once; it is needed for the cats to run in
+real time. Without it the same code runs as plain Python with identical results, about 20 times
+slower (fine for tests, too slow for the window).
 
 ## 3. Starting the simulator
 
@@ -78,7 +81,7 @@ installed versions.
 | `--seed N` | Which start and goal to use (default 1000). The same seed always gives the same task. |
 | `--view N` | Starting view: 0 chase, 1 top, 2 orbit, 3 robot camera (default 0). |
 | `--speed-level N` | Starting speed level (default 2). |
-| `--cats N` | Number of wandering cats, 0 to 4 (default 0: off). |
+| `--cats N` | Number of cats, 0 to 4 (default 3; 0 turns them off). |
 | `--cat-seed S` | Seed for the cats' behavior (default 0), independent of the goal seed. |
 | `--screenshot PATH` | Save a screenshot to PATH when the window closes. |
 | `--frames N` | Close after N frames (for automated checks). |
@@ -89,7 +92,22 @@ collisions, interventions, goal distance, frame rate, real-time factor).
 
 ## 4. The window
 
-**Status panel (top left):**
+The window can be resized or maximized (down to 960 x 540), and F11 switches to fullscreen.
+The app paces frames on its own 60-per-second schedule (it does not wait for the screen's
+refresh, which on Windows could stall a covered window for a quarter second); on the tested
+Windows desktop the window system showed whole frames. The rate actually reached depends on the
+computer and on the scene (for example, how many cats are on). A large window costs no more to draw than about 1920 x 1080 pixels: beyond
+that the picture is drawn at that size and scaled by the graphics card.
+
+**Panels (H cycles them):**
+
+- **Compact (default):** two lines (speed level, goal, time, safety, collisions, frame rate),
+  a smaller robot-camera inset, a smaller lidar map, and a one-line key hint. It keeps the
+  view clear while driving.
+- **Full:** every line below, the full key help, and the larger inset and map.
+- **None:** only banners and "H: show panels".
+
+**Status panel (full mode, top left):**
 
 | Line | Meaning |
 |---|---|
@@ -142,7 +160,8 @@ the window means the robot is touching something.
 | R | Restart this goal. |
 | N | Next goal (the next seed). |
 | T | Continue after a collision on or off (for testing). |
-| H | Hide or show the panels. |
+| H | Panels: compact, full, none. |
+| F11 | Fullscreen on or off. |
 | F12 | Save a screenshot to `screenshots\`. |
 | Esc | Quit. |
 
@@ -232,18 +251,43 @@ continue; if a banner asks you to release a key, release it and press again.
 - **Episode end:** reaching the goal, a collision (unless T is on), or the
   time limit. The robot then stops; press R to retry or N for the next goal.
 
-### Wandering cats (optional)
+### Cats (on in the window)
 
-Run with `--cats 3` (up to 4) to add cats that walk, pause, sit, and sometimes dart:
+The window starts with three cats (`--cats 4` for four, `--cats 0` for none). The Python API and
+the Gymnasium environment start with none unless asked (`RobotSystem(cats=3)`,
+`RobotGoalEnv(cats=3)`), so training and the baseline runs stay comparable.
 
 ```powershell
 .venv\Scripts\python run_sim.py --cats 3 --cat-seed 16
 ```
 
-- **What they are:** each cat is solid: its body and head collide, and they cross the lidar
-  plane, so the lidar can detect them (a cat hidden behind another object is not seen).
-  Legs, ears, and tail are visual only. A cat steers itself: it stays clear of walls,
-  furniture, other cats, and the robot, and walks away when the robot comes close.
+- **What they are:** a rigged, textured cat model ("Cat" by Vr-cvantorium, see Credits) with
+  four coats (brown tabby, ginger tabby, black and white, grey tabby). Each cat walks with a
+  real four-beat gait (a trot when faster), its paws planted on the floor while they bear
+  weight; it turns on the spot with small pivot steps, turns its head to watch the robot,
+  breathes, and sways its tail.
+- **What they do:** cats roam the whole floor. They walk, pause, sit, dart, and travel from room
+  to room, preferring rooms they have not visited for a while. A local planner (every 0.1 s it
+  compares about 50 possible motions it could make and still stop in time) keeps each cat clear
+  of walls and furniture (3 cm), other cats (5 cm), and the robot (0.3 m), checked over every
+  move, not only where it ends. A cat stuck in a tight corner works out a way out step by step,
+  and two cats meeting in a narrow place give way to each other.
+- **Measured roaming** (`tools\roam_check.py`: 20 fixed cat seeds, 10 simulated minutes each,
+  robot parked): the three cats together reached all five rooms within 78 s in every seed;
+  each cat reached every room within 10 minutes in 19 of the 20 seeds; no cat that wanted to
+  move stood still for more than 5 s; no contacts, and no gap smaller than its limit (within
+  1 mm). This is a property of these seeds, not a promise for every run.
+- **Doorways:** cats pass through doorways and the corridor but never rest there. A cat in the
+  robot's path steps out of the way when the robot comes toward it, or when the robot is
+  waiting for it (a drive request held back by the safety layer); a parked robot does not
+  chase cats away, and a cat does not react to a robot it cannot see (behind a wall). The robot
+  waits; it never pushes a cat. `tools\doorway_check.py` runs every doorway, both directions,
+  every speed level, and both resting states (100 trials): all pass, with no contacts.
+- **What the robot senses:** each cat has fourteen solid collision shapes fitted to the model
+  (body, head, legs, and tail), so it collides with the robot and the lidar detects it (a cat
+  hidden behind another object is not seen). Only the ears are visual. A robot driving up to a
+  cat may come closer than the cat's own 0.3 m comfort distance, down to the robot's 5 cm safety
+  buffer: the robot's controller does not keep a larger distance from animals yet.
 - **Collisions:** touching a cat counts as a collision (it ends the episode by default). The
   run records which cat, who moved into whom (from both speeds along the contact normal),
   the peak contact force, the impulse, and the duration. A touching cat freezes at once and
@@ -261,13 +305,16 @@ Run with `--cats 3` (up to 4) to add cats that walk, pause, sit, and sometimes d
 
 | View | What you see |
 |---|---|
-| Chase | Behind the robot, following its heading smoothly. Near walls and furniture, the camera rises, moves closer, or swings to the side so it never enters anything and keeps the robot and the way ahead in view. If no clear angle exists, a note says so (press C for another view). |
+| Chase | Behind the robot, following its heading smoothly. Near walls and furniture, the camera rises, glides closer, or swings to the side so it never enters anything and keeps the robot and the way ahead in view. It looks ahead for edges (door jambs, shelves) and starts gliding before it reaches them, and its speed is capped at 3.5 m/s (about 6 cm per frame at 60 frames per second). It keeps at least 0.4 m from the robot, rising over it in tight spots, and widens its view up to 70 degrees when close, so the robot and its surroundings stay in frame. If no clear angle exists, a note says so (press C for another view). |
 | Top | The whole floor from above, with the ceiling cut away. |
 | Orbit | Like chase, but it does not turn with the robot; rotate it with the left mouse button. |
 | Robot camera | The robot's own front camera (with the ceiling). |
 
-Left-drag rotates and the wheel zooms in the chase and orbit views. C cycles
-the views.
+Left-drag rotates and the wheel zooms in the chase and orbit views: each notch changes the
+distance by 12 percent and the view gets there in about a tenth of a second, without
+overshooting, at any frame rate. The wheel always sets the distance you want; where walls keep
+the camera closer, "zoom limited by walls" appears and the camera returns to your distance
+(within about a second) once there is room. C cycles the views.
 
 ## 9. Tips and troubleshooting
 
@@ -278,7 +325,7 @@ the views.
   Click the simulator window again.
 - **A key "does nothing" after R or N:** release it and press it again.
 - **Slow frame rate:** the real-time factor in the panel shows whether the
-  simulation keeps up. Hiding the panels (H) helps on slow computers.
+  simulation keeps up. Fewer panels (H) or a smaller window help on slow computers.
 - **Screenshots:** F12 saves to `screenshots\`; the QA tools save to
   `qa_output\`.
 - **Rebuild after changing the layout:** run
@@ -367,7 +414,12 @@ obs, reward, terminated, truncated, info = env.step([0.3, 0.0])  # [v m/s, omega
 | `.venv\Scripts\python tools\build_world.py` | Regenerates `world.xml` after layout changes |
 | `.venv\Scripts\python tools\make_textures.py` | Regenerates the textures in `robot_env/assets/` |
 | `.venv\Scripts\python tools\eval_baseline.py --set heldout --levels 1 2 5 --out qa_output\baseline_heldout.json` | Evaluates the rule-based baseline driver headless (see below). `--set dev` uses the tuning seeds 2000 to 2019; `--logs DIR` writes a drive log per episode. |
-| `.venv\Scripts\python tools\fps_protocol.py` | Measures rendered performance: 3 or more trials per view, frame-time percentiles, late frames, real-time factor, and the host details. Add `--note` to record background load. |
+| `.venv\Scripts\python tools\fps_protocol.py` | Measures rendered performance: 3 or more trials per view, frame-time percentiles, late frames, real-time factor, and the host details. Add `--note` to record background load; `--gate` fails unless every view reaches 60 frames per second with 4 cats (p95 frame at most 20 ms, none over 50 ms). |
+| `.venv\Scripts\python tools\roam_check.py --repeat` | Cats roaming: 20 cat seeds, 10 simulated minutes each: rooms reached, stalls, gaps, contacts, and a repeat run compared step by step. |
+| `.venv\Scripts\python tools\doorway_check.py` | A cat in each doorway with the robot coming through: every door, both directions, every speed level, both resting states (100 trials). |
+| `.venv\Scripts\python tools\gait_check.py` | The cats' gait: paws planted without slipping, nothing below the floor, no joint jumps, at every speed and turn they use. |
+| `.venv\Scripts\python tools\interp_check.py` | The cats' 100-per-second motion against a 2000-per-second reference, including contacts with the robot. |
+| `.venv\Scripts\python tools\kernel_paths_check.py` | The cat tests and gait check with the compiled code, as plain Python, and without Numba installed. |
 
 ### Baseline driver
 
@@ -395,6 +447,14 @@ inconsistent log. It records:
 
 Ground truth appears only under `evaluation_only_truth`. Read a log back with `read_log(path)`.
 Logging never changes the robot's behavior, and a write failure only stops the log.
+
+### Credits
+
+- "Cat" by [Vr-cvantorium](https://sketchfab.com/Vr-cvantorium)
+  ([source](https://sketchfab.com/3d-models/cat-a503ae2a7bdd43ada7f3bea3ae0a523f)), licensed under
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Modified: converted to a MuJoCo
+  skinned rig, and the coat textures were recoloured and repainted
+  (`robot_env/assets/cat/manifest.json` records the source file, its checksum, and the steps).
 
 ### Notes
 

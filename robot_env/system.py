@@ -34,9 +34,9 @@ class SafetyEvent:
 class RobotSystem:
     def __init__(self, sim: RobotSim | None = None, safety: SafetyLayer | None = None, cats: int = 0,
                  cat_seed: int = 0):
-        from .cats import CatHerd, cat_xml
+        from .cats import CatHerd, cat_world
         if sim is None:
-            sim = RobotSim(extra_world_xml=cat_xml(cats)) if cats else RobotSim()
+            sim = RobotSim(extra=cat_world(cats)) if cats else RobotSim()
         elif cats:
             raise ValueError("pass cats only when the system builds its own world")
         self.sim = sim
@@ -125,6 +125,15 @@ class RobotSystem:
         self.last_decision = decision
         self.drive(decision.command.v, decision.command.omega)
 
+    def _waiting_forward(self) -> bool:
+        """The robot has a fresh forward request that its safety layer is holding back (from the
+        last control tick): it is waiting for its way to clear."""
+        req, age = self._requested, self.command_age
+        if req is None or age is None or age > C.COMMAND_LIFETIME or not req.v > 0.02:
+            return False
+        held = self.last_result.command.v < req.v - 0.02
+        return held and "clearance" in self.last_result.reasons
+
     def end_episode(self) -> None:
         """The episode ended (goal, collision, or time limit): latch the shared stop and make it
         take effect now, not at the next control tick. The request and the last decision are
@@ -172,7 +181,7 @@ class RobotSystem:
         for _ in range(steps):
             if self._step % self._ctrl_every == 0:
                 if self.cats is not None:
-                    self.cats.tick()
+                    self.cats.tick(robot_blocked=self._waiting_forward())
                     if self.log is not None:
                         for index, _t, state in self.cats.new_transitions():
                             # stamped with the simulation clock shared by every log record
@@ -211,9 +220,11 @@ class RobotSystem:
         separation shorter than COLLISION_EVENT_GAP is the same contact, so a contact logs one
         start and one end. A touching cat freezes and stays still until it is clear of the
         robot's circle again."""
+        touching = self.sim.cat_contacts_now()
+        if not (touching or self._cat_done or self._cat_open or any(c.frozen for c in self.cats.cats)):
+            return  # nothing touching, nothing open or frozen: every step below would do nothing
         import mujoco
         m, d = self.sim.model, self.sim.data
-        touching = self.sim.cat_contacts_now()
         f6 = np.zeros(6)
         now = self.sim.time
         generic_unused = counted_now
@@ -283,7 +294,6 @@ class RobotSystem:
         """Closing speeds along the contact normal at the contact point (robot -> cat positive)."""
         import mujoco
         m, d = self.sim.model, self.sim.data
-        cat = self.cats.cats[index]
         vel = np.zeros(6)
         mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_BODY, self.sim.robot_body, vel, 0)
         ang, lin = vel[:3], vel[3:]
@@ -293,8 +303,7 @@ class RobotSystem:
             p = d.contact.pos[c]
             n = sign * d.contact.frame[c][:3]  # robot -> cat
             v_robot = lin + np.cross(ang, p - robot_origin)
-            v_cat = np.array([cat.v * np.cos(cat.yaw), cat.v * np.sin(cat.yaw), 0.0]) + \
-                np.cross([0.0, 0.0, cat.w], p - np.array([cat.x, cat.y, p[2]]))
+            v_cat = self.cats.contact_velocity(index, p)  # the cat's surface there (limbs move too)
             robot_in = max(robot_in, float(v_robot @ n))
             cat_in = max(cat_in, float(-(v_cat @ n)))
         tol = self.CONTACT_TOL

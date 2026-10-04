@@ -3,3 +3,7 @@
 imageio==2.38.0
 imageio-ffmpeg==0.6.0
 pillow==12.3.0
+# Used by tools/convert_cat.py and tools/make_coats.py to rebuild the cat rig and its coats
+# from the source model.
+pygltflib==1.16.5
+scipy==1.17.1

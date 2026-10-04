@@ -2,10 +2,12 @@
 
 These show the window works end to end. They do not replace the owner's manual drive."""
 
+import numpy as np
 import pygame
 import pytest
 
 from robot_env.app import App, parse_script
+from robot_env.sim import close_renderer
 
 
 def run_app(tmp_path, **kw):
@@ -542,6 +544,395 @@ def test_chase_camera_returns_to_the_normal_view_after_leaving_furniture():
         cam = view.apply(sim, 1 / 60)
     # back to the user's angle and as far out as the room allows (the nearest wall may cap it)
     assert abs(cam.elevation - view.elevation) < 2.0
-    assert cam.distance == pytest.approx(min(view.distance, view._clear_distance(sim, cam.azimuth, cam.elevation)), abs=0.05)
+    room = min(view.distance, view._clear_distance(sim, cam.azimuth, cam.elevation),
+               view._beam_room(sim, cam.azimuth, cam.elevation))  # side clearance counts too
+    assert cam.distance == pytest.approx(room, abs=0.05)
     assert view._detour == (0.0, None)
     sim.close()
+
+
+# ----- step 2: steady camera, zoom, window -----
+@pytest.mark.parametrize("seed,view", [(1003, "chase"), (1007, "orbit")])
+def test_camera_moves_smoothly_on_real_routes(seed, view):
+    """The routes that made the camera jump up to 2.9 m in one frame: no frame moves the camera
+    more than 0.10 m, the camera stays a sensible distance away (never closer than 0.4 m, the
+    robot always visible), and a still robot gives a still camera."""
+    import importlib
+    jitter = importlib.import_module("tools.camera_jitter")
+    r = jitter.measure(seed, view, seconds=25.0)
+    assert r["max_jump_m"] <= 0.10, r
+    assert r["mean_distance_m"] >= 1.0, r
+    assert r["min_distance_m"] >= 0.40 - 1e-3 and r["robot_hidden_frames"] == 0, r  # never a useless close-up
+    still = jitter.measure(seed, view, still=2.0)
+    assert still["settled_last_s_max_m"] <= 0.002, still
+
+
+def test_wheel_always_changes_the_requested_zoom_and_tight_spaces_show_a_cue():
+    from robot_env.app import ViewCamera
+    from robot_env.sim import RobotSim
+    sim = RobotSim()
+    view = ViewCamera()
+    x, y, yaw = CAMERA_POSES["shelf"]
+    sim.reset(x, y, yaw, (0.0, 0.0))
+    for _ in range(60):
+        view.apply(sim, 1 / 60)
+    shown = view.cam.distance
+    for _ in range(5):  # zoom out where walls already limit the view
+        view.handle_event(pygame.event.Event(pygame.MOUSEWHEEL, x=0, y=-1, flipped=False))
+    assert view.distance > 1.6  # the request changed even though the view cannot follow
+    for _ in range(60):
+        view.apply(sim, 1 / 60)
+    assert view.limited and view.cam.distance <= shown + 0.05
+    for _ in range(30):  # zoom in: the view follows as far as the room allows
+        view.handle_event(pygame.event.Event(pygame.MOUSEWHEEL, x=0, y=1, flipped=False))
+    for _ in range(60):
+        view.apply(sim, 1 / 60)
+    assert view.cam.distance == pytest.approx(min(view.distance, view.room), abs=0.06)
+    assert view.cam.distance < shown - 0.3
+    sim.close()
+
+
+def _zoom_response(fps, notches, start=1.6):
+    """The displayed distance per frame after `notches` wheel notches in open space (the office)."""
+    from robot_env.app import ViewCamera
+    from robot_env.sim import RobotSim
+    sim = RobotSim()
+    view = ViewCamera()
+    view.distance = start
+    sim.reset(-1.8, 2.6, 0.0, (4.0, 4.0))  # 2.5 m of room behind the robot
+    for _ in range(fps):  # settle
+        view.apply(sim, 1 / fps)
+    for _ in range(abs(notches)):
+        view.handle_event(pygame.event.Event(pygame.MOUSEWHEEL, x=0, y=1 if notches > 0 else -1, flipped=False))
+    shown = []
+    for _ in range(fps):  # one second
+        view.apply(sim, 1 / fps)
+        shown.append(view.cam.distance)
+    sim.close()
+    return start, view.distance, shown
+
+
+@pytest.mark.parametrize("fps", [30, 60, 120])
+@pytest.mark.parametrize("notches", [1, -1])
+def test_zoom_follows_the_wheel_within_a_tenth_of_a_second(fps, notches):
+    """A notch reaches 90 percent within 120 ms and 95 percent within 160 ms at any frame rate,
+    with no overshoot (at most 1 percent of the step) and no drift once settled."""
+    start, target, shown = _zoom_response(fps, notches)
+    step = target - start
+    progress = [(d - start) / step for d in shown]
+    t90 = next(k for k, f in enumerate(progress) if f >= 0.9) / fps + 1 / fps
+    t95 = next(k for k, f in enumerate(progress) if f >= 0.95) / fps + 1 / fps
+    assert t90 <= 0.12 + 1e-9 and t95 <= 0.16 + 1e-9, (t90, t95)
+    assert max(progress) <= 1.01
+    assert max(shown[-fps // 4:]) - min(shown[-fps // 4:]) < 0.001  # still at rest
+
+
+def test_rapid_notches_go_straight_to_the_final_zoom():
+    """Ten quick notches aim at the final distance at once (no queue of ten animations) and the
+    view never turns back on the way."""
+    start, target, shown = _zoom_response(60, 10, start=3.0)
+    assert target == pytest.approx(3.0 * 0.88 ** 10)
+    steps = np.diff([start] + shown)
+    assert (steps <= 1e-9).all()  # zooming in all the way, never back out
+    assert shown[-1] == pytest.approx(target, abs=0.01)
+    assert sum(1 for d in shown if abs(d - target) > 0.05 * abs(start - target)) / 60 <= 0.16
+
+
+def test_camera_recovers_its_distance_within_a_second_without_overshoot():
+    """Backed up to the corridor's end wall the camera is held close; after the robot drives
+    1.2 m away (1 s), the camera is back at the distance the room allows within 1 s, never beyond it."""
+    from robot_env.app import ViewCamera
+    from robot_env.sim import RobotSim
+    sim = RobotSim()
+    view = ViewCamera()
+    view.distance = 3.0
+    x, y, yaw = CAMERA_POSES["wall"]  # facing away from the wall: the camera's spot is in it
+    sim.reset(x, y, yaw, (0.0, 0.0))
+    for _ in range(60):
+        view.apply(sim, 1 / 60)
+    held = view.cam.distance
+    for i in range(1, 61):
+        sim.reset(x - 0.02 * i, y, yaw, (0.0, 0.0))
+        view.apply(sim, 1 / 60)
+    dists = []
+    for _ in range(120):
+        dists.append(view.apply(sim, 1 / 60).distance)
+    final = min(view.distance, view.room)
+    assert final > held + 0.2  # there really was something to recover
+    assert dists[59] >= final - 0.05  # back within 1 s of leaving
+    assert max(dists) <= final + 0.02 and max(dists) <= view.distance + 1e-9  # no overshoot
+    assert all(b >= a - 1e-6 for a, b in zip(dists, dists[1:]))  # a steady glide out, no wobble
+    sim.close()
+
+
+@pytest.mark.gui
+def test_window_resizes_and_renders_at_the_capped_size():
+    from robot_env.display import MAX_RENDER_PIXELS, render_size
+    app = App(1000, screenshot=None, frames=3)
+    for size in ((1600, 900), (3440, 1440), (960, 540)):
+        app.display.window.size = size
+        pygame.event.post(pygame.event.Event(pygame.WINDOWSIZECHANGED, x=size[0], y=size[1]))
+        app.handle_events()
+        w, h = app.screen.get_size()
+        assert (w, h) == render_size(app.display.window_size)
+        assert w * h <= MAX_RENDER_PIXELS * 1.01 and abs(w / h - size[0] / size[1]) < 0.02
+        assert (app.renderer.width, app.renderer.height) == (w, h)
+        app.draw()  # panels lay out inside the new size
+        app.display.present()
+    app.run()
+
+
+@pytest.mark.gui
+def test_h_cycles_compact_full_and_no_panels():
+    app = App(1000, screenshot=None, frames=1)
+    seen = [app.hud]
+    for _ in range(3):
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_h, mod=0, unicode="h", scancode=0))
+        app.handle_events()
+        app.draw()
+        seen.append(app.hud)
+    assert seen == ["compact", "full", "none", "compact"]
+    app.run()
+
+
+@pytest.mark.gui
+def test_window_presents_through_an_accelerated_renderer():
+    """Smoke test only: the window uses an accelerated renderer and presents frames. The
+    frame-time gate is tools/fps_protocol.py on an idle, focused desktop (timing here depends on
+    whatever else the desktop is doing)."""
+    app = App(1000, screenshot=None, frames=30, script=parse_script("W:1"))
+    app.run()
+    assert app.display.driver in ("direct3d11", "direct3d12", "opengl", "metal")
+    assert len(app.frame_times) == 29 and all(t > 0 for t in app.frame_times)
+
+
+def test_frame_pacing_follows_a_fixed_schedule():
+    """Deterministic pacing with a fake clock: slots are 1/60 s apart, a late frame restarts the
+    schedule (no burst of catch-up frames), and the wait sleeps coarsely then spins 2 ms."""
+    from robot_env.app import FPS, _wait_until, present_deadline
+    period = 1 / FPS
+    assert present_deadline(None, 5.0) == 5.0  # first frame: now
+    assert present_deadline(5.0, 5.004) == pytest.approx(5.0 + period)  # on time: next slot
+    assert present_deadline(5.0, 5.0 + 2.5 * period) == pytest.approx(5.0 + 2.5 * period)  # late: resync
+    now = [10.0]
+    sleeps = []
+
+    def clock():
+        now[0] += 0.0001  # each look at the clock costs a little time
+        return now[0]
+
+    def sleep(t):
+        sleeps.append(t)
+        now[0] += t
+    _wait_until(10.0 + period, clock, sleep)
+    assert 10.0 + period <= now[0] <= 10.0 + period + 0.0002
+    assert len(sleeps) == 1 and sleeps[0] == pytest.approx(period - 0.002, abs=1e-3)
+    calls = []
+    _wait_until(5.0, lambda: (calls.append(1), 6.0)[1], sleep)  # already late: no wait at all
+    assert len(calls) == 1
+
+
+def test_minimum_window_size_is_enforced_and_f11_round_trips():
+    """With a fake SDL window: a resize below 960x540 is pushed back to the minimum, and F11
+    switches to desktop fullscreen and back."""
+    from robot_env.display import MIN_SIZE, Display, render_size
+
+    class FakeWindow:
+        def __init__(self):
+            self.size = (1280, 720)
+            self.calls = []
+
+        def set_fullscreen(self, desktop=False):
+            self.calls.append(("fullscreen", desktop))
+            self.size = (3440, 1440)
+
+        def set_windowed(self):
+            self.calls.append(("windowed",))
+            self.size = (1280, 720)
+
+    d = Display.__new__(Display)
+    d.window, d.fullscreen = FakeWindow(), False
+    d.surface = pygame.Surface(render_size((1280, 720)))
+    d.window.size = (700, 400)
+    assert d.handle_event(pygame.event.Event(pygame.WINDOWSIZECHANGED, x=700, y=400)) is True
+    assert d.window.size == MIN_SIZE and d.surface.get_size() == render_size(MIN_SIZE)
+    f11 = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_F11, mod=0, unicode="", scancode=0)
+    assert d.handle_event(f11) is True and d.fullscreen and d.window.calls[-1] == ("fullscreen", True)
+    assert d.surface.get_size() == render_size((3440, 1440))
+    assert d.handle_event(f11) is True and not d.fullscreen and d.window.calls[-1] == ("windowed",)
+    assert d.surface.get_size() == render_size((1280, 720))
+
+
+def _app_for_inset(view=0):
+    app = App(1000, None, 3, None, view, cats=1, cat_seed=2)
+    app._frame_dt = 1 / 60
+    return app
+
+
+@pytest.mark.gui
+def test_inset_failure_restores_the_shadow_lights(monkeypatch):
+    """The robot-camera inset renders without shadow passes; if that render fails, the lights
+    are restored to what the main view chose."""
+    app = _app_for_inset()
+    sim = app.system.sim
+    chosen = {}
+    original = app._choose_shadow_lights
+
+    def choose(camera):
+        original(camera)
+        chosen["cast"] = sim.model.light_castshadow.copy()
+    monkeypatch.setattr(app, "_choose_shadow_lights", choose)
+
+    def broken(*args, **kwargs):
+        assert not sim.model.light_castshadow.any()  # no shadow passes for the inset
+        raise RuntimeError("inset render failed")
+    monkeypatch.setattr(sim, "render_camera", broken)
+    with pytest.raises(RuntimeError):
+        app.draw()
+    assert np.array_equal(sim.model.light_castshadow, chosen["cast"])
+    close_renderer(app.renderer)
+    app.system.close()
+    app.display.close()
+    pygame.quit()
+
+
+@pytest.mark.gui
+def test_inset_leaves_the_main_view_and_the_robot_camera_unchanged():
+    """After an inset render (no shadows, no reflections), the main view and the full robot
+    camera render as before it (to the GPU's own frame-to-frame rounding)."""
+    import mujoco
+    app = _app_for_inset()
+    sim = app.system.sim
+    cam = mujoco.MjvCamera()
+    cam.lookat[:], cam.distance, cam.azimuth, cam.elevation = (-4.0, 4.0, 0.3), 2.5, 135.0, -30.0
+
+    def renders():
+        sim.before_render()
+        app.renderer.update_scene(sim.data, camera=cam, scene_option=app.overview_option)
+        main = app.renderer.render().copy()
+        w, h = app._inset.get_size()  # the robot camera at the inset's size (the same renderer)
+        return sim.model.light_castshadow.copy(), main, sim.render_camera((h, w)).copy()
+    app.draw()  # the main view picks its shadow lights; the inset renders
+    cast1, main1, robot1 = renders()
+    app._inset_time = -float("inf")
+    app.draw()  # the same instant: the same lights, and the inset renders again
+    cast2, main2, robot2 = renders()
+    assert np.array_equal(cast1, cast2)
+    for before, after in ((main1, main2), (robot1, robot2)):
+        # the same render twice can differ by a level in a pixel or two (GPU rounding): at most
+        # 2 levels in at most 0.01% of the pixels; a pass left on or off changes far more
+        changed = (before != after).any(axis=2)
+        assert changed.mean() <= 1e-4 and np.abs(before.astype(int) - after).max() <= 2
+    close_renderer(app.renderer)
+    app.system.close()
+    app.display.close()
+    pygame.quit()
+
+
+@pytest.mark.gui
+def test_views_stay_drawn_when_a_renderer_is_replaced():
+    """Regression: replacing one renderer (the robot-camera preview changing size with the
+    panels, or the main view rebuilt for a new window size) deleted the other renderer's GPU
+    objects, and that view went black for good."""
+    app = _app_for_inset()
+    seen = []
+    for hud in ("compact", "full", "compact"):
+        app.hud = hud
+        app._inset_time = -float("inf")
+        app.draw()
+        seen.append((float(app.renderer.render().mean()), float(app._inset_pixels.mean())))
+    app._make_renderer()  # as on a window resize
+    app._inset_time = -float("inf")
+    app.draw()
+    seen.append((float(app.renderer.render().mean()), float(app._inset_pixels.mean())))
+    first = seen[0]
+    assert first[0] > 20 and first[1] > 20
+    for main, inset in seen[1:]:
+        assert main == pytest.approx(first[0], abs=1.0) and inset == pytest.approx(first[1], abs=1.0)
+    close_renderer(app.renderer)
+    app.system.close()
+    app.display.close()
+    pygame.quit()
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("which", ["renderer", "system", "display", "pygame"])
+def test_every_cleanup_runs_even_if_one_fails(monkeypatch, which):
+    """One cleanup step failing (after a frame failed) still runs every later one, and the frame's
+    error is the one raised."""
+    import robot_env.app as appmod
+    app = App(1000, None, 50, None, 0, cats=1, cat_seed=2)
+    ran = []
+    real_quit = pygame.quit
+
+    def track(name, real):
+        def f(*a, **k):
+            ran.append(name)
+            if name == which:
+                raise OSError(f"{name} close failed")
+            return real(*a, **k)
+        return f
+    monkeypatch.setattr(appmod, "close_renderer", track("renderer", appmod.close_renderer))
+    monkeypatch.setattr(app.system, "close", track("system", app.system.close))
+    monkeypatch.setattr(app.display, "close", track("display", app.display.close))
+    monkeypatch.setattr(appmod.pygame, "quit", track("pygame", pygame.quit))
+
+    def broken():
+        raise RuntimeError("draw failed")
+    monkeypatch.setattr(app, "draw", broken)
+    with pytest.raises(RuntimeError, match="draw failed"):
+        app.run()
+    assert ran == ["renderer", "system", "display", "pygame"]
+    real_quit()
+
+
+@pytest.mark.gui
+def test_a_cleanup_failure_after_a_good_run_is_raised(monkeypatch):
+    app = App(1000, None, 3, None, 0, cats=0)
+    real = app.display.close
+
+    def failing():
+        real()
+        raise OSError("display close failed")
+    monkeypatch.setattr(app.display, "close", failing)
+    with pytest.raises(OSError, match="display close failed"):
+        app.run()
+    assert not pygame.get_init()
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("caller_froze", [False, True])
+def test_a_failing_frame_still_restores_gc_and_closes_everything(monkeypatch, caller_froze):
+    """However the run ends (here a frame that fails to draw), the garbage collector is restored
+    (and a freeze the caller made itself is left as it was), and the renderers, the system, the
+    window, and pygame are closed."""
+    import gc
+    app = App(1000, None, 50, None, 0, cats=1, cat_seed=2)
+    closed = []
+    real_close = app.system.close
+    monkeypatch.setattr(app.system, "close", lambda: (closed.append("system"), real_close()))
+
+    def broken():
+        raise RuntimeError("draw failed")
+    monkeypatch.setattr(app, "draw", broken)
+    if caller_froze:
+        gc.freeze()
+    try:
+        with pytest.raises(RuntimeError, match="draw failed"):
+            app.run()
+        # ours undone; the caller's kept (its count can only fall as frozen objects are freed)
+        assert (gc.get_freeze_count() > 0) == caller_froze
+    finally:
+        if caller_froze:
+            gc.unfreeze()
+    assert closed == ["system"] and app.renderer._gl_context is None and not pygame.get_init()
+
+
+def test_fps_protocol_measures_exactly_the_sample_intervals():
+    import importlib
+    fp = importlib.import_module("tools.fps_protocol")
+    times = list(range(fp.WARMUP_FRAMES + fp.SAMPLE_FRAMES))  # what WARMUP + SAMPLE + 1 frames give
+    got = fp.sample_intervals(times)
+    assert len(got) == fp.SAMPLE_FRAMES and got[0] == fp.WARMUP_FRAMES
+    with pytest.raises(RuntimeError):
+        fp.sample_intervals(times[:-1])

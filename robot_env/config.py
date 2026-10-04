@@ -72,6 +72,8 @@ ROOMS = {
     "reception": (0.05, 5.0, -5.0, -0.8),
     "corridor": (-5.0, 5.0, -0.7, 0.7),
 }
+# Doorway centres (x, y) on the office floor, mirrored from tools/build_world.py (a test checks)
+DOORS = ((-2.5, 0.75), (2.5, 0.75), (-3.0, -0.75), (2.0, -0.75), (0.0, 3.5))
 GOAL_RADIUS = 0.3
 # Episode limit: at least twice the worst estimated travel time over 1,000 sampled tasks
 # on the office floor (re-measured after every layout change; see the plan). With the
