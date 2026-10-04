@@ -22,10 +22,14 @@ class RobotGoalEnv(gym.Env):
                 "observation_version": C.OBSERVATION_VERSION, "action_version": C.ACTION_VERSION}
 
     def __init__(self, render_mode: str | None = None, collision_ends_episode: bool = True,
-                 system: RobotSystem | None = None):
+                 system: RobotSystem | None = None, cats: int = 0, cat_seed: int = 0):
         self.render_mode = render_mode
         self.collision_ends_episode = collision_ends_episode
-        self.system = system or RobotSystem()
+        if system is not None and (cats or cat_seed):
+            herd = system.cats
+            if herd is None or herd.n != cats or herd.seed != cat_seed:
+                raise ValueError("cats/cat_seed disagree with the given system; set them on the system")
+        self.system = system or RobotSystem(cats=cats, cat_seed=cat_seed)
         self.room = RoomMap(self.system.sim.model)
         self.task: Task | None = None
         self.action_space = spaces.Box(
@@ -78,6 +82,11 @@ class RobotGoalEnv(gym.Env):
             reward += C.REWARD_GOAL
         terminated = bool(success or (collided and self.collision_ends_episode))
         truncated = bool(not terminated and self.system.time >= C.EPISODE_TIME_LIMIT - 1e-9)
+        if (terminated or truncated) and self.system.cats is not None:
+            self.system.finish_cat_contacts("episode_end")
+        if self.system.log is not None and (terminated or truncated or collided):
+            outcome = "success" if success else "collision" if collided else "timeout"
+            self.system.log.event("episode_" + outcome, self.system.time, terminated=terminated, truncated=truncated)
         return self._obs(), float(reward), terminated, truncated, self._info(success, collided)
 
     def _obs(self) -> dict:

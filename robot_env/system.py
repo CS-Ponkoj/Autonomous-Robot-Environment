@@ -9,6 +9,8 @@ The GUI, the Gymnasium environment, and the tests all use this class.
 from __future__ import annotations
 
 from collections import deque
+
+import numpy as np
 from dataclasses import dataclass
 
 from . import config as C
@@ -30,18 +32,44 @@ class SafetyEvent:
 
 
 class RobotSystem:
-    def __init__(self, sim: RobotSim | None = None, safety: SafetyLayer | None = None):
-        self.sim = sim or RobotSim()
+    def __init__(self, sim: RobotSim | None = None, safety: SafetyLayer | None = None, cats: int = 0,
+                 cat_seed: int = 0):
+        from .cats import CatHerd, cat_xml
+        if sim is None:
+            sim = RobotSim(extra_world_xml=cat_xml(cats)) if cats else RobotSim()
+        elif cats:
+            raise ValueError("pass cats only when the system builds its own world")
+        self.sim = sim
+        # Wandering cats (off by default): a separate model with cat bodies is used only when
+        # cats > 0, so the default world is unchanged. Order every physics step: control tick
+        # (cat behavior, lidar scan, safety), robot motors, cat motion, physics and contacts.
+        self.cats = CatHerd(sim, cats, cat_seed) if cats else None
+        self.cat_contacts = 0
+        self.cat_contact_events: list[dict] = []  # one per contact (open ones lack duration_s)
+        self._cat_open: dict[int, dict] = {}
+        # cats whose contact was finished early (episode end) while still touching: that same
+        # touch is not counted again until the cat has separated for COLLISION_EVENT_GAP
+        self._cat_done: set[int] = set()
+        self._cat_done_apart: dict[int, float] = {}
         self.safety = safety or SafetyLayer()
         self.flags = SafetyFlags()
         self.scan_enabled = True  # test hook: False freezes the lidar to make it stale
         self._ctrl_every = round(C.CONTROL_PERIOD / C.PHYSICS_DT)
+        self.log = None  # optional DriveLog (robot_env/drive_log.py); written after each tick's decisions
         self.reset(0.0, 0.0, 0.0, (2.0, 2.0))
 
     def reset(self, x: float, y: float, yaw: float, goal_xy: tuple[float, float]) -> None:
         # Zero every command first, then restore the complete state. System-owned flags are
         # cleared; operator flags (emergency brake, focus) are kept: only the operator
         # (or the window reporting the operator's state) may change them.
+        if getattr(self, "_cat_open", None):
+            self.finish_cat_contacts("reset")
+        if self.log is not None and self.log.started:
+            # One log per episode (time and tick numbers restart at reset): finish the old log
+            # and detach it; attach a new DriveLog for the new episode.
+            self.log.close()
+            self.log = None
+        self._cat_done, self._cat_done_apart = set(), {}
         self.sim.set_wheel_targets(0.0, 0.0)
         self.flags.episode_over = False
         self.flags.manual_mode = False
@@ -54,6 +82,12 @@ class RobotSystem:
         self._target = STOP  # latest approved command; the smoother moves toward it every physics step
         self.applied = STOP
         self.sim.reset(x, y, yaw, goal_xy)
+        if self.cats is not None:
+            self.cats.reset((x, y), goal_xy)
+            mujoco_forward(self.sim)
+        self.cat_contacts = 0
+        self.cat_contact_events = []
+        self._cat_open = {}
         self.scan_enabled = True
         self._step = 0
         self._carry = 0.0
@@ -70,6 +104,9 @@ class RobotSystem:
         self._scan, self._scan_valid = self.sim.scan()
         self._scan_time = self.sim.time
         self._obs = self._build_observation()
+        if self.log is not None:
+            self.log.bind(self)  # the header always describes this system (cats, seed)
+            self.log.event("reset", self.sim.time, start=[x, y, yaw], goal=[float(goal_xy[0]), float(goal_xy[1])])
 
     # ----- driver interface -----
     def drive(self, v: float, omega: float) -> None:
@@ -116,22 +153,140 @@ class RobotSystem:
         self._carry = total - steps * C.PHYSICS_DT
         for _ in range(steps):
             if self._step % self._ctrl_every == 0:
+                if self.cats is not None:
+                    self.cats.tick()
+                    if self.log is not None:
+                        for index, t, state in self.cats.new_transitions():
+                            self.log.event("cat_state", t, evaluation_only_truth={"cat": index, "state": state})
                 self._control_tick()
             self._motor_step()
+            if self.cats is not None:
+                self.cats.step(C.PHYSICS_DT)
             contact = self.sim.physics_step()
             self._step += 1
+            counted_now = False
             if contact:
                 # Contact is checked every physics step. Flicker while pressed against
                 # something is one collision: a new one needs a contact-free gap first.
                 if self.sim.time - self._last_contact_time > C.COLLISION_EVENT_GAP:
                     self.collisions += 1
                     self.collision_times.append(self.sim.time)
+                    counted_now = True
                 self._last_contact_time = self.sim.time
+            if self.cats is not None:
+                self._update_cat_contacts(counted_now)
             self._contact = contact
         if steps:
             # Endpoint snapshot: goal, encoders, contact, and time are current; the lidar
             # keeps its real scan_time (scans happen only on 50 Hz control ticks).
             self._obs = self._build_observation()
+
+    CONTACT_TOL = 0.02  # m/s: closing speeds closer than this cannot tell who moved into whom
+
+    def _update_cat_contacts(self, counted_now: bool) -> None:
+        """Per-cat contact tracking, independent of the global collision debounce: every cat that
+        starts touching the robot is a cat contact and a collision (the generic count made this
+        step stands for the first one only). Each contact records who moved into whom (from
+        velocities along the contact normal), peak normal force, impulse, and duration. A
+        separation shorter than COLLISION_EVENT_GAP is the same contact, so a contact logs one
+        start and one end. A touching cat freezes and stays still until it is clear of the
+        robot's circle again."""
+        import mujoco
+        m, d = self.sim.model, self.sim.data
+        touching = self.sim.cat_contacts_now()
+        f6 = np.zeros(6)
+        now = self.sim.time
+        generic_unused = counted_now
+        for index in list(self._cat_done):
+            if index in touching:
+                self._cat_done_apart.pop(index, None)
+            elif now - self._cat_done_apart.setdefault(index, now) > C.COLLISION_EVENT_GAP:
+                self._cat_done.discard(index)
+                self._cat_done_apart.pop(index, None)
+        for index, contacts in touching.items():
+            if index in self._cat_done:
+                continue  # the touch already finished in the log; the cat stays frozen
+            force = 0.0
+            for c, _sign in contacts:
+                mujoco.mj_contactForce(m, d, c, f6)
+                force += float(f6[0])
+            event = self._cat_open.get(index)
+            if event is None:
+                event = {"t": now, "cat": index, **self._initiator(index, contacts),
+                         "peak_force_n": 0.0, "impulse_ns": 0.0}
+                self._cat_open[index] = event
+                self.cat_contact_events.append(event)  # updated in place until the contact ends
+                self.cat_contacts += 1
+                if generic_unused:
+                    generic_unused = False
+                else:
+                    self.collisions += 1
+                    self.collision_times.append(now)
+                self._log_cat_event("cat_contact_start", now, event)
+            event.pop("separated_t", None)  # touching again: any short separation is forgiven
+            self.cats.freeze(index)
+            event["peak_force_n"] = max(event["peak_force_n"], force)
+            event["impulse_ns"] += force * C.PHYSICS_DT
+        for index, event in list(self._cat_open.items()):
+            if index in touching:
+                continue
+            event.setdefault("separated_t", now)
+            if now - event["separated_t"] > C.COLLISION_EVENT_GAP:
+                self._end_cat_contact(index, "separated")
+        for cat in self.cats.cats:
+            if (cat.frozen and cat.index not in self._cat_open and cat.index not in self._cat_done
+                    and self.cats.gaps(cat, cat.x, cat.y, cat.yaw)[1] > 0.0):
+                self.cats.freeze(cat.index, False)
+
+    def _end_cat_contact(self, index: int, reason: str) -> None:
+        event = self._cat_open.pop(index)
+        end = event.pop("separated_t", self.sim.time)
+        event["duration_s"] = end - event["t"]
+        event["end_reason"] = reason  # separated, episode_end, reset, or close
+        self._log_cat_event("cat_contact_end", self.sim.time, event)
+
+    def finish_cat_contacts(self, reason: str) -> None:
+        """Close every open cat contact (episode end, reset, close) so its force, impulse, and
+        duration reach the log; a contact still touching says so in end_reason."""
+        for index in list(self._cat_open):
+            if "separated_t" not in self._cat_open[index]:
+                self._cat_done.add(index)  # still touching
+            self._end_cat_contact(index, reason)
+
+    def _log_cat_event(self, name: str, t: float, event: dict) -> None:
+        """Cat identity, initiator, and forces are privileged truth: only under evaluation_only_truth."""
+        if self.log is not None:
+            truth = {("start_t" if k == "t" else k): v for k, v in event.items() if k != "separated_t"}
+            self.log.event(name, t, evaluation_only_truth=truth)
+
+    def _initiator(self, index: int, contacts) -> dict:
+        """Closing speeds along the contact normal at the contact point (robot -> cat positive)."""
+        import mujoco
+        m, d = self.sim.model, self.sim.data
+        cat = self.cats.cats[index]
+        vel = np.zeros(6)
+        mujoco.mj_objectVelocity(m, d, mujoco.mjtObj.mjOBJ_BODY, self.sim.robot_body, vel, 0)
+        ang, lin = vel[:3], vel[3:]
+        robot_origin = d.xpos[self.sim.robot_body]
+        robot_in, cat_in = 0.0, 0.0
+        for c, sign in contacts:
+            p = d.contact.pos[c]
+            n = sign * d.contact.frame[c][:3]  # robot -> cat
+            v_robot = lin + np.cross(ang, p - robot_origin)
+            v_cat = np.array([cat.v * np.cos(cat.yaw), cat.v * np.sin(cat.yaw), 0.0]) + \
+                np.cross([0.0, 0.0, cat.w], p - np.array([cat.x, cat.y, p[2]]))
+            robot_in = max(robot_in, float(v_robot @ n))
+            cat_in = max(cat_in, float(-(v_cat @ n)))
+        tol = self.CONTACT_TOL
+        if robot_in <= tol and cat_in <= tol:
+            who = "indeterminate"
+        elif robot_in - cat_in > tol:
+            who = "robot"
+        elif cat_in - robot_in > tol:
+            who = "cat"
+        else:
+            who = "both"
+        return {"robot_closing_speed": robot_in, "cat_closing_speed": cat_in, "initiator": who}
 
     def _control_tick(self) -> None:
         now = self.sim.time
@@ -156,6 +311,8 @@ class RobotSystem:
             self.intervention_time += C.CONTROL_PERIOD
         self._intervening = intervening
         self.last_result = result
+        if self.log is not None:
+            self.log.tick(self)  # after every decision of this tick: logging cannot change them
 
     def _motor_step(self) -> None:
         """Velocity smoother, once before every physics step: the motor command moves toward the
@@ -194,6 +351,10 @@ class RobotSystem:
         return {"pose": (x, y, yaw), "velocity": (v, w), "goal": tuple(self.sim.goal)}
 
     def close(self) -> None:
+        if self.cats is not None:
+            self.finish_cat_contacts("close")
+        if self.log is not None:
+            self.log.close()  # finalize an attached drive log
         self.sim.close()
 
 
@@ -213,3 +374,9 @@ def _smooth(current: float, target: float, max_increase: float, max_decrease: fl
         return current + step if goal > 0 else current - step
     step = min(abs(current) - abs(goal), max_decrease)
     return current - step if current > 0 else current + step
+
+
+def mujoco_forward(sim) -> None:
+    """Recompute positions after moving mocap bodies outside a physics step (reset)."""
+    import mujoco
+    mujoco.mj_forward(sim.model, sim.data)

@@ -18,6 +18,7 @@ import pygame
 
 from . import config as C
 from .layout import RoomMap, Task
+from .cats import MAX_CATS
 from .manual import ManualDriver, ManualInput
 from .safety import is_safe
 from .system import RobotSystem
@@ -61,14 +62,25 @@ def parse_script(text: str) -> list[ScriptStep]:
 
 class ViewCamera:
     """The viewer's camera. The chase and orbit views follow a SMOOTHED desired pose (so a
-    small heading wobble never swings the view), but wall/furniture clearance is a hard
-    limit applied every frame after smoothing: the camera never sits inside geometry."""
+    small heading wobble never swings the view), but clearance is a hard limit applied every
+    frame after smoothing: the camera never sits inside walls, furniture, or visual detail.
+
+    Line of sight: the robot's top corners and a point ahead of it (cut short at the first
+    obstacle) must be visible. When furniture hides them, the camera swings sideways and/or
+    looks down more steeply to the nearest clear pose, holds that choice for at least HOLD
+    seconds (no left-right flip-flopping), and eases back to the normal pose once it is clear."""
 
     YAW_TAU = 0.3  # s, heading follow
     LOOK_TAU = 0.08  # s, look-at follow
     OUT_TAU = 0.4  # s, easing back out after an obstruction clears
     ELEV_TAU = 0.25  # s, tilting toward the elevation that keeps the robot in view
-    MARGIN = 0.12  # m kept between the camera and the first solid surface
+    OFFSET_TAU = 0.35  # s, swinging to or from a line-of-sight detour
+    MARGIN = 0.12  # m kept between the camera and the first surface along its line of sight
+    BUBBLE = 0.05  # m kept clear around the camera in every direction (near plane)
+    HOLD = 0.6  # s a chosen detour is kept before reconsidering
+    OFFSETS = (0.0, 20.0, -20.0, 40.0, -40.0, 60.0, -60.0)  # degrees of sideways detour
+    DETOUR_ELEVATIONS = (None, -45.0, -65.0)  # None: the normal elevation
+    CORNERS = ((0.12, 0.08), (0.12, -0.08), (-0.12, 0.08), (-0.12, -0.08))  # robot frame, at z 0.16
 
     def __init__(self) -> None:
         self.cam = mujoco.MjvCamera()
@@ -85,6 +97,11 @@ class ViewCamera:
         self._look = np.zeros(3)
         self._dist = self.distance
         self._elev = self.elevation
+        self._offset = 0.0  # smoothed sideways detour (degrees)
+        self._detour = (0.0, None)  # chosen (offset, elevation override)
+        self._hold_until = -1.0
+        self._clock = 0.0
+        self.blocked = False  # no clear pose found: the window shows a small cue
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEMOTION and event.buttons[0]:
@@ -111,9 +128,11 @@ class ViewCamera:
             self.cam.distance = (C.FLOOR_HALF_SIZE + 0.3) / math.tan(math.radians(22.5)) + C.WALL_HEIGHT
             return self.cam
 
+        self._clock += max(dt, 0.0)
         heading = math.degrees(yaw) if view == "chase" else 0.0
         target_look = np.array([x, y, 0.1])
-        if not self._init:
+        snap = not self._init
+        if snap:
             self._heading, self._look = heading, target_look.copy()
             self._dist, self._elev = self.distance, self.elevation
             self._init = True
@@ -122,34 +141,122 @@ class ViewCamera:
             self._heading += wrap * self._alpha(dt, self.YAW_TAU)
             self._look += (target_look - self._look) * self._alpha(dt, self.LOOK_TAU)
         self.cam.lookat[:] = self._look
-        self.cam.azimuth = self._heading + self.azimuth
+        targets = self._sight_targets(sim, x, y, yaw)
 
-        # Elevation: tilt smoothly toward the shallowest angle (from the user's choice down to
-        # -85 degrees) at which the desired distance is clear.
-        wanted = min(self.distance, 0.9)
-        target_elev = -85.0
-        for el in np.arange(self.elevation, -85.0, -1.0):
-            if self._clear_distance(sim, self.cam.azimuth, el) >= wanted:
-                target_elev = float(el)
-                break
+        # Line-of-sight detour: keep the current pose while it sees the robot and the way ahead;
+        # after HOLD seconds on a detour, go back to the normal pose as soon as that works; when
+        # the current pose is blocked, take the nearest clear candidate (current side first).
+        normal = (0.0, None)
+        if self._pose_sees(sim, *self._detour, targets):
+            self.blocked = False
+            if self._detour != normal and self._clock >= self._hold_until \
+                    and self._pose_sees(sim, *normal, targets):
+                self._detour, self._hold_until = normal, self._clock + self.HOLD
+        else:
+            choice = self._choose_detour(sim, targets)
+            if choice is not None and choice != self._detour:
+                self._detour, self._hold_until = choice, self._clock + self.HOLD
+            self.blocked = choice is None
+        offset, elev_override = self._detour
+        if snap:
+            self._offset = offset  # first frame after a reset: start at the chosen pose
+        self._offset += (offset - self._offset) * self._alpha(dt, self.OFFSET_TAU)
+        self.cam.azimuth = self._heading + self.azimuth + self._offset
+
+        # Elevation: tilt smoothly toward the shallowest angle (from the user's choice, or the
+        # detour's, down to -85 degrees) at which the desired distance is clear.
+        target_elev = self._settled_elevation(sim, self.cam.azimuth, elev_override)
+        if snap:
+            self._elev = target_elev  # first frame after a reset: start at a clear angle
         self._elev += (target_elev - self._elev) * self._alpha(dt, self.ELEV_TAU)
         self.cam.elevation = self._elev
 
-        # Distance: ease back out slowly, pull in immediately (hard cap, every frame).
+        # Distance: ease back out slowly, pull in immediately (hard cap, every frame, last).
         if self.distance > self._dist:
             self._dist += (self.distance - self._dist) * self._alpha(dt, self.OUT_TAU)
         else:
             self._dist = self.distance
         clear = self._clear_distance(sim, self.cam.azimuth, self.cam.elevation)
+        clear = self._bubble_distance(sim, self.cam.azimuth, self.cam.elevation, min(self._dist, clear))
         self.cam.distance = min(self._dist, clear)
         self._dist = self.cam.distance if clear < self._dist else self._dist
         return self.cam
 
-    def _clear_distance(self, sim, azimuth: float, elevation: float) -> float:
-        """Distance the camera may sit behind the look-at point without entering geometry."""
+    def _bubble_distance(self, sim, azimuth: float, elevation: float, dist: float) -> float:
+        """Shorten `dist` until a BUBBLE-sized neighbourhood around the camera is clear (the line
+        of sight can run along a wall, leaving the camera too close to it sideways)."""
         az, el = math.radians(azimuth), math.radians(elevation)
         back = np.array([-math.cos(el) * math.cos(az), -math.cos(el) * math.sin(az), -math.sin(el)])
-        hit = sim.ray_to_solid(self.cam.lookat, back)
+        right = np.cross(-back, (0.0, 0.0, 1.0))
+        right /= max(np.linalg.norm(right), 1e-9)
+        up = np.cross(right, -back)
+        probes = (right, -right, up, -up, back)
+        while dist > 0.02:
+            pos = np.asarray(self.cam.lookat) + back * dist
+            if all(not (0 <= sim.ray_to_view_blocker(pos, d) <= self.BUBBLE) for d in probes):
+                return dist
+            dist -= 0.03
+        return 0.02
+
+    # ----- line of sight -----
+    def _sight_targets(self, sim, x: float, y: float, yaw: float) -> list:
+        """The robot's top corners and a point ahead of it, cut short at the first obstacle."""
+        c, s = math.cos(yaw), math.sin(yaw)
+        pts = [np.array([x + c * px - s * py, y + s * px + c * py, 0.16]) for px, py in self.CORNERS]
+        origin = np.array([x, y, 0.16])
+        forward = np.array([c, s, 0.0])
+        ahead = sim.ray_to_view_blocker(origin, forward)
+        reach = 1.0 if ahead < 0 else max(min(1.0, ahead - 0.2), 0.0)
+        pts.append(origin + forward * reach)
+        return pts
+
+    def _settled_elevation(self, sim, azimuth: float, elev_override) -> float:
+        """The elevation the camera settles at: the shallowest angle, from the user's choice (or
+        the detour's) down to -85 degrees, at which the wanted distance is clear."""
+        start = self.elevation if elev_override is None else min(self.elevation, elev_override)
+        wanted = min(self.distance, 0.9)
+        for el in np.arange(start, -85.0, -1.0):
+            if self._clear_distance(sim, azimuth, el) >= wanted:
+                return float(el)
+        return -85.0
+
+    def _camera_position(self, sim, azimuth: float, elevation: float) -> np.ndarray:
+        dist = min(self.distance, self._clear_distance(sim, azimuth, elevation))
+        az, el = math.radians(azimuth), math.radians(elevation)
+        back = np.array([-math.cos(el) * math.cos(az), -math.cos(el) * math.sin(az), -math.sin(el)])
+        return np.asarray(self.cam.lookat) + back * dist
+
+    def _pose_sees(self, sim, offset: float, elev_override, targets) -> bool:
+        azimuth = self._heading + self.azimuth + offset
+        elevation = self._settled_elevation(sim, azimuth, elev_override)  # judged where it will settle
+        pos = self._camera_position(sim, azimuth, elevation)
+        for p in targets:
+            d = p - pos
+            n = float(np.linalg.norm(d))
+            if n < 1e-6:
+                continue
+            hit = sim.ray_to_view_blocker(pos, d / n)
+            if 0 <= hit < n - 0.03:
+                return False
+        return True
+
+    def _choose_detour(self, sim, targets):
+        """The nearest clear (offset, elevation) pose: smallest detour first, the current side
+        before the other side. None when nothing is clear."""
+        side = 1.0 if self._detour[0] >= 0 else -1.0
+        offsets = sorted(self.OFFSETS, key=lambda o: (abs(o), o * side < 0))
+        for elev in self.DETOUR_ELEVATIONS:
+            for offset in offsets:
+                if self._pose_sees(sim, offset, elev, targets):
+                    return (offset, elev)
+        return None
+
+    def _clear_distance(self, sim, azimuth: float, elevation: float) -> float:
+        """Distance the camera may sit behind the look-at point without entering geometry
+        (solids and visual detail, so it never sits inside a chair's arms)."""
+        az, el = math.radians(azimuth), math.radians(elevation)
+        back = np.array([-math.cos(el) * math.cos(az), -math.cos(el) * math.sin(az), -math.sin(el)])
+        hit = sim.ray_to_view_blocker(self.cam.lookat, back)
         if hit < 0:
             return math.inf
         return max(hit - self.MARGIN, 0.02)
@@ -166,7 +273,7 @@ class Episode:
 class App:
     def __init__(self, seed: int, screenshot: Path | None = None, frames: int | None = None,
                  script: list[ScriptStep] | None = None, view: int = 0, driver: Driver | None = None,
-                 key_policy=None, speed_level: int = C.DEFAULT_SPEED_LEVEL):
+                 key_policy=None, speed_level: int = C.DEFAULT_SPEED_LEVEL, cats: int = 0, cat_seed: int = 0):
         # Only display and fonts. pygame.init() also starts the joystick subsystem,
         # and MuJoCo's GLFW renderer then triggers a JOYDEVICEREMOVED event that
         # crashes pygame.event.get() with KeyError(0) (found in the step 2 spike).
@@ -178,7 +285,7 @@ class App:
         self.font = pygame.font.SysFont("consolas", 16)
         self.big = pygame.font.SysFont("consolas", 30, bold=True)
         self.clock = pygame.time.Clock()
-        self.system = RobotSystem()
+        self.system = RobotSystem(cats=cats, cat_seed=cat_seed)
         self.room = RoomMap(self.system.sim.model)
         self.renderer = mujoco.Renderer(self.system.sim.model, height=WINDOW[1], width=WINDOW[0])
         self.view = ViewCamera()
@@ -233,6 +340,10 @@ class App:
             ep.status = "timeout"
         if ep.status != "running":
             ep.end_time = min(s.time, C.EPISODE_TIME_LIMIT)
+            if s.cats is not None:
+                s.finish_cat_contacts("episode_end")
+            if s.log is not None:
+                s.log.event("episode_" + ep.status, s.time, seed=self.seed)
 
     # ----- input -----
     def handle_events(self) -> bool:
@@ -370,6 +481,8 @@ class App:
                     + " and press again to drive", (240, 200, 90), y=200)
         if not self.input.focused:
             _banner(self.screen, self.big, "WINDOW NOT FOCUSED - STOPPED", (240, 170, 40), y=255)
+        if self.view.blocked and VIEWS[self.view.mode] in ("chase", "orbit"):
+            _text_box(self.screen, self.font, ["view blocked by furniture: press C for another view"], (24, 300))
         status = self.episode.status
         if status != "running":
             text = {"success": "GOAL REACHED!", "collision": "COLLISION - episode over",
@@ -500,6 +613,9 @@ def main(argv: list[str] | None = None) -> dict:
     p = argparse.ArgumentParser(description="Drive the robot by hand.")
     p.add_argument("--seed", type=int, default=C.HELDOUT_SEEDS[0], help="goal seed (start and goal positions)")
     p.add_argument("--view", type=int, default=0, help="0 chase, 1 top, 2 orbit, 3 robot camera")
+    p.add_argument("--cats", type=int, default=0, choices=range(0, MAX_CATS + 1),
+                   help=f"number of wandering cats, 0 to {MAX_CATS} (default 0: off)")
+    p.add_argument("--cat-seed", type=int, default=0, help="seed for the cats' behavior (independent of the goal)")
     p.add_argument("--speed-level", type=int, default=C.DEFAULT_SPEED_LEVEL + 1,
                    choices=range(1, len(C.SPEED_LEVELS) + 1),
                    help=f"starting speed level, 1 to {len(C.SPEED_LEVELS)} (default {C.DEFAULT_SPEED_LEVEL + 1})")
@@ -507,8 +623,10 @@ def main(argv: list[str] | None = None) -> dict:
     p.add_argument("--screenshot", type=Path, help="save a screenshot here when quitting")
     p.add_argument("--script", help="scripted key holds, e.g. 'W:2;W+A:1;none:0.5' (automated checks)")
     a = p.parse_args(argv)
+    if a.cat_seed < 0:
+        p.error("--cat-seed must be 0 or more")
     app = App(a.seed, a.screenshot, a.frames, parse_script(a.script) if a.script else None, a.view,
-              speed_level=a.speed_level - 1)
+              speed_level=a.speed_level - 1, cats=a.cats, cat_seed=a.cat_seed)
     summary = app.run()
     print("summary:", {k: (round(v, 3) if isinstance(v, float) else v) for k, v in summary.items()})
     return summary

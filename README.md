@@ -7,11 +7,26 @@ can later drive it. This version is the static foundation: you
 drive the robot to a goal by hand, through the same safety layer that any
 automatic driver will use later.
 
-![The office floor from above](docs/floor_top.png)
+![The robot drives itself to a goal past wandering cats](docs/demo.gif)
 
-![Driving down the corridor](docs/corridor.png)
+*The baseline driver takes the robot from the office to the lab while three cats wander,
+sit, and walk around it: chase view, then the robot's own camera, then the top view at the
+goal. Full-quality video: [docs/demo.mp4](docs/demo.mp4). Recorded with
+`.venv\Scripts\python tools\make_media.py` (goal seed 1000, speed level 2, 3 cats, cat seed 16).
+Cats are off by default.*
 
-![Goal reached](docs/screenshot_goal.png)
+| | |
+|---|---|
+| ![Three cats seen by the robot's camera](docs/cats_robot_camera.png) | ![A cat near the goal, from the robot's camera while it drives itself](docs/robot_camera_cat.png) |
+| Three cats (orange tabby, black sitting, grey) in the robot's camera view; the lidar map shows the cats it can detect as gaps in the scan. | The robot's camera while it drives itself: the goal marker and a cat beside it. |
+| ![Goal reached, top view with the cats](docs/top_view_cats.png) | ![The office floor from above](docs/floor_top.png) |
+| Goal reached, top view: the orange cat beside the robot and the black cat in the storage room (two of the three cats are in view). | The whole 10 x 10 m office floor: office, lab, corridor, storage, and reception. |
+| ![The robot close up](docs/robot_closeup.png) | ![Driving down the corridor](docs/corridor.png) |
+| The robot: lidar on top, front camera, two driven wheels, and ball casters. | Driving down the corridor (chase view). |
+| ![The lab from the robot camera](docs/lab_robot_camera.png) | ![The reception room](docs/reception.png) |
+| The lab, from the robot's camera. | Reception, with wood floor, rug, and furniture. |
+| ![Goal reached in manual driving](docs/screenshot_goal.png) | ![The lidar panel](docs/lidar_panel.png) |
+| Manual driving: every status line, the robot camera inset, and the lidar map. | The lidar panel: free space (shaded) and returns (green outline). |
 
 **Contents:** [1. What it is](#1-what-it-is) ·
 [2. Setup](#2-setup) ·
@@ -63,6 +78,8 @@ installed versions.
 | `--seed N` | Which start and goal to use (default 1000). The same seed always gives the same task. |
 | `--view N` | Starting view: 0 chase, 1 top, 2 orbit, 3 robot camera (default 0). |
 | `--speed-level N` | Starting speed level (default 2). |
+| `--cats N` | Number of wandering cats, 0 to 4 (default 0: off). |
+| `--cat-seed S` | Seed for the cats' behavior (default 0), independent of the goal seed. |
 | `--screenshot PATH` | Save a screenshot to PATH when the window closes. |
 | `--frames N` | Close after N frames (for automated checks). |
 | `--script TEXT` | Hold keys on a schedule, for example `W:2;W+A:1;none:0.5;SPACE:0.3` (for automated checks). |
@@ -215,11 +232,36 @@ continue; if a banner asks you to release a key, release it and press again.
 - **Episode end:** reaching the goal, a collision (unless T is on), or the
   time limit. The robot then stops; press R to retry or N for the next goal.
 
+### Wandering cats (optional)
+
+Run with `--cats 3` (up to 4) to add cats that walk, pause, sit, and sometimes dart:
+
+```powershell
+.venv\Scripts\python run_sim.py --cats 3 --cat-seed 16
+```
+
+- **What they are:** each cat is solid: its body and head collide, and they cross the lidar
+  plane, so the lidar can detect them (a cat hidden behind another object is not seen).
+  Legs, ears, and tail are visual only. A cat steers itself: it stays clear of walls,
+  furniture, other cats, and the robot, and walks away when the robot comes close.
+- **Collisions:** touching a cat counts as a collision (it ends the episode by default). The
+  run records which cat, who moved into whom (from both speeds along the contact normal),
+  the peak contact force, the impulse, and the duration. A touching cat freezes at once and
+  stays still until it is clear of the robot; in the test where a cat walks into the stopped
+  robot, the robot moved less than 1 cm.
+- **Seeds:** the same `--cat-seed` reproduces the cats only when everything else is the same
+  too: the same world, goal, driving commands and their timing, and settings. Manual
+  driving is never exactly repeatable, so neither are the cats around it.
+- **Limitation:** the safety layer treats each lidar scan as a still snapshot (refreshed 50
+  times a second); it does not yet predict where a moving object is going. So cats are a
+  demonstration and experiment feature, not evidence that the robot is safe around moving
+  animals or people. Velocity-aware prediction is planned.
+
 ## 8. Camera views
 
 | View | What you see |
 |---|---|
-| Chase | Behind the robot, following its heading smoothly. Near walls, the camera rises and moves closer so it never enters a wall. |
+| Chase | Behind the robot, following its heading smoothly. Near walls and furniture, the camera rises, moves closer, or swings to the side so it never enters anything and keeps the robot and the way ahead in view. If no clear angle exists, a note says so (press C for another view). |
 | Top | The whole floor from above, with the ceiling cut away. |
 | Orbit | Like chase, but it does not turn with the robot; rotate it with the left mouse button. |
 | Robot camera | The robot's own front camera (with the ceiling). |
@@ -324,6 +366,35 @@ obs, reward, terminated, truncated, info = env.step([0.3, 0.0])  # [v m/s, omega
 | `.venv\Scripts\python tools\qa_screens.py` | Saves screenshots of the corridor, rooms, doorways, and robot to `qa_output\` |
 | `.venv\Scripts\python tools\build_world.py` | Regenerates `world.xml` after layout changes |
 | `.venv\Scripts\python tools\make_textures.py` | Regenerates the textures in `robot_env/assets/` |
+| `.venv\Scripts\python tools\eval_baseline.py --set heldout --levels 1 2 5 --out qa_output\baseline_heldout.json` | Evaluates the rule-based baseline driver headless (see below). `--set dev` uses the tuning seeds 2000 to 2019; `--logs DIR` writes a drive log per episode. |
+| `.venv\Scripts\python tools\fps_protocol.py` | Measures rendered performance: 3 or more trials per view, frame-time percentiles, late frames, real-time factor, and the host details. Add `--note` to record background load. |
+
+### Baseline driver
+
+`robot_env/baseline.py` is a rule-based reference driver, so later changes can be compared
+honestly. It sees only the observation, like any driver:
+- it integrates its own odometry from the encoder speeds;
+- it builds its own occupancy map from the lidar;
+- it plans to the goal on that map and backs up when stuck.
+
+On the held-out goals with ideal sensors it reaches 8, 9, and 10 of 10 goals at levels 1, 2,
+and 5, with no collisions. Its failures come from odometry drift on long runs.
+
+### Drive logs
+
+`robot_env/drive_log.py` writes one JSON-lines file per episode (a reset closes and detaches a
+log that is already in use; attach a new one for the next episode). Attach it with
+`system.log = DriveLog(path, task_seed=...)` and finalize it with `with DriveLog(...) as log:`,
+`log.close()`, or `system.close()`; `read_log(path)` rejects a truncated, failed, or
+inconsistent log. It records:
+- a header: format version, profile, seeds, configuration hash, and host;
+- one record per 50 Hz control tick: requested, approved, and applied commands; safety
+  reasons; contact; encoder speeds; and the full lidar scan, stored losslessly with a
+  checksum;
+- episode events, and with cats their state changes and contacts (start and end).
+
+Ground truth appears only under `evaluation_only_truth`. Read a log back with `read_log(path)`.
+Logging never changes the robot's behavior, and a write failure only stops the log.
 
 ### Notes
 

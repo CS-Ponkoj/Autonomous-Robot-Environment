@@ -452,3 +452,78 @@ def test_camera_stays_continuous_while_changing_level_and_shift():
         assert math.dist(p0, p1) <= 0.06  # at most about one frame of robot travel plus smoothing
         assert abs(((a1 - a0) + 180) % 360 - 180) <= 1.0 and abs(e1 - e0) <= 1.0
     app.run()
+
+
+# ----- chase camera line of sight near furniture -----
+
+CAMERA_POSES = {  # robot backed up to furniture or a wall: the chase camera's usual spot is taken
+    "chair": (-3.8, 3.2, -1.5708),
+    "desk": (-3.3, 3.85, -1.5708),
+    "shelf": (-4.25, -3.0, 0.0),
+    "doorway": (-2.5, 0.75, -1.5708),
+    "wall": (4.6, 0.0, 3.1416),
+}
+
+
+def _sees_robot_and_ahead(sim, view, cam) -> bool:
+    import numpy as np
+    x, y, yaw = sim.true_pose()
+    pos, _ = _camera_position(cam)
+    for p in view._sight_targets(sim, x, y, yaw):
+        d = p - pos
+        n = float(np.linalg.norm(d))
+        hit = sim.ray_to_view_blocker(pos, d / n)
+        if 0 <= hit < n - 0.03:
+            return False
+    return True
+
+
+@pytest.mark.parametrize("name", sorted(CAMERA_POSES))
+def test_chase_camera_keeps_the_robot_and_the_way_ahead_in_view(name):
+    """Regression (hands-on review): next to a desk and chair the chase camera sat between the
+    chair's arms and hid the robot. At every frame: the camera is outside all geometry
+    (including visual detail), and the robot's corners and the way ahead are visible, or the
+    camera reports it is blocked. The chosen detour never flips side."""
+    from robot_env.app import ViewCamera
+    from robot_env.layout import RoomMap
+    from robot_env.sim import RobotSim
+    sim = RobotSim()
+    x, y, yaw = CAMERA_POSES[name]
+    assert RoomMap(sim.model).point_clearance(x, y) > 0.2126  # a pose the robot can really be in
+    sim.reset(x, y, yaw, (0.0, 0.0))
+    view = ViewCamera()
+    sides = []
+    for frame in range(120):
+        cam = view.apply(sim, 1 / 60)
+        pos, back = _camera_position(cam)
+        hit = sim.ray_to_view_blocker(cam.lookat, back)
+        assert hit < 0 or hit >= cam.distance, (name, frame)  # never inside anything
+        assert view.blocked or _sees_robot_and_ahead(sim, view, cam), (name, frame)
+        sides.append(view._detour[0])
+    flips = sum(1 for a, b in zip(sides, sides[1:]) if a * b < 0)
+    assert flips == 0, sides
+    assert not view.blocked
+    sim.close()
+
+
+def test_chase_camera_returns_to_the_normal_view_after_leaving_furniture():
+    """Leaving the chair: the camera eases back to the normal chase angle and distance."""
+    from robot_env.app import ViewCamera
+    from robot_env.sim import RobotSim
+    sim = RobotSim()
+    view = ViewCamera()
+    x, y, yaw = CAMERA_POSES["chair"]
+    sim.reset(x, y, yaw, (0.0, 0.0))
+    for _ in range(60):
+        view.apply(sim, 1 / 60)
+    assert view.cam.elevation < -40 or view._detour != (0.0, None)  # detouring around the chair
+    for i in range(1, 61):  # slide 1.2 m away from the chair, into open office floor
+        sim.reset(x, y - 0.02 * i, yaw, (0.0, 0.0))
+        view.apply(sim, 1 / 60)
+    for _ in range(180):
+        cam = view.apply(sim, 1 / 60)
+    # back to the user's angle and as far out as the room allows (the nearest wall may cap it)
+    assert abs(cam.elevation - view.elevation) < 2.0
+    assert cam.distance == pytest.approx(min(view.distance, view._clear_distance(sim, cam.azimuth, cam.elevation)), abs=0.05)
+    assert view._detour == (0.0, None)
+    sim.close()

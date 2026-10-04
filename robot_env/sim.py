@@ -19,6 +19,7 @@ ASSETS = Path(__file__).with_name("assets")
 _OBSTACLES_BLOCK = re.compile(r"<!-- OBSTACLES.*?/OBSTACLES -->", re.S)
 _RAY_GROUPS = np.array([1, 1, 0, 0, 1, 1], dtype=np.uint8)  # skip visual (2) and ceiling (3)
 _WORLD_SOLID_GROUP = np.array([1, 0, 0, 0, 0, 0], dtype=np.uint8)  # world solids only (tires are group 1)
+_VIEW_GROUP = np.array([1, 0, 1, 0, 0, 0], dtype=np.uint8)  # what blocks the viewer: solids and visual detail
 _SPAWN_HEIGHT = 0.0505
 
 
@@ -55,6 +56,7 @@ class RobotSim:
         roots = m.body_rootid[m.geom_bodyid]
         self._robot_geom = roots == self.robot_body
         self._solid_world_geom = (~self._robot_geom) & (m.geom_contype != 0) & (np.arange(m.ngeom) != self._floor)
+        self._cat_geom = np.array([m.body(int(b)).name.startswith("cat") for b in m.geom_bodyid], dtype=bool)
         self._ray_hit = np.zeros(1, dtype=np.int32)
         self._scan_geom = np.zeros(C.LIDAR_RAYS, dtype=np.int32)
         self._scan_dist = np.zeros(C.LIDAR_RAYS)
@@ -100,6 +102,18 @@ class RobotSim:
         robot = self._robot_geom[pairs]
         solid = self._solid_world_geom[pairs]
         return bool(np.any((robot[:, 0] & solid[:, 1]) | (robot[:, 1] & solid[:, 0])))
+
+    def cat_contacts_now(self) -> dict[int, list[tuple[int, float]]]:
+        """Every cat the robot touches now: {cat index: [(contact index, +1 or -1), ...]}. The sign
+        turns the contact normal (geom1 -> geom2) into the robot -> cat direction."""
+        out: dict[int, list[tuple[int, float]]] = {}
+        for c in range(self.data.ncon):
+            g1, g2 = self.data.contact.geom[c]
+            for a, b, sign in ((g1, g2, 1.0), (g2, g1, -1.0)):
+                if self._robot_geom[a] and self._cat_geom[b]:
+                    index = int(self.model.body(int(self.model.geom_bodyid[b])).name[3:])
+                    out.setdefault(index, []).append((c, sign))
+        return out
 
     # ----- sensors (non-privileged) -----
     def scan(self) -> tuple[np.ndarray, np.ndarray]:
@@ -147,6 +161,12 @@ class RobotSim:
         Used by the viewer camera only; ignores the robot, visuals, and the ceiling."""
         return float(mujoco.mj_ray(self.model, self.data, np.asarray(origin, float), np.asarray(direction, float),
                                    _WORLD_SOLID_GROUP, 1, self.robot_body, self._ray_hit))
+
+    def ray_to_view_blocker(self, origin, direction) -> float:
+        """Like ray_to_solid, but visual-only detail (chair arms, decor) also counts: anything
+        that would block the viewer's line of sight. Viewer camera only."""
+        return float(mujoco.mj_ray(self.model, self.data, np.asarray(origin, float), np.asarray(direction, float),
+                                   _VIEW_GROUP, 1, self.robot_body, self._ray_hit))
 
     # ----- ground truth (evaluation only, never given to drivers) -----
     def true_pose(self) -> tuple[float, float, float]:

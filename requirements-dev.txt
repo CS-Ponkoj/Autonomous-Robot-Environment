@@ -1,0 +1,5 @@
+# Development-only tools (not needed to run the simulator or the tests).
+# Used by tools/make_media.py to record the README video and animated GIF.
+imageio==2.38.0
+imageio-ffmpeg==0.6.0
+pillow==12.3.0
