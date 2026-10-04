@@ -50,6 +50,7 @@ LOOK_ROOM = 0.15  # m beyond the robot gap: closer than this a cat does not turn
 CLOSER_TOLERANCE = 1e-4  # m: "never closer" inside a gap, to numerical precision
 MOVE_ROOM = 0.005  # m a cat's root moves keep beyond each gap, leaving room for its limbs to move
 SWEEP_TOL = 0.0005  # m: half of the agreed 1 mm tolerance on gaps between two samples
+LAND_TOL = 0.0009  # m into a gap that a paw put down short may take (inside the agreed 1 mm)
 WALL_GAP = 0.03  # m kept between the visible cat and walls or furniture
 ROBOT_GAP = 0.30  # m kept between the visible cat and the robot's circumscribed circle
 CAT_GAP = 0.05  # m kept between two cats
@@ -106,7 +107,9 @@ ESCAPE_DEPTH = 24  # steps at most
 ESCAPE_EXPANSIONS = 600  # poses explored at most (the search runs only after a stall)
 GIVE_WAY_AFTER = 2.0  # s a cat that wants to move may get nowhere before it gives way
 GIVE_WAY_MOVE = 0.05  # m of progress that counts as getting somewhere
+ESCAPE_RETRY = 0.5  # s after a search found no way out, the cat looks again
 UNSTICK_AFTER = 1.0  # s blocked: the cat first steps toward open space, then carries on
+STUCK_AFTER = 0.5  # s with no feasible way forward: the planner may then use its cushion
 
 RASTER = 0.02  # m: clearance raster cell
 RASTER_SLACK = RASTER * math.sqrt(2) / 2  # max distance from a point to its nearest raster node
@@ -686,6 +689,19 @@ class CatHerd:
                 return False
         return True
 
+    def _landing_ok(self, cat: Cat, pose: Sample) -> bool:
+        """A paw put down short (the root held): every gap stays above its limit less LAND_TOL, a
+        fixed floor; a gap already below that floor may not shrink at all."""
+        start = cat.prev
+        inflate = self._half_chord(cat, self.circles(cat, pose.x, pose.y, pose.yaw, pose), self.circles(cat, pose=start))
+        new = self.gaps(cat, pose.x, pose.y, pose.yaw, pose, inflate, sweep=True)
+        now = self.gaps(cat, start.x, start.y, start.yaw, start)
+        for k, limit in enumerate((WALL_GAP, self._robot_limit(cat, now[1]), CAT_GAP)):
+            floor = limit - LAND_TOL
+            if new[k] < floor and not (now[k] < floor and new[k] >= now[k]):
+                return False
+        return True
+
     # ----- episode -----
     def reset(self, start: tuple[float, float], goal: tuple[float, float]) -> None:
         """Respawn deterministically from cat_seed at free points away from the robot and goal."""
@@ -860,6 +876,11 @@ class CatHerd:
         if now < 0.0:
             feasible |= worst >= now - CLOSER_TOLERANCE
         feasible &= allowed
+        if cat.idle_since is not None and self.time - cat.idle_since >= STUCK_AFTER and not (feasible & ~idle).any():
+            # Stuck inside the cushion where every move comes a little closer (a corner): the
+            # cushion is room to spare, not a limit, so a cat that has stood stuck may use it, down
+            # to the MOVE_ROOM a root move keeps anyway (each sample is still proven as always).
+            feasible |= allowed & ~idle & (worst0 >= MOVE_ROOM)
         if not feasible.any():
             # Nothing keeps every gap (a robot coming fast): make the most of it, taking the move that
             # keeps the most room, rather than freezing in place. Each sample is still proven safe.
@@ -1138,6 +1159,8 @@ class CatHerd:
                 if cat.escape:
                     cat.state_until = self.time + ESCAPE_STEP * len(cat.escape) + 0.5
                     cat.escaped += 1
+                else:  # no way out yet (others crowding it): look again soon, as they move
+                    cat.still_from = (self.time - GIVE_WAY_AFTER + ESCAPE_RETRY, cat.x, cat.y)
                 cat.transitions.append((self.time, "walk"))
             elif cat.state in ("flee", "yield") and cat.route and self.time < cat.state_until:
                 if cat.state == "yield":  # the robot closing in fast: the cat hurries out of its way
@@ -1306,7 +1329,28 @@ class CatHerd:
                 cat.escape = []
                 if cv or cw or cl:
                     cat.rejected[(cv, cw, cl)] = self.time + PLAN_REJECT_TIME
-            if not self.pose_ok(cat, new.x, new.y, new.yaw, pose=new, sweep_from=cat.prev):
+            ok = self.pose_ok(cat, new.x, new.y, new.yaw, pose=new, sweep_from=cat.prev)
+            # a paw in the air whose step would carry it too close (finishing a step is all that
+            # standing still moves): withdraw the step (the paw back down where it lifted from),
+            # or else put it down short, straight below where it is; the leg straightening as it
+            # lands may take that one up to LAND_TOL into a gap (within the gaps' 1 mm
+            # tolerance). Without these a cat could stand forever on three legs.
+            for back in (True, False):
+                if ok:
+                    break
+                cat.animator.restore(snap)
+                if not cat.animator.put_paws_down(back):
+                    break
+                old = cat.prev
+                cat.x, cat.y, cat.yaw = old.x, old.y, old.yaw
+                new = self._animate(cat, 0.0, 0.0, None, 0.0, settle=False, freeze=True)
+                cat.plan_at = self.time
+                cat.escape = []
+                if cv or cw or cl:
+                    cat.rejected[(cv, cw, cl)] = self.time + PLAN_REJECT_TIME
+                ok = (self.pose_ok(cat, new.x, new.y, new.yaw, pose=new, sweep_from=cat.prev) if back
+                      else self._landing_ok(cat, new))
+            if not ok:
                 cat.animator.restore(snap)
                 old = cat.prev
                 cat.x, cat.y, cat.yaw = old.x, old.y, old.yaw

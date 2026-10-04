@@ -38,6 +38,7 @@ TAIL_LIFT_RATE = 2.0  # rad/s: how fast the tail rises or settles
 TAIL_AMP_RATE = 0.1  # rad/s: how fast the tail's sway may grow or calm
 BEND_RATE = 0.5  # rad/s: how fast the spine's bend into a turn may change
 PIVOT_STEP = 0.012  # m: turning on the spot, a paw this far off its spot under the body steps
+PAW_RETURN_SPEED = 0.6  # m/s at most of a paw taken back to where it lifted from (a withdrawn step)
 
 
 def rot_y(a: float) -> np.ndarray:
@@ -81,6 +82,8 @@ class Leg:
     progress: float = 0.0  # swing progress 0..1
     duration: float = 0.25  # s for this swing
     lifted_cycle: int = -1  # gait cycle in which it last lifted (one step per cycle)
+    short: bool = False  # put down short: landing straight below where it is (not at its footfall)
+    short_start: float = 0.0  # swing progress when it was put down short (the new path starts there)
 
 
 class CatAnimator:
@@ -157,18 +160,38 @@ class CatAnimator:
     def snapshot(self) -> tuple:
         """Everything update() changes, to undo a rejected step."""
         legs = tuple((leg.planted, leg.world.copy(), leg.swing_from.copy(), leg.swing_to.copy(), leg.progress,
-                      leg.duration, leg.lifted_cycle) for leg in self.legs.values())
+                      leg.duration, leg.lifted_cycle, leg.short, leg.short_start) for leg in self.legs.values())
         return legs, self.cycles, self.time, self.head_yaw, self.tail_amp, self.bend, self.tail_lift
 
     def restore(self, snap: tuple) -> None:
         legs, self.cycles, self.time, self.head_yaw, self.tail_amp, self.bend, self.tail_lift = snap
-        for leg, (planted, world, frm, to, progress, duration, lifted) in zip(self.legs.values(), legs):
+        for leg, (planted, world, frm, to, progress, duration, lifted, short, start) in zip(self.legs.values(), legs):
             leg.planted, leg.progress, leg.duration, leg.lifted_cycle = planted, progress, duration, lifted
+            leg.short, leg.short_start = short, start
             leg.world, leg.swing_from, leg.swing_to = world.copy(), frm.copy(), to.copy()
+
+    def put_paws_down(self, back: bool = False) -> bool:
+        """Every paw in the air lands short instead of reaching on to its footfall (a cat whose
+        step would carry a paw into a wall puts it down): straight down from where it is, or with
+        back=True, back to the spot it lifted from (the step withdrawn). The new path starts at the
+        paw (continuous), and a withdrawn step takes long enough that the paw moves at most
+        PAW_RETURN_SPEED; it still comes down within a bounded time. True if any paw was in the air."""
+        lifted = False
+        for leg in self.legs.values():
+            if not leg.planted:
+                spot = leg.swing_from.copy() if back else leg.world.copy()
+                spot[2] = leg.world[2]
+                leg.swing_from, leg.swing_to, leg.short, leg.short_start = leg.world.copy(), spot, True, leg.progress
+                left = max(1.0 - leg.progress, 1e-6)
+                needed = float(np.hypot(*(spot[:2] - leg.world[:2]))) / PAW_RETURN_SPEED
+                if needed > left * leg.duration:
+                    leg.duration = needed / left  # slower from here on (the paw stays in the air longer)
+                lifted = True
+        return lifted
 
     def reset(self, x: float, y: float, yaw: float) -> None:
         for leg in self.legs.values():
-            leg.planted, leg.progress, leg.lifted_cycle = True, 0.0, -1
+            leg.planted, leg.progress, leg.lifted_cycle, leg.short, leg.short_start = True, 0.0, -1, False, 0.0
             leg.world = self._to_world(leg.neutral, x, y, yaw)
         self.cycles, self.head_yaw, self.bend, self.tail_amp, self.tail_lift = 0.0, 0.0, 0.0, 0.0, 0.0
         self._started = True
@@ -254,16 +277,21 @@ class CatAnimator:
                 gy = y + (v * math.sin(yaw) + lat * math.cos(yaw)) * rest
                 side = 0.5 * PIVOT_STEP * math.copysign(1.0, lat) if pivot and abs(lat) > 0.02 else 0.0
                 goal = self._to_world(leg.neutral + np.array([ahead, side, 0.0]), gx, gy, yaw + w * rest)
-                if leg.progress <= dt / leg.duration + 1e-9:
+                if leg.short:
+                    pass  # put down short: straight down where it is
+                elif leg.progress <= dt / leg.duration + 1e-9:
                     leg.swing_to = goal  # a new step aims straight at its footfall
                 else:  # a changing footfall (the cat speeds up, stops, or turns) is followed smoothly
                     leg.swing_to = leg.swing_to + (goal - leg.swing_to) * min(1.0, dt / 0.06)
-                e = smoothstep(leg.progress)
+                if leg.short:  # the new path, from where the paw was when it was put down
+                    e = smoothstep((leg.progress - leg.short_start) / max(1.0 - leg.short_start, 1e-6))
+                else:
+                    e = smoothstep(leg.progress)
                 p = leg.swing_from + (leg.swing_to - leg.swing_from) * e
                 p[2] = leg.neutral[2] + STEP_HEIGHT * math.sin(math.pi * leg.progress)
                 leg.world = p
                 if leg.progress >= 1.0:
-                    leg.planted = True
+                    leg.planted, leg.short = True, False
                     leg.world = leg.swing_to.copy()
                     leg.world[2] = leg.neutral[2]
         pos, rot = self._fk_array(L)

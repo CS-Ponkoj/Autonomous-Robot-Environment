@@ -750,13 +750,13 @@ def test_inside_a_gap_a_cat_may_only_move_away():
     s.close()
 
 
-@pytest.mark.parametrize("fails", [1, 2, 3])
+@pytest.mark.parametrize("fails", [1, 2, 10])
 def test_animation_fallbacks(fails):
     """The animated pose refused once: a calm animation is used (the cat still moves; its paws do
     exactly what a calm step does); twice: it stands as it is (root and posture held, the command
-    refused, a new plan at once); three times: the whole sample is rejected (old root and pose,
-    the command refused, counted). Standing or rejected, every planted paw stays planted where
-    it is."""
+    refused, a new plan at once); every time (a paw in the air cannot be put down either): the
+    whole sample is rejected (old root and pose, the command refused, counted). Standing or
+    rejected, every planted paw stays planted where it is."""
     import copy
 
     from robot_env.cats import ANIM_PERIOD
@@ -772,6 +772,8 @@ def test_animation_fallbacks(fails):
             return False
         return real(c, x, y, yaw, margin, pose, sweep_from)
     herd.pose_ok = flaky
+    if fails == 10:
+        herd._landing_ok = lambda c, pose: False  # a paw cannot be put down short either
     root0, held0, now = (cat.x, cat.y, cat.yaw), cat.held, herd.time
     calm = copy.deepcopy(cat.animator)  # what a calm step from here does
     planted0 = {n: leg.world.copy() for n, leg in cat.animator.legs.items() if leg.planted}
@@ -788,8 +790,8 @@ def test_animation_fallbacks(fails):
     else:
         assert (cat.x, cat.y, cat.yaw) == root0  # the root held exactly
         assert command in cat.rejected and cat.plan_at <= now + 1e-9  # refused; a new plan at once
-        assert cat.held == held0 + (fails == 3)
-        if fails == 3:
+        assert cat.held == held0 + (fails == 10)
+        if fails == 10:
             assert cat.blocked and np.allclose(cat.next.pos, cat.prev.pos)  # the old pose
         for n, w in planted0.items():  # every planted paw stays planted where it is
             leg = cat.animator.legs[n]
@@ -833,4 +835,213 @@ def test_a_yielding_cat_on_its_way_hurries_by_the_closing_speed(monkeypatch, rob
     cat.route, cat.destination = [(-1.0, 1.2), (-1.0, 1.6)], (-1.0, 1.6)
     herd.tick()
     assert cat.state == "yield" and cat.target_v == pytest.approx(expect)
+    s.close()
+
+
+def test_a_paw_put_down_short_lands_straight_below_where_it_is():
+    """put_paws_down: a paw in the air lands at its present spot (only coming down), on the
+    rest of its step, and then walks on normally."""
+    from robot_env.cat_motion import CatAnimator
+    from robot_env.cat_rig import load_rig
+    from robot_env.cats import ANIM_PERIOD
+    a = CatAnimator(load_rig(), 0)
+    a.reset(0.0, 0.0, 0.0)
+    x = 0.0
+    while all(leg.planted for leg in a.legs.values()):
+        x += 0.3 * ANIM_PERIOD
+        a.update(ANIM_PERIOD, x, 0.0, 0.0, 0.3, 0.0)
+    swinging = [leg for leg in a.legs.values() if not leg.planted]
+    spots = {leg.name: leg.world[:2].copy() for leg in swinging}
+    assert a.put_paws_down()
+    while not all(leg.planted for leg in swinging):
+        a.update(ANIM_PERIOD, x, 0.0, 0.0, 0.0, 0.0, settle=False, freeze=True)
+        for leg in swinging:
+            assert np.allclose(leg.world[:2], spots[leg.name])  # straight down
+    for leg in swinging:
+        assert leg.world[2] == pytest.approx(leg.neutral[2]) and not leg.short
+    assert not a.put_paws_down()  # nothing in the air now
+
+
+def _paw_in_the_air(herd, cat, s):
+    cat.state, cat.target_v, cat.target_yaw = "walk", 0.3, cat.yaw
+    for _ in range(400):  # walk until a paw is in the air
+        s.advance(0.005)
+        if any(not leg.planted for leg in cat.animator.legs.values()):
+            return
+    raise AssertionError("no paw lifted")
+
+
+def test_a_step_that_cannot_finish_is_put_down_short_not_held_forever(monkeypatch):
+    """When even standing still is refused (finishing a paw's step would come too close) and so
+    is taking the step back, the paw is put down short and the sample is taken (the landing check
+    allows LAND_TOL), instead of the cat being held on three legs sample after sample."""
+    s, herd, cat = _herd_one(-2.5, 2.4, 0.0)
+    _paw_in_the_air(herd, cat, s)
+    real = herd.pose_ok
+    monkeypatch.setattr(herd, "pose_ok", lambda c, *a, **k: False if c is cat and k.get("pose") is not None
+                        else real(c, *a, **k))
+    held = cat.held
+    herd._advance_sample(cat)
+    assert cat.held == held  # taken, not rejected
+    assert all(leg.short for leg in cat.animator.legs.values() if not leg.planted)
+    s.close()
+
+
+@pytest.mark.parametrize("phase", [0.15, 0.5, 0.85])
+def test_a_withdrawn_step_starts_where_the_paw_is_and_moves_smoothly(phase):
+    """put_paws_down(back=True) at an early, middle, or late point of a step: the paw goes back
+    to where it lifted from without a jump (its first move is no bigger than PAW_RETURN_SPEED
+    allows), no joint turns more than the gait gate's 25 degrees in a 10 ms sample, and it lands
+    within a bounded time."""
+    from robot_env.cat_motion import PAW_RETURN_SPEED, CatAnimator
+    from robot_env.cat_rig import load_rig
+    from robot_env.cats import ANIM_PERIOD
+    a = CatAnimator(load_rig(), 0)
+    a.reset(0.0, 0.0, 0.0)
+    x = 0.0
+    while True:
+        x += 0.3 * ANIM_PERIOD
+        a.update(ANIM_PERIOD, x, 0.0, 0.0, 0.3, 0.0)
+        lifted = [leg for leg in a.legs.values() if not leg.planted and leg.progress >= phase]
+        if lifted:
+            break
+    leg = lifted[0]
+    before, lift_spot = leg.world.copy(), leg.swing_from[:2].copy()
+    local0, _ = a.update(0.0, x, 0.0, 0.0, 0.0, 0.0, settle=False, freeze=True)
+    local0 = {k: v.copy() for k, v in local0.items()}
+    assert a.put_paws_down(back=True)
+    previous, prev_local, t = before, local0, 0.0
+    while not leg.planted:
+        local, _ = a.update(ANIM_PERIOD, x, 0.0, 0.0, 0.0, 0.0, settle=False, freeze=True)
+        t += ANIM_PERIOD
+        step = float(np.hypot(*(leg.world[:2] - previous[:2])))
+        assert step <= 1.6 * PAW_RETURN_SPEED * ANIM_PERIOD + 1e-9  # no jump (smoothstep peaks at 1.5x mean)
+        for j, R in local.items():
+            if j in prev_local:
+                angle = np.degrees(np.arccos(np.clip((np.trace(prev_local[j].T @ R) - 1) / 2, -1, 1)))
+                assert angle <= 25.0
+        previous, prev_local = leg.world.copy(), {k: v.copy() for k, v in local.items()}
+        assert t < 1.0
+    assert np.allclose(leg.world[:2], lift_spot)
+
+
+def _swept_gaps(herd, cat):
+    """The gaps of the sample just taken, grown by half of each circle's move over it: what
+    _landing_ok and pose_ok check."""
+    nxt, prev = cat.next, cat.prev
+    inflate = herd._half_chord(cat, herd.circles(cat, nxt.x, nxt.y, nxt.yaw, nxt), herd.circles(cat, pose=prev))
+    return herd.gaps(cat, nxt.x, nxt.y, nxt.yaw, nxt, inflate, sweep=True)
+
+
+@pytest.mark.parametrize("which,outside", [("wall", True), ("wall", False), ("robot", True), ("robot", False),
+                                           ("cat", True), ("cat", False)])
+def test_a_paw_landing_short_never_goes_below_the_floor(monkeypatch, which, outside):
+    """Landings short, sample after sample, with every other move refused: for the wall, the
+    robot, and another cat, a cat starting just outside the gap never comes (swept over each
+    sample) closer than the gap less LAND_TOL, and one starting already below that floor never
+    comes closer at all."""
+    from robot_env.cats import LAND_TOL, ROBOT_HARD
+    k = {"wall": 0, "robot": 1, "cat": 2}[which]
+    s = RobotSystem(cats=2, cat_seed=2)
+    s.reset(0.8, 2.6, math.pi, (3.0, -3.0))  # the robot parked in the office
+    herd = s.cats
+    herd.place(1, 30.0, 30.0, 0.0, state="pause")  # the other cat off the floor unless needed
+    if which == "wall":
+        x, y, yaw, step = 0.43, -3.652, 2.7489, None  # 2 cm from the storage boxes
+        limit = WALL_GAP
+    elif which == "robot":
+        x, y, yaw = 0.8 - 0.62, 2.6, 0.0  # in front of the robot, facing it
+        limit = ROBOT_GAP if outside else ROBOT_HARD
+    else:
+        herd.place(1, -2.2, 2.4, 0.0, state="pause")
+        x, y, yaw = -2.2 - 0.52, 2.4, 0.0  # behind the other cat, facing it
+        limit = CAT_GAP
+    floor = limit - LAND_TOL
+    target = limit + 0.0002 if outside else floor - 0.008
+    herd.place(0, x, y, yaw, state="walk")
+    cat = herd.cats[0]
+    # slide straight along the line that changes the gap until it is at the target
+    d = max(((math.cos(a), math.sin(a)) for a in np.linspace(0, 2 * math.pi, 64, endpoint=False)),
+            key=lambda d: herd.gaps(cat, x + 0.002 * d[0], y + 0.002 * d[1], yaw)[k])
+    sign = 1.0 if herd.gaps(cat, x, y, yaw)[k] < target else -1.0
+    for _ in range(20000):
+        if (herd.gaps(cat, x, y, yaw)[k] - target) * sign >= 0:
+            break
+        x, y = x + sign * 0.0002 * d[0], y + sign * 0.0002 * d[1]
+    herd.place(0, x, y, yaw, state="walk")
+    cat = herd.cats[0]
+    first = herd.gaps(cat, x, y, yaw)[k]
+    assert (first >= floor) == outside
+    cat.target_v = 0.3
+    leg = cat.animator.legs["RF"]
+    leg.planted, leg.progress, leg.swing_from = False, 0.3, leg.world.copy()  # a paw in the air
+    real = herd.pose_ok
+    monkeypatch.setattr(herd, "pose_ok", lambda c, *a, **kw: False if c is cat and kw.get("pose") is not None
+                        else real(c, *a, **kw))
+    for _ in range(60):
+        herd._advance_sample(cat)
+        herd.time += 0.01
+        g = _swept_gaps(herd, cat)[k]
+        if outside:
+            assert g >= floor - 1e-9
+        else:
+            assert g >= first - 1e-9
+    assert cat.held < 60  # landings were taken (not every sample refused)
+    s.close()
+
+
+@pytest.mark.slow
+def test_a_crowded_cat_finds_its_way_out_on_the_retry():
+    """Regression (roaming seed 4): three cats crowd by the office door; the way-out search of
+    the one in the middle finds nothing (t = 224.62 s) and finds one ESCAPE_RETRY later, once
+    the cat ahead has moved on, instead of GIVE_WAY_AFTER later; no contact, every gap kept."""
+    from robot_env.cats import ESCAPE_RETRY, GIVE_WAY_AFTER
+    from robot_env.layout import RoomMap
+    s = RobotSystem(cats=3, cat_seed=4)
+    task = RoomMap(s.sim.model).sample_task(1000)
+    s.reset(*task.start, task.goal)
+    herd = s.cats
+    searches = []
+    real = herd._escape_search
+
+    def search(c):
+        out = real(c)
+        if c.index == 1:
+            searches.append((herd.time, len(out)))
+        return out
+    herd._escape_search = search
+    s.advance(224.0)
+    searches.clear()
+    low = [math.inf] * 3
+    while herd.time < 227.0:
+        s.advance(C.PHYSICS_DT * 20)
+        for g in herd.current_gaps():
+            low = [min(low[0], g["wall"]), min(low[1], g["robot"]), min(low[2], g["cat"])]
+    assert searches[0][1] == 0 and searches[1][1] > 0  # none at first, then a way out
+    assert ESCAPE_RETRY - 0.03 <= searches[1][0] - searches[0][0] <= ESCAPE_RETRY + 0.05 < GIVE_WAY_AFTER
+    assert s.cat_contacts == 0
+    assert low[0] >= WALL_GAP - 0.001 and low[1] >= ROBOT_GAP - 0.001 and low[2] >= CAT_GAP - 0.001
+    s.close()
+
+
+def test_a_cat_in_a_corner_gets_out_using_its_cushion():
+    """Regression (roaming seed 14): in the office corner, facing into it, every move comes a
+    little closer to a wall, so inside the planner's cushion nothing was feasible and the cat stood
+    for 79 s. A cat stuck like this may use the cushion (down to the room a root move keeps), so
+    it gets out, with every gap still kept."""
+    import math as _m
+    from robot_env.cats import CAT_GAP, ROBOT_GAP, WALL_GAP
+    s, herd, cat = _herd_one(-4.175, 3.938, _m.radians(26.4))
+    s.reset(4.0, -4.0, 0.0, (3.0, -3.0))  # the robot far away
+    herd.place(0, -4.175, 3.938, _m.radians(26.4), state="walk")
+    cat = herd.cats[0]
+    cat.state_until, cat.target_v, cat.target_yaw = herd.time + 30.0, 0.15, _m.radians(225.0)
+    start = (cat.x, cat.y)
+    low = [_m.inf] * 3
+    for _ in range(int(5.0 / 0.02)):
+        s.advance(0.02)
+        g = herd.current_gaps()[0]
+        low = [min(low[0], g["wall"]), min(low[1], g["robot"]), min(low[2], g["cat"])]
+    assert _m.hypot(cat.x - start[0], cat.y - start[1]) > 0.05
+    assert low[0] >= WALL_GAP - 0.001 and low[1] >= ROBOT_GAP - 0.001 and low[2] >= CAT_GAP - 0.001
     s.close()
