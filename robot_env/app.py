@@ -395,7 +395,8 @@ class App:
             s.advance(chunk)
             remaining -= chunk
             self.update_episode()
-            s.flags.episode_over = self.episode.status != "running"
+            if self.episode.status != "running" and not s.flags.episode_over:
+                s.end_episode()  # the robot stops now, not at the next control tick
 
     @property
     def manual_driving(self) -> bool:

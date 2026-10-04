@@ -125,6 +125,24 @@ class RobotSystem:
         self.last_decision = decision
         self.drive(decision.command.v, decision.command.omega)
 
+    def end_episode(self) -> None:
+        """The episode ended (goal, collision, or time limit): latch the shared stop and make it
+        take effect now, not at the next control tick. The request and the last decision are
+        dropped, the motors are zeroed, and the stop is this tick's result. reset() clears it."""
+        self.flags.episode_over = True
+        requested = self._requested
+        self._requested = None
+        self._issued_at = None
+        self.last_decision = None
+        self._target = STOP
+        self._wheel_v = self._wheel_w = 0.0
+        self.sim.set_wheel_targets(0.0, 0.0)
+        self.applied = STOP
+        result = SafetyResult(STOP, ("episode_over",))
+        if result.reasons != self.last_result.reasons or result.command != self.last_result.command:
+            self.safety_log.append(SafetyEvent(self.sim.time, result.reasons, requested, STOP, STOP))
+        self.last_result = result
+
     @property
     def command_age(self) -> float | None:
         return None if self._issued_at is None else self.sim.time - self._issued_at

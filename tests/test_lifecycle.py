@@ -19,8 +19,15 @@ from robot_env.system import STOP, RobotSystem
 # ----- 1. Gym: an ended episode latches the shared stop -----
 def _assert_stopped_next_step(env):
     s = env.system
+    # at once, when env.step() returns: no request, no decision, motors at zero
     assert s.flags.episode_over
+    assert s.requested is None and s.command_age is None and s.last_decision is None
+    assert s.applied == STOP and s._target == STOP and s._wheel_v == 0.0 and s._wheel_w == 0.0
+    assert s.last_result.command == STOP and s.last_result.reasons == ("episode_over",)
+    assert np.allclose(s.sim.data.ctrl, 0.0)
+    # and it stays latched
     s.advance(C.PHYSICS_DT)
+    assert s.flags.episode_over
     assert s.last_result.command == STOP and "episode_over" in s.last_result.reasons
     assert s.applied == STOP
     assert np.allclose(s.sim.data.ctrl, 0.0)
@@ -45,6 +52,7 @@ def test_gym_goal_latches_the_episode_stop():
     _assert_stopped_next_step(env)
     env.reset(seed=1001)
     assert not env.system.flags.episode_over
+    assert env.system.requested is None and env.system.last_result.reasons == ("no_command",)
     env.close()
 
 
@@ -52,7 +60,7 @@ def test_gym_timeout_latches_the_episode_stop(monkeypatch):
     monkeypatch.setattr(C, "EPISODE_TIME_LIMIT", 1.0)
     env = RobotGoalEnv(cats=0)
     env.reset(seed=1000)
-    terminated, truncated, _ = _drive_until_end(env, (0.0, 0.0))
+    terminated, truncated, _ = _drive_until_end(env, (0.5, 0.0))  # still asking to move
     assert truncated and not terminated
     _assert_stopped_next_step(env)
     env.close()
