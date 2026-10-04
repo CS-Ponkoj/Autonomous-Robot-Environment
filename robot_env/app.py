@@ -381,13 +381,19 @@ class App:
         s.flags.manual_input_held = self.input.drive_input_held if manual else False
         s.flags.emergency_brake = self.input.emergency_brake
         s.flags.focus_lost = not self.input.focused
-        s.flags.episode_over = self.episode.status != "running"  # robot brakes to a stop
+        if self.episode.status != "running" and not s.flags.episode_over:
+            s.end_episode()  # an ended episode always holds the stop (reset clears it)
         remaining = min(real_dt, MAX_FRAME_DT)
         self.sim_elapsed += remaining
-        if manual and self.input.drive_input_held and self.input.command() != self._last_sent:
+        running = self.episode.status == "running"
+        if running and manual and self.input.drive_input_held and self.input.command() != self._last_sent:
             self._decide()  # fresh input: send right away instead of waiting for the next tick
             self._next_decision = s.time + C.DECISION_PERIOD
         while remaining > 1e-9:
+            if not running:
+                # Ended: physics runs on (the robot is stopped), but no driver is asked again.
+                s.advance(remaining)
+                break
             if s.time >= self._next_decision - 1e-9:
                 self._decide()
                 self._next_decision = s.time + C.DECISION_PERIOD
@@ -395,8 +401,9 @@ class App:
             s.advance(chunk)
             remaining -= chunk
             self.update_episode()
-            if self.episode.status != "running" and not s.flags.episode_over:
+            if self.episode.status != "running":
                 s.end_episode()  # the robot stops now, not at the next control tick
+                running = False
 
     @property
     def manual_driving(self) -> bool:

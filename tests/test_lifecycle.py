@@ -14,6 +14,7 @@ from robot_env.env import RobotGoalEnv
 from robot_env.layout import RoomMap
 from robot_env.safety import SafetyLayer
 from robot_env.system import STOP, RobotSystem
+from robot_env.types import Command, Decision
 
 
 # ----- 1. Gym: an ended episode latches the shared stop -----
@@ -157,6 +158,58 @@ def test_new_episode_accepts_a_driver_without_reset_headless():
     app.new_episode(1000)
     app.new_episode(1001)
     assert app.seed == 1001
+    app.system.close()
+
+
+class _Constant:
+    name = "constant"
+
+    def decide(self, obs):
+        return Decision(Command(0.3, 0.0), obs.seq)
+
+
+def _assert_app_stopped(app):
+    s = app.system
+    assert s.flags.episode_over and app.episode.status != "running"
+    assert s.requested is None and s.command_age is None and s.last_decision is None
+    assert s.applied == STOP and s._target == STOP and s._wheel_v == 0.0 and s._wheel_w == 0.0
+    assert np.allclose(s.sim.data.ctrl, 0.0)
+
+
+def test_app_asks_no_driver_after_the_episode_ends_mid_frame(monkeypatch):
+    # The episode ends at the 0.10 s decision boundary inside a frame that runs on to 0.12 s:
+    # the rest of that frame, and later frames, must not ask the driver again.
+    monkeypatch.setattr(C, "EPISODE_TIME_LIMIT", 0.09)
+    app = _headless_app(_Constant())
+    app.continue_after_contact = False
+    app.sim_elapsed = 0.0
+    app.new_episode(1000)
+    for _ in range(3):
+        app.simulate(0.04)
+    assert app.episode.status == "timeout"
+    _assert_app_stopped(app)
+    app.simulate(0.04)
+    _assert_app_stopped(app)
+    app.system.close()
+
+
+def test_app_held_manual_input_after_the_episode_ends_is_ignored(monkeypatch):
+    from robot_env.manual import DRIVE_KEYS, ManualDriver
+    monkeypatch.setattr(C, "EPISODE_TIME_LIMIT", 0.05)
+    app = _headless_app(None)
+    app.driver = ManualDriver(app.input)
+    app.continue_after_contact = False
+    app.sim_elapsed = 0.0
+    app.new_episode(1000)
+    app.input.held.add(next(iter(DRIVE_KEYS)))
+    for _ in range(3):
+        app.simulate(0.04)
+    _assert_app_stopped(app)
+    app.input.held.clear()
+    app.input.held.add(next(iter(sorted(DRIVE_KEYS))))  # a new held command: still ignored
+    app._last_sent = None
+    app.simulate(0.04)
+    _assert_app_stopped(app)
     app.system.close()
 
 
