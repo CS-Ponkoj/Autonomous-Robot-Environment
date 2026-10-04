@@ -936,11 +936,11 @@ def _swept_gaps(herd, cat):
 @pytest.mark.parametrize("which,outside", [("wall", True), ("wall", False), ("robot", True), ("robot", False),
                                            ("cat", True), ("cat", False)])
 def test_a_paw_landing_short_never_goes_below_the_floor(monkeypatch, which, outside):
-    """Landings short, sample after sample, with every other move refused: for the wall, the
-    robot, and another cat, a cat starting just outside the gap never comes (swept over each
-    sample) closer than the gap less LAND_TOL, and one starting already below that floor never
-    comes closer at all."""
-    from robot_env.cats import LAND_TOL, ROBOT_HARD
+    """A paw put down short, sample after sample until it is down, with every other move refused
+    (each of those samples taken): for the wall, the robot (its comfort gap), and another cat, a
+    cat starting just outside the gap never comes (swept over each sample) closer than the gap
+    less LAND_TOL, and one starting already below that floor never comes closer at all."""
+    from robot_env.cats import LAND_TOL
     k = {"wall": 0, "robot": 1, "cat": 2}[which]
     s = RobotSystem(cats=2, cat_seed=2)
     s.reset(0.8, 2.6, math.pi, (3.0, -3.0))  # the robot parked in the office
@@ -951,7 +951,7 @@ def test_a_paw_landing_short_never_goes_below_the_floor(monkeypatch, which, outs
         limit = WALL_GAP
     elif which == "robot":
         x, y, yaw = 0.8 - 0.62, 2.6, 0.0  # in front of the robot, facing it
-        limit = ROBOT_GAP if outside else ROBOT_HARD
+        limit = ROBOT_GAP  # the landing's fixed reference, inside it or not
     else:
         herd.place(1, -2.2, 2.4, 0.0, state="pause")
         x, y, yaw = -2.2 - 0.52, 2.4, 0.0  # behind the other cat, facing it
@@ -968,25 +968,31 @@ def test_a_paw_landing_short_never_goes_below_the_floor(monkeypatch, which, outs
         if (herd.gaps(cat, x, y, yaw)[k] - target) * sign >= 0:
             break
         x, y = x + sign * 0.0002 * d[0], y + sign * 0.0002 * d[1]
+    else:
+        raise AssertionError("could not place the cat at the wanted gap")
     herd.place(0, x, y, yaw, state="walk")
     cat = herd.cats[0]
     first = herd.gaps(cat, x, y, yaw)[k]
-    assert (first >= floor) == outside
+    assert abs(first - target) <= 0.0004 and (first >= floor) == outside  # within a step or two of it
     cat.target_v = 0.3
     leg = cat.animator.legs["RF"]
     leg.planted, leg.progress, leg.swing_from = False, 0.3, leg.world.copy()  # a paw in the air
     real = herd.pose_ok
     monkeypatch.setattr(herd, "pose_ok", lambda c, *a, **kw: False if c is cat and kw.get("pose") is not None
                         else real(c, *a, **kw))
-    for _ in range(60):
+    held, samples = cat.held, 0
+    while not leg.planted:  # every sample until the paw is down is a landing, and is taken
+        assert samples < 60
         herd._advance_sample(cat)
         herd.time += 0.01
+        samples += 1
+        assert cat.held == held
         g = _swept_gaps(herd, cat)[k]
         if outside:
             assert g >= floor - 1e-9
         else:
             assert g >= first - 1e-9
-    assert cat.held < 60  # landings were taken (not every sample refused)
+    assert leg.planted  # the paw is down
     s.close()
 
 

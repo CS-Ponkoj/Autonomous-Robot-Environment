@@ -691,12 +691,14 @@ class CatHerd:
 
     def _landing_ok(self, cat: Cat, pose: Sample) -> bool:
         """A paw put down short (the root held): every gap stays above its limit less LAND_TOL, a
-        fixed floor; a gap already below that floor may not shrink at all."""
+        fixed floor; a gap already below that floor may not shrink at all. The robot's limit is
+        its comfort gap ROBOT_GAP here, always (never ROBOT_HARD: a landing is the cat's own move,
+        so it must not lower the floor it is measured against)."""
         start = cat.prev
         inflate = self._half_chord(cat, self.circles(cat, pose.x, pose.y, pose.yaw, pose), self.circles(cat, pose=start))
         new = self.gaps(cat, pose.x, pose.y, pose.yaw, pose, inflate, sweep=True)
         now = self.gaps(cat, start.x, start.y, start.yaw, start)
-        for k, limit in enumerate((WALL_GAP, self._robot_limit(cat, now[1]), CAT_GAP)):
+        for k, limit in enumerate((WALL_GAP, ROBOT_GAP, CAT_GAP)):
             floor = limit - LAND_TOL
             if new[k] < floor and not (now[k] < floor and new[k] >= now[k]):
                 return False
