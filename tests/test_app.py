@@ -976,12 +976,12 @@ def test_inset_failure_restores_the_shadow_lights(monkeypatch):
     app = _app_for_inset()
     sim = app.system.sim
     chosen = {}
-    original = app._choose_shadow_lights
+    original = app._choose_lights
 
     def choose(camera):
         original(camera)
         chosen["cast"] = sim.model.light_castshadow.copy()
-    monkeypatch.setattr(app, "_choose_shadow_lights", choose)
+    monkeypatch.setattr(app, "_choose_lights", choose)
 
     def broken(*args, **kwargs):
         assert not sim.model.light_castshadow.any()  # no shadow passes for the inset

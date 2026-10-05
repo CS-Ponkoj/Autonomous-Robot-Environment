@@ -17,6 +17,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from robot_env.lighting import Lights  # noqa: E402
 from robot_env.system import RobotSystem  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -42,6 +43,13 @@ SHOTS = {
 }
 
 
+def light_eye(m, lights: Lights, eye: np.ndarray) -> None:
+    """The lights drawn from this eye, and shadows from the two room lights nearest it among
+    them (as the window does)."""
+    lights.choose(eye[0], eye[1])
+    lights.shadows(eye[0], eye[1], 2)
+
+
 def render(label: str) -> Path:
     out = ROOT / "qa_output" / "realism" / label
     out.mkdir(parents=True, exist_ok=True)
@@ -52,7 +60,7 @@ def render(label: str) -> Path:
     r = mujoco.Renderer(m, height=H, width=W)
     opt = mujoco.MjvOption()
     opt.geomgroup[3] = 1  # the ceiling and its lights, as a person standing in the room sees them
-    light_pos = np.array(m.light_pos)
+    lights = Lights(m)
     tiles = []
     for name, (eye, at, *fov) in SHOTS.items():
         m.vis.global_.fovy = fov[0] if fov else FOVY
@@ -64,9 +72,7 @@ def render(label: str) -> Path:
         cam.distance = float(np.linalg.norm(v))
         cam.azimuth = math.degrees(math.atan2(v[1], v[0]))
         cam.elevation = math.degrees(math.asin(v[2] / np.linalg.norm(v)))
-        # shadows from the two room lights nearest the eye (as the window does)
-        m.light_castshadow[:] = 0
-        m.light_castshadow[np.argsort(np.linalg.norm(light_pos - eye, axis=1))[:2]] = 1
+        light_eye(m, lights, eye)
         s.sim.before_render()
         r.update_scene(d, cam, opt)
         r.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = 1

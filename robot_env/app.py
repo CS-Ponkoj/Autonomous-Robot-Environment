@@ -751,7 +751,7 @@ class App:
         self._inset = None  # cached robot-camera inset and the simulated time it shows
         self._inset_pending = None  # (size, time) of an inset scene prepared, drawn next frame
         self._inset_pixels = None
-        self._shadow_lights = None  # the room lights that may cast shadows (from the model)
+        self._light_view = None  # the view the lights were last chosen for (a change: no fade)
         self._inset_time = -math.inf
         self.frame_times: list[float] = []  # seconds between presented frames (measured)
         self.view = ViewCamera()
@@ -810,7 +810,7 @@ class App:
         self.cat_count = n
         self.system = RobotSystem(cats=n, cat_seed=self.cat_seed)
         self.room = RoomMap(self.system.sim.model)
-        self._shadow_lights = None
+        self._light_view = None
         self._make_renderer()
         self.new_episode(self.seed)
 
@@ -992,7 +992,7 @@ class App:
         if VIEWS[self.view.mode] in ("chase", "orbit"):
             vis.fovy = self.view.fovy  # free-camera field of view (the robot camera has its own)
         s.sim.before_render()  # pose the visual-only skins (cats) for this frame
-        self._choose_shadow_lights(camera)
+        self._choose_lights(camera)
         self.renderer.update_scene(s.sim.data, camera=camera, scene_option=option)
         # the top view looks straight down on the whole floor: its faint floor reflections (4-6%)
         # are invisible from there, and the reflection pass re-draws the scene
@@ -1032,7 +1032,7 @@ class App:
                     cast = m.light_castshadow.copy()
                     m.light_castshadow[:] = 0
                     try:
-                        s.sim.prepare_camera(size, posed=True, reflections=False)
+                        s.sim.prepare_camera(size, posed=True, reflections=False, shadows=False)
                     finally:
                         m.light_castshadow[:] = cast
                     self._inset_pending = (size, s.time)
@@ -1078,30 +1078,34 @@ class App:
         _text_box(self.screen, self.font, HELP, (24, height - 20 * len(HELP) - 16))
         self.draw_banners()
 
-    def _choose_shadow_lights(self, camera) -> None:
-        """Shadows from the SHADOW_LIGHTS room lights nearest the robot (the rooms in view); the
-        top view, which shows every room, uses the fixed TOP_SHADOW_LIGHTS. Each shadow-casting
-        light re-draws the whole scene (about 1 ms each), so this is the main rendering cost."""
-        m = self.system.sim.model
-        if self._shadow_lights is None:
-            self._shadow_lights = np.flatnonzero(m.light_castshadow).copy()
-            names = {mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_LIGHT, int(k)) for k in self._shadow_lights}
-            self._top_lights = np.array([k for k in self._shadow_lights
-                                         if mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_LIGHT, int(k)) in TOP_SHADOW_LIGHTS])
-            if not set(TOP_SHADOW_LIGHTS) <= names:
-                self._top_lights = self._shadow_lights  # another world: every light
-        lights = self._shadow_lights
-        if VIEWS[self.view.mode] == "top":
-            m.light_castshadow[lights] = 0
-            m.light_castshadow[self._top_lights] = 1
+    def _choose_lights(self, camera) -> None:
+        """The lights drawn (the renderer draws only eight): those of the room the camera is in,
+        faded over a change so nothing pops; the top view, which shows every room, a fixed set.
+        Shadows from the SHADOW_LIGHTS drawn room lights nearest the robot (the rooms in view), or
+        the fixed TOP_SHADOW_LIGHTS from above. Each shadow-casting light re-draws the whole scene
+        (about 1 ms each), so this is the main rendering cost."""
+        sim = self.system.sim
+        m = sim.model
+        top = VIEWS[self.view.mode] == "top"
+        rx, ry, _ = sim.true_pose()
+        if camera == "robot_cam" or top:
+            x, y = rx, ry
+        else:  # where the free camera's eye is
+            az, el = math.radians(camera.azimuth), math.radians(camera.elevation)
+            x = camera.lookat[0] - camera.distance * math.cos(el) * math.cos(az)
+            y = camera.lookat[1] - camera.distance * math.cos(el) * math.sin(az)
+        if self._light_view != self.view.mode:
+            sim.lights.snap(x, y, top)
+            self._light_view = self.view.mode
+        else:
+            sim.lights.fade(x, y, self._frame_dt, top)
+        if top:
+            names = [mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_LIGHT, k) for k in range(m.nlight)]
+            fixed = [k for k, n in enumerate(names) if n in TOP_SHADOW_LIGHTS and m.light_active[k]]
+            m.light_castshadow[:] = 0
+            m.light_castshadow[fixed if fixed else np.flatnonzero(sim.lights.shadowing & (m.light_active > 0))] = 1
             return
-        if len(lights) <= SHADOW_LIGHTS:
-            m.light_castshadow[lights] = 1
-            return
-        x, y, _ = self.system.sim.true_pose()
-        d = np.hypot(m.light_pos[lights, 0] - x, m.light_pos[lights, 1] - y)
-        m.light_castshadow[lights] = 0
-        m.light_castshadow[lights[np.argsort(d)[:SHADOW_LIGHTS]]] = 1
+        sim.lights.shadows(rx, ry, SHADOW_LIGHTS)
 
     def draw_banners(self) -> None:
         obs = self.system.observe()

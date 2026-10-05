@@ -22,7 +22,8 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from realism_shots import FOVY, H, SHOTS, W  # noqa: E402
+from realism_shots import FOVY, H, SHOTS, W, light_eye  # noqa: E402
+from robot_env.lighting import Lights  # noqa: E402
 from robot_env.system import RobotSystem  # noqa: E402
 
 
@@ -58,7 +59,7 @@ def measure() -> list[dict]:
     r = mujoco.Renderer(m, height=H, width=W)
     opt = mujoco.MjvOption()
     opt.geomgroup[3] = 1
-    light_pos = np.array(m.light_pos)
+    lights = Lights(m)
     rows = []
     for name, (eye, at, *fov) in SHOTS.items():
         m.vis.global_.fovy = fov[0] if fov else FOVY
@@ -69,8 +70,7 @@ def measure() -> list[dict]:
         cam.distance = float(np.linalg.norm(v))
         cam.azimuth = math.degrees(math.atan2(v[1], v[0]))
         cam.elevation = math.degrees(math.asin(v[2] / np.linalg.norm(v)))
-        m.light_castshadow[:] = 0
-        m.light_castshadow[np.argsort(np.linalg.norm(light_pos - eye, axis=1))[:2]] = 1
+        light_eye(m, lights, eye)
         s.sim.before_render()
         r.update_scene(d, cam, opt)
         r.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = 1

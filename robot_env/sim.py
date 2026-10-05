@@ -15,6 +15,7 @@ import numpy as np
 
 from . import config as C
 from . import kernels
+from .lighting import Lights
 
 WORLD_XML = Path(__file__).with_name("world.xml")
 ASSETS = Path(__file__).with_name("assets")
@@ -23,6 +24,7 @@ _RAY_GROUPS = np.array([1, 1, 0, 0, 1, 1], dtype=np.uint8)  # skip visual (2) an
 _WORLD_SOLID_GROUP = np.array([1, 0, 0, 0, 0, 0], dtype=np.uint8)  # world solids only (tires are group 1)
 _VIEW_GROUP = np.array([1, 0, 1, 0, 0, 1], dtype=np.uint8)  # what blocks the viewer: solids, visual detail, cats
 _SIGHT_GROUP = np.array([1, 0, 0, 0, 1, 0], dtype=np.uint8)  # what blocks a cat's view: walls and furniture
+CAMERA_SHADOW_LIGHTS = 2  # room lights casting shadows in the robot camera's image (as in the window)
 _SPAWN_HEIGHT = 0.0505
 
 
@@ -79,6 +81,7 @@ class RobotSim:
         self._model_input = (xml, assets)  # for model_sha256 (hashed on first use)
         self._model_sha256: str | None = None
         self.pre_render: list = []  # callables run before any render (e.g. posing the cats' skins)
+        self.lights = Lights(self.model)  # which lights each render draws (visual only)
         if abs(self.model.opt.timestep - C.PHYSICS_DT) > 1e-12:
             raise ValueError("world.xml timestep must match config.PHYSICS_DT")
         self.data = mujoco.MjData(self.model)
@@ -213,15 +216,18 @@ class RobotSim:
         return self.render_prepared()
 
     def prepare_camera(self, size: tuple[int, int] = (240, 320), posed: bool = False,
-                       reflections: bool = True) -> None:
+                       reflections: bool = True, shadows: bool = True) -> None:
         """The first half of render_camera: the robot camera's scene as it is now (lights,
         shadows, and skins included), drawn by render_prepared (the window splits the two over
-        consecutive frames)."""
+        consecutive frames). shadows=False: no shadow passes (the window's small preview)."""
         if self._camera_renderer is None or (self._camera_renderer.height, self._camera_renderer.width) != size:
             self.close()
             self._camera_renderer = mujoco.Renderer(self.model, height=size[0], width=size[1])
         if not posed:
             self.before_render()
+        x, y, _ = self.true_pose()  # the robot's room lights, with shadows from the two nearest
+        self.lights.choose(x, y)
+        self.lights.shadows(x, y, CAMERA_SHADOW_LIGHTS if shadows else 0)
         self._camera_renderer.update_scene(self.data, camera="robot_cam", scene_option=self.camera_option)
         self._camera_renderer.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = reflections
 
