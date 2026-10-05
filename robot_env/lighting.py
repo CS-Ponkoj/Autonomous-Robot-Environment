@@ -19,7 +19,8 @@ from .layout import region_of
 
 GL_LIGHTS = 8  # the most the classic renderer draws, the headlight included
 ROOM_FITTINGS = 2  # a room's nearest fittings drawn before the next room's
-DOOR_AHEAD = 4.0  # m: a room whose doorway is ahead of the eye this near gets its nearest fitting
+DOOR_AHEAD = 4.0  # m: a room whose doorway is ahead of the eye this near gets its fitting nearest the door
+DOOR_CONE = math.radians(60)  # how far off the view a doorway still counts as ahead
 FADE = 0.3  # s for a light to fade out, or in, when the window's choice changes (no popping)
 # the top view shows the whole floor: a fixed set, one light per room
 TOP_LIGHTS = ("light_office", "light_lab", "light_storage", "light_reception", "light_corridor_w2")
@@ -70,7 +71,9 @@ class Lights:
         own, other = room(here, True), (room(seen, True) if seen != here else [])
         order = list(np.flatnonzero(self.directional))
         windows = room(here, False) + (room(seen, False) if seen != here else [])
-        through = [room(r, True)[0] for r in self._rooms_through_doors(x, y, lx, ly, here) if room(r, True)]
+        # of each room seen through a doorway ahead, the fitting nearest that doorway
+        through = [min(room(r, True), key=lambda k: math.hypot(self.model.light_pos[k, 0] - dx, self.model.light_pos[k, 1] - dy))
+                   for r, (dx, dy) in self._rooms_through_doors(x, y, lx, ly, here) if room(r, True)]
         # each room's two nearest fittings first (a corridor has four), one of each room seen
         # through a doorway ahead, the room looked into, then the rest, then windows
         for k in own[:ROOM_FITTINGS] + through + other[:ROOM_FITTINGS] + own + other + windows + near:
@@ -80,19 +83,21 @@ class Lights:
 
     @staticmethod
     def _rooms_through_doors(x, y, lx, ly, here) -> list:
-        """The rooms on the far side of the doorways ahead of an eye at (x, y) looking toward
-        (lx, ly), within DOOR_AHEAD, nearest first."""
+        """(room, doorway) for the rooms on the far side of the doorways ahead of an eye at (x, y)
+        looking toward (lx, ly): within DOOR_AHEAD and DOOR_CONE of the view, nearest first."""
         fx, fy = lx - x, ly - y
-        if math.hypot(fx, fy) < 1e-6:
+        f = math.hypot(fx, fy)
+        if f < 1e-6:
             return []
         found = []
         for dx, dy in sorted(C.DOORS, key=lambda dd: math.hypot(dd[0] - x, dd[1] - y)):
-            if (dx - x) * fx + (dy - y) * fy <= 0 or math.hypot(dx - x, dy - y) > DOOR_AHEAD:
+            r = math.hypot(dx - x, dy - y)
+            if r > DOOR_AHEAD or (dx - x) * fx + (dy - y) * fy <= r * f * math.cos(DOOR_CONE):
                 continue
             for ox, oy in ((0.0, 0.3), (0.0, -0.3), (0.3, 0.0), (-0.3, 0.0)):
-                r = region_of(dx + ox, dy + oy)
-                if r is not None and r != here and r not in found:
-                    found.append(r)
+                room = region_of(dx + ox, dy + oy)
+                if room is not None and room != here and room not in [f for f, _ in found]:
+                    found.append((room, (dx, dy)))
         return found
 
     def _apply(self, weight: np.ndarray) -> None:
