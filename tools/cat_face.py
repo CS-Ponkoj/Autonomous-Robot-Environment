@@ -75,6 +75,22 @@ def eye_metrics(s, r) -> list[dict]:
     return out
 
 
+def _grid(rows: list[list[np.ndarray]], gap: int = 10, group: int = 3, group_gap: int = 40) -> np.ndarray:
+    """Tiles laid out with white gutters between them (wider between groups of `group` tiles: one
+    lighting), so neighbouring views never read as one picture."""
+    h, w = rows[0][0].shape[:2]
+    xs, x = [], 0
+    for j in range(len(rows[0])):
+        xs.append(x)
+        x += w + (group_gap if (j + 1) % group == 0 else gap)
+    width = xs[-1] + w
+    out = np.full((len(rows) * (h + gap) - gap, width, 3), 255, dtype=np.uint8)
+    for i, row in enumerate(rows):
+        for j, tile in enumerate(row):
+            out[i * (h + gap):i * (h + gap) + h, xs[j]:xs[j] + w] = tile
+    return out
+
+
 def main() -> int:
     s = _herd()
     m, d = s.sim.model, s.sim.data
@@ -91,17 +107,17 @@ def main() -> int:
                 m.light_pos[light] = head + np.array([side, -0.8, 0.9])  # a lamp in front, high, left or right
                 dvec = head - m.light_pos[light]
                 m.light_dir[light] = dvec / np.linalg.norm(dvec)
-                for azim in (-90.0, -45.0, -135.0):  # front, 45 left, 45 right (cats face +y)
+                for azim in (-135.0, -90.0, -45.0):  # 45 right, front, 45 left (cats face +y): heads toward the middle
                     cam = mujoco.MjvCamera()
                     cam.type = mujoco.mjtCamera.mjCAMERA_FREE
                     cam.lookat[:] = head
                     cam.distance, cam.azimuth, cam.elevation = 0.24, azim, -6
                     r.update_scene(d, cam)
                     tiles.append(r.render())
-            rows.append(np.concatenate(tiles, 1))
+            rows.append(tiles)
         m.light_pos[light], m.light_dir[light] = base_pos, base_dir
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    Image.fromarray(np.concatenate(rows, 0)).save(OUT)
+    Image.fromarray(_grid(rows)).save(OUT)
     # the robot's own camera at 0.5, 1.0, and 1.5 m in front of each cat
     cam_rows = []
     for i in range(4):  # each cat in turn mid-corridor, facing the robot down the corridor
@@ -113,8 +129,8 @@ def main() -> int:
             s.sim.reset(0.5 - 0.25 - dist, 0.0, 0.0, (4.5, 0.0))  # dist from the cat's nose to the robot
             s.cats.write_bones()
             tiles.append(s.sim.render_camera((240, 320)))
-        cam_rows.append(np.concatenate(tiles, 1))
-    Image.fromarray(np.concatenate(cam_rows, 0)).save(ROBOT_OUT)
+        cam_rows.append(tiles)
+    Image.fromarray(_grid(cam_rows)).save(ROBOT_OUT)
     for row in metrics:
         print(row)
     print("wrote", OUT, "and", ROBOT_OUT)

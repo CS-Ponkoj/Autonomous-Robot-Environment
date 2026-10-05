@@ -19,14 +19,20 @@ The window starts with three cats; `--cats 0` turns them off.*
 |---|---|
 | ![Three cats seen by the robot's camera](docs/cats_robot_camera.png) | ![A cat near the goal, from the robot's camera while it drives itself](docs/robot_camera_cat.png) |
 | Three cats (orange tabby, black sitting, grey) in the robot's camera view; the lidar map shows the cats it can detect as gaps in the scan. | The robot's camera while it drives itself: the goal marker and a cat beside it. |
+| ![A cat gives way in the lab doorway](docs/doorway.gif) | ![Three cats roaming the floor, top view time-lapse](docs/cats_roaming.gif) |
+| A cat resting in the lab doorway steps out of the robot's way, and the robot drives through (no push, no contact). | Time-lapse from above: three cats roam every room while the robot stays parked. |
 | ![Goal reached, top view with the cats](docs/top_view_cats.png) | ![The office floor from above](docs/floor_top.png) |
-| Goal reached, top view: the orange cat beside the robot and the black cat in the storage room (two of the three cats are in view). | The whole 10 x 10 m office floor: office, lab, corridor, storage, and reception. |
+| Goal reached, top view: a tabby cat in the corridor and the black cat in the storage room. | The whole 10 x 10 m office floor: office, lab, corridor, storage, and reception. |
 | ![The robot close up](docs/robot_closeup.png) | ![Driving down the corridor](docs/corridor.png) |
 | The robot: lidar on top, front camera, two driven wheels, and ball casters. | Driving down the corridor (chase view). |
 | ![The lab from the robot camera](docs/lab_robot_camera.png) | ![The reception room](docs/reception.png) |
 | The lab, from the robot's camera. | Reception, with wood floor, rug, and furniture. |
 | ![Goal reached in manual driving](docs/screenshot_goal.png) | ![The lidar panel](docs/lidar_panel.png) |
 | Manual driving: every status line, the robot camera inset, and the lidar map. | The lidar panel: free space (shaded) and returns (green outline). |
+
+![The four cat coats, three views, three lights](docs/cat_faces.png)
+
+*The four coats (brown tabby, ginger tabby, black and white, grey tabby), each seen from 45 degrees right, the front, and 45 degrees left, under a lamp overhead, to the left, and to the right.*
 
 **Contents:** [1. What it is](#1-what-it-is) ·
 [2. Setup](#2-setup) ·
@@ -96,7 +102,10 @@ The window can be resized or maximized (down to 960 x 540), and F11 switches to 
 The app paces frames on its own 60-per-second schedule (it does not wait for the screen's
 refresh, which on Windows could stall a covered window for a quarter second); on the tested
 Windows desktop the window system showed whole frames. The rate actually reached depends on the
-computer and on the scene (for example, how many cats are on). A large window costs no more to draw than about 1920 x 1080 pixels: beyond
+computer and on the scene (for example, how many cats are on). On the tested computer (Windows 11,
+GeForce RTX 5060, idle desktop) the 1280 x 720 window holds 60 frames per second in every view with
+four cats (`tools\fps_protocol.py --gate`: every trial at least 59.8 frames per second, 95% of frames
+within 17 ms, none over 25 ms). A large window costs no more to draw than about 1920 x 1080 pixels: beyond
 that the picture is drawn at that size and scaled by the graphics card.
 
 **Panels (H cycles them):**
@@ -265,24 +274,29 @@ the Gymnasium environment start with none unless asked (`RobotSystem(cats=3)`,
   four coats (brown tabby, ginger tabby, black and white, grey tabby). Each cat walks with a
   real four-beat gait (a trot when faster), its paws planted on the floor while they bear
   weight; it turns on the spot with small pivot steps, turns its head to watch the robot,
-  breathes, and sways its tail.
+  breathes, and sways its tail, raising it when the robot comes close. A cat whose next step
+  would take a paw too close to a wall puts that paw back down instead.
 - **What they do:** cats roam the whole floor. They walk, pause, sit, dart, and travel from room
   to room, preferring rooms they have not visited for a while. A local planner (every 0.1 s it
   compares about 50 possible motions it could make and still stop in time) keeps each cat clear
   of walls and furniture (3 cm), other cats (5 cm), and the robot (0.3 m), checked over every
   move, not only where it ends. A cat stuck in a tight corner works out a way out step by step,
-  and two cats meeting in a narrow place give way to each other.
-- **Measured roaming** (`tools\roam_check.py`: 20 fixed cat seeds, 10 simulated minutes each,
-  robot parked): the three cats together reached all five rooms within 78 s in every seed;
-  each cat reached every room within 10 minutes in 19 of the 20 seeds; no cat that wanted to
-  move stood still for more than 5 s; no contacts, and no gap smaller than its limit (within
-  1 mm). This is a property of these seeds, not a promise for every run.
+  two cats meeting in a narrow place give way to each other, and a cat hemmed in by others
+  looks for a way out again as they move.
+- **Measured roaming** (`tools\roam_check.py --repeat`: 20 fixed cat seeds, 10 simulated
+  minutes each, robot parked): the three cats together reached all five rooms within 96 s in
+  every seed; each cat reached every room within 10 minutes in 19 of the 20 seeds; no cat that
+  wanted to move stood still for more than 4 s; no contacts, and no gap more than 0.2 mm under
+  its limit at any physics step (the allowance is 1 mm); a second run of the same seed matched
+  the first step for step. This is a property of these seeds, not a promise for every run.
 - **Doorways:** cats pass through doorways and the corridor but never rest there. A cat in the
-  robot's path steps out of the way when the robot comes toward it, or when the robot is
-  waiting for it (a drive request held back by the safety layer); a parked robot does not
-  chase cats away, and a cat does not react to a robot it cannot see (behind a wall). The robot
-  waits; it never pushes a cat. `tools\doorway_check.py` runs every doorway, both directions,
-  every speed level, and both resting states (100 trials): all pass, with no contacts.
+  robot's path steps out of the way when the robot comes toward it (hurrying, up to 1 m/s, when
+  the robot closes in fast), or when the robot is waiting for it (a drive request held back by
+  the safety layer); a parked robot does not chase cats away, and a cat does not react to a
+  robot it cannot see (behind a wall). The robot waits; it never pushes a cat.
+  `tools\doorway_check.py` runs every doorway, both directions, every speed level, and both
+  resting states (100 trials): all pass, with no contacts, and the cat as drawn never came
+  closer than 21 cm to the robot.
 - **What the robot senses:** each cat has fourteen solid collision shapes fitted to the model
   (body, head, legs, and tail), so it collides with the robot and the lidar detects it (a cat
   hidden behind another object is not seen). Only the ears are visual. A robot driving up to a
