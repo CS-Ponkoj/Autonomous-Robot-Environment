@@ -20,6 +20,8 @@ on the panels changes the number (0 to 4), and `--cats N` sets it at start.*
 |---|---|
 | ![Four cats seen by the robot's camera](docs/cats_robot_camera.png) | ![A cat near the goal, from the robot's camera while it drives itself](docs/robot_camera_cat.png) |
 | The four cats (brown tabby, ginger tabby, grey tabby, and black and white behind the brown one) down the corridor, in the robot's camera view; the lidar map shows the cats it can detect. | The robot's camera while it drives itself: the goal marker and a cat beside it. |
+| ![A cat sitting in the corridor, from the robot's camera](docs/cat_sitting_robot_camera.png) | ![A cat sitting in front of the robot, chase view](docs/cat_sitting.png) |
+| A cat sits down in front of the robot the way a real cat does: haunches down, front legs upright, head level, tail wrapped round on the floor. It sits only where it has room to get up again, and gets up before it moves. | The same cat from behind the robot (chase view). |
 | ![A cat gives way in the lab doorway](docs/doorway.gif) | ![Four cats roaming the floor, top view time-lapse](docs/cats_roaming.gif) |
 | The robot's own camera: a cat resting in the lab doorway turns and steps out of the robot's way, and the robot drives through (no push, no contact). | Time-lapse from above: four cats roam every room while the robot stays parked. |
 | ![Goal reached, top view with the cats](docs/top_view_cats.png) | ![The office floor from above](docs/floor_top.png) |
@@ -276,7 +278,12 @@ the Gymnasium environment start with none unless asked (`RobotSystem(cats=3)`,
   real four-beat gait (a trot when faster), its paws planted on the floor while they bear
   weight; it turns on the spot with small pivot steps, turns its head to watch the robot,
   breathes, and sways its tail, raising it when the robot comes close. A cat whose next step
-  would take a paw too close to a wall puts that paw back down instead.
+  would take a paw too close to a wall puts that paw back down instead. A cat that sits really
+  sits: it settles its paws and stills its tail, lowers its haunches onto its folded hind legs
+  with its front legs upright and its head level, and wraps its tail round on the floor. It
+  sits only where the whole sit-down and getting up again fit, other cats keep clear of the room
+  it needs to get up, and it is fully up (0.5 s) before it moves, or as soon as the robot comes
+  near.
 - **What they do:** cats roam the whole floor. They walk, pause, sit, dart, and travel from room
   to room, preferring rooms they have not visited for a while. A local planner (every 0.1 s it
   compares about 50 possible motions it could make and still stop in time) keeps each cat clear

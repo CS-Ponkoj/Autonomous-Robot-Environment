@@ -191,10 +191,6 @@ def write_stills(demo) -> None:
     times = np.array([t for t, _ in demo])
     _still(demo[int(np.argmin(np.abs(times - 8.0)))][1], "robot_camera_cat.png")  # the robot camera segment
     _still(demo[-1][1], "top_view_cats.png")  # goal reached, top view
-    import importlib
-    faces = importlib.import_module("tools.cat_face")
-    faces.OUT = DOCS / "cat_faces.png"
-    faces.main()
 
 
 def _scene(robot, view: int, hud: str = "compact", frames: int = 150, setup=None, distance=None,
@@ -252,9 +248,21 @@ def _cats_ahead(app) -> None:
             raise RuntimeError(f"cat {c.index} placed too close (wall {wall:.3f} m, cat {other:.3f} m)")
 
 
+def _cat_sitting(app) -> None:
+    """A cat sitting across the corridor 0.9 m in front of the robot (robot at (-2.7, 0) facing
+    east); the other cats sit far away."""
+    herd = app.system.cats
+    herd.place(0, -1.8, 0.0, math.pi / 2, state="sit")
+    for i, (x, y, yaw) in enumerate(OUT_OF_THE_WAY[:herd.n - 1], start=1):
+        herd.place(i, x, y, yaw, state="sit")
+
+
 def write_scene_stills() -> None:
     """The scene screenshots in the README (each composed in the window, with four cats)."""
     shots = {
+        "cat_sitting_robot_camera.png": dict(robot=(-2.7, 0.0, 0.0), view=VIEWS.index("robot camera"),
+                                             setup=_cat_sitting, frames=180),
+        "cat_sitting.png": dict(robot=(-2.7, 0.0, 0.0), view=0, setup=_cat_sitting, frames=180),
         "corridor.png": dict(robot=(-3.6, 0.0, 0.0), view=0),
         "reception.png": dict(robot=(1.0, -1.6, -0.75), view=0),
         "lab_robot_camera.png": dict(robot=(0.9, 1.6, 0.55), view=VIEWS.index("robot camera")),
@@ -262,7 +270,7 @@ def write_scene_stills() -> None:
                                   elevation=-25.0),
         "floor_top.png": dict(robot=None, view=VIEWS.index("top"), hud="none"),
         "cats_robot_camera.png": dict(robot=(-4.2, 0.0, 0.0), view=VIEWS.index("robot camera"), setup=_cats_ahead,
-                                      frames=60),
+                                      frames=150),  # the sitting ones have sat down
     }
     for name, shot in shots.items():
         _still(_scene(**shot), name)
