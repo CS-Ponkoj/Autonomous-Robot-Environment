@@ -57,24 +57,24 @@
     <!-- reflectance renders only on the first reflective geom in the model, the base plane (the lab and
          corridor floor); on every other material it does nothing under the classic renderer -->
     <material name="wood_floor" texture="tx_laminate" texrepeat="0.588 0.588" texuniform="true" emission="0" specular="0.3" shininess="0.3" reflectance="0.08" rgba="0.6 0.6 0.6 1"/>
-    <material name="tile" texture="tx_porcelain" texrepeat="0.5 0.5" texuniform="true" specular="0.5" shininess="0.4" reflectance="0.22" rgba="0.62 0.62 0.62 1" emission="0"/>
+    <material name="tile" texture="tx_porcelain" texrepeat="0.5 0.5" texuniform="true" specular="0.5" shininess="0.4" reflectance="0.22" rgba="0.56 0.56 0.56 1" emission="0"/>
     <material name="tile_dark" texture="tx_concrete" texrepeat="0.25 0.25" texuniform="true" emission="0" specular="0.2" shininess="0.2" reflectance="0.05" rgba="0.7 0.7 0.7 1"/>
     <material name="carpet" texture="tx_carpet" texrepeat="1 1" texuniform="true" emission="0" specular="0" shininess="0" rgba="0.6 0.6 0.6 1"/>
     <material name="plaster" texture="tx_plaster" texrepeat="1 1" texuniform="true" rgba="0.97 0.95 0.91 1" emission="0.25" specular="0.1" shininess="0.1"/>
-    <material name="ceiling" texture="tx_ceiling" texrepeat="0.278 0.278" texuniform="true" rgba="0.97 0.96 0.94 1" emission="0.6"/>
-    <material name="light_panel" rgba="1 0.98 0.92 1" emission="0.36"/>
+    <material name="ceiling" texture="tx_ceiling" texrepeat="0.278 0.278" texuniform="true" rgba="0.97 0.96 0.94 1" emission="0.72"/>
+    <material name="light_panel" rgba="1 0.98 0.92 1" emission="0.75"/>
     <material name="fitting_frame" rgba="0.95 0.95 0.94 1" emission="0.35" specular="0.3"/>
-    <material name="skirting" rgba="0.98 0.98 0.96 1" emission="0.22" specular="0.2" shininess="0.5"/>
-    <material name="skirting_bead" rgba="0.8 0.8 0.78 1" emission="0.22" specular="0.2" shininess="0.5"/>
+    <material name="skirting" rgba="0.98 0.98 0.96 1" emission="0.25" specular="0.12" shininess="0.5"/>
+    <material name="skirting_bead" rgba="0.8 0.8 0.78 1" emission="0.25" specular="0.12" shininess="0.5"/>
     <material name="shadow_line" rgba="0.32 0.31 0.3 1" specular="0"/>
-    <material name="threshold" rgba="0.72 0.73 0.74 1" emission="0.14" specular="0.8" shininess="0.7"/>
-    <material name="kick_plate" rgba="0.52 0.53 0.55 1" emission="0.14" specular="0.9" shininess="0.8"/>
-    <material name="kick_band" rgba="0.66 0.67 0.69 1" emission="0.14" specular="0.9" shininess="0.8"/>
-    <material name="closer" rgba="0.62 0.63 0.65 1" emission="0.14" specular="0.6" shininess="0.6"/>
-    <material name="frame" rgba="0.98 0.98 0.97 1" emission="0.25" specular="0.2" shininess="0.4"/>
+    <material name="threshold" rgba="0.72 0.73 0.74 1" emission="0.26" specular="0.8" shininess="0.7"/>
+    <material name="kick_plate" rgba="0.62 0.63 0.65 1" emission="0.32" specular="0.9" shininess="0.8"/>
+    <material name="kick_band" rgba="0.76 0.77 0.79 1" emission="0.36" specular="0.9" shininess="0.8"/>
+    <material name="closer" rgba="0.62 0.63 0.65 1" emission="0.26" specular="0.6" shininess="0.6"/>
+    <material name="frame" rgba="0.98 0.98 0.97 1" emission="0.25" specular="0.12" shininess="0.4"/>
     <material name="door" texture="tx_veneer" texrepeat="1 1" texuniform="false" specular="0.25" shininess="0.3"/>
     <material name="door_b" texture="tx_veneer" texrepeat="1.6 1" texuniform="false" specular="0.25" shininess="0.3"/>
-    <material name="strike_plate" rgba="0.7 0.71 0.73 1" emission="0.14" specular="0.9" shininess="0.8"/>
+    <material name="strike_plate" rgba="0.7 0.71 0.73 1" emission="0.26" specular="0.9" shininess="0.8"/>
     <material name="desk_wood" texture="door_wood" texrepeat="1 1" texuniform="true" specular="0.25"/>
     <material name="desk_body" rgba="0.55 0.56 0.58 1" specular="0.2"/>
     <material name="metal" rgba="0.62 0.64 0.67 1" specular="0.5" shininess="0.6"/>
@@ -103,10 +103,10 @@
     <material name="bin_blue" rgba="0.25 0.4 0.62 1"/>
     <material name="bin_grey" rgba="0.5 0.52 0.55 1"/>
     <material name="seam" rgba="0.35 0.36 0.38 1"/>
-    <material name="handle" rgba="0.7 0.71 0.73 1" emission="0.14" specular="0.8" shininess="0.7"/>
+    <material name="handle" rgba="0.7 0.71 0.73 1" emission="0.26" specular="0.8" shininess="0.7"/>
     <material name="glass" texture="outdoor_view" emission="0.95" specular="0.6" shininess="0.9"/>
-    <material name="window_frame" rgba="0.98 0.98 0.97 1" emission="0.18" specular="0.2" shininess="0.4"/>
-    <material name="sill" rgba="0.98 0.98 0.97 1" emission="0" specular="0.2" shininess="0.45"/>
+    <material name="window_frame" rgba="0.98 0.98 0.97 1" emission="0.22" specular="0.12" shininess="0.4"/>
+    <material name="sill" rgba="0.98 0.98 0.97 1" emission="0.05" specular="0.12" shininess="0.45"/>
     <material name="blind" texture="tx_blind" texrepeat="14 14" texuniform="true" rgba="0.97 0.96 0.93 1" emission="0.5" specular="0"/>
     <material name="blind_rail" rgba="0.82 0.82 0.8 1" specular="0.5"/>
     <texture name="view_0" type="2d" file="view_0.png"/>
