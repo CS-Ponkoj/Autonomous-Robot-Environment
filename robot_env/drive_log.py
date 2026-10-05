@@ -282,7 +282,7 @@ def _check_provenance(head: dict) -> None:
             raise IncompleteLogError("header deps is not a dependency snapshot")
         if any(d[k] is not None and not isinstance(d[k], str) for k in keys - {"kernels_compiled"}):
             raise IncompleteLogError("header deps: a version is not text")
-        if d["kernels_compiled"] not in (True, False, None):
+        if d["kernels_compiled"] is not None and not isinstance(d["kernels_compiled"], bool):  # not 0, 1, 1.0
             raise IncompleteLogError("header deps: kernels_compiled is not true, false, or null")
 
 

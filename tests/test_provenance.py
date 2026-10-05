@@ -171,6 +171,7 @@ def test_strict_gate_requires_every_identity_hash(missing, when):
 
 @pytest.mark.parametrize("bad", [
     {"kernels_compiled": "yes"},  # not true/false/null
+    {"kernels_compiled": 0}, {"kernels_compiled": 1}, {"kernels_compiled": 1.0},  # numbers are not booleans
     {"numpy": 2},  # a version that is not text
     {"extra": "1"},  # an unexpected key
     "drop python",  # a key missing
