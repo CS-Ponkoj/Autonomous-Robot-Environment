@@ -30,7 +30,7 @@ import numpy as np
 
 from . import config as C
 from . import kernels
-from .cat_motion import CatAnimator
+from .cat_motion import SIT_UP_TIME, CatAnimator
 from .cat_rig import load_rig, model_parts
 from .layout import clearance, region_of, shapes_from_model
 from .sim import WorldExtra
@@ -71,6 +71,7 @@ ROUTE_ROBOT_ROOM = 0.25  # m beyond the robot gap that routes keep from the robo
 ARRIVE = 0.3  # m from the destination counts as arrived
 STALL_TIME = 4.0  # s without 0.15 m of progress: a travelling cat picks a new route
 RESTING = ("sit", "pause")
+SIT_MOVE = 0.05  # sitting posture weight below which a cat getting up may move again
 PATROL_MEMORY = 120.0  # s: a room never visited counts as last seen this long ago
 PATROL_BASE = 10.0  # s added to every room's weight, so a recent room is still possible
 # Local planner: every PLAN_PERIOD each moving cat scores candidate motions over PLAN_HORIZON
@@ -503,6 +504,7 @@ class Cat:
     cmd_lat: float = 0.0
     plan_at: float = 0.0  # next planning time
     idle_since: float | None = None  # the planner found no way forward since then
+    no_sit: bool = False  # sitting down here did not fit (stays standing until its next state)
     rejected: dict = field(default_factory=dict)  # command -> until when the hard guard refused it
     held: int = 0  # samples rejected because the animated pose came too close (evaluation)
     escape: list = field(default_factory=list)  # worked-out steps out of a tight spot: (v, w, lat, end time)
@@ -729,6 +731,7 @@ class CatHerd:
             local, bob = cat.animator.update(ANIM_PERIOD, cat.x, cat.y, cat.yaw, 0.0, 0.0)
             pos, rot = cat.animator._fk(local)
             pos[:, 2] += bob
+            pos[:, 0] += cat.animator.shift  # sitting: the body moves forward
             cat.next = self._finish(Sample(cat.x, cat.y, cat.yaw, pos, rot))
             cat.prev = cat.next
             cat.t0 = 0.0
@@ -743,8 +746,11 @@ class CatHerd:
     def _enter(self, cat: Cat, state: str) -> None:
         r = self.rng
         cat.state = state
+        cat.no_sit = False
         duration = {"walk": r.uniform(3.0, 8.0), "pause": r.uniform(1.0, 4.0), "sit": r.uniform(3.0, 8.0),
                     "dart": r.uniform(0.4, 0.8), "flee": 3.0, "travel": 60.0, "yield": 8.0}[state]
+        if state != "sit":  # a sitting cat gets up first (the state's own time starts once it is up)
+            duration += cat.animator.sit * SIT_UP_TIME
         cat.state_until = self.time + duration
         cat.target_v = {"walk": r.uniform(0.15, 0.3), "pause": 0.0, "sit": 0.0, "dart": 0.9, "flee": 0.35,
                         "travel": r.uniform(0.30, 0.50), "yield": YIELD_SPEED}[state]
@@ -1235,11 +1241,12 @@ class CatHerd:
         cat.target_v, cat.target_yaw = float(v), float(yaw)
         cat.plan_at = self.time  # plans at once from here
         if state is not None:
-            cat.state, cat.state_until = state, math.inf
+            cat.state, cat.state_until, cat.no_sit = state, math.inf, False
         cat.animator.reset(cat.x, cat.y, cat.yaw)
         local, bob = cat.animator.update(ANIM_PERIOD, cat.x, cat.y, cat.yaw, cat.v, 0.0)
         pos, rot = cat.animator._fk(local)
         pos[:, 2] += bob
+        pos[:, 0] += cat.animator.shift  # sitting: the body moves forward
         cat.prev = cat.next = self._finish(Sample(cat.x, cat.y, cat.yaw, pos, rot))
         cat.t0 = self.time
         self._load_blend(cat)
@@ -1264,7 +1271,15 @@ class CatHerd:
         cat.blocked = False
         dt = ANIM_PERIOD / ROOT_SUBSTEPS
         x, y, yaw, v, w = cat.x, cat.y, cat.yaw, cat.v, cat.w
-        resting = cat.state in RESTING
+        # Sitting: the cat sits down only once it is still with every paw planted, and stays
+        # put (no plan, no command) until it has stood up again (any new state, a flight or
+        # giving way included, first gets it up: at most SIT_UP_TIME)
+        an = cat.animator
+        if cat.state != "sit" or cat.no_sit:
+            an.sit_target = 0.0
+        elif an.sit_target == 0.0 and abs(cat.v) < 0.01 and abs(cat.w) < 0.05 and                 all(leg.planted for leg in an.legs.values()):
+            an.sit_target = 1.0
+        resting = cat.state in RESTING or an.sit > SIT_MOVE
         if not resting and self.time >= cat.plan_at - 1e-9:
             self._plan(cat)
             cat.plan_at = self.time + PLAN_PERIOD
@@ -1319,6 +1334,8 @@ class CatHerd:
             # that command.
             cat.animator.restore(snap)
             cat.animator.tail_target = 0.0
+            if cat.animator.sit_target > 0.0:  # no room to sit here: stand up again, stay standing
+                cat.no_sit, cat.animator.sit_target = True, 0.0
             new = self._animate(cat, v, w, None, lat, settle=False)
             if not self.pose_ok(cat, new.x, new.y, new.yaw, pose=new, sweep_from=cat.prev):
                 # still too close: stand as it is (posture held; a paw in the air still lands),
@@ -1391,6 +1408,7 @@ class CatHerd:
         _, bob = cat.animator.update(ANIM_PERIOD, cat.x, cat.y, cat.yaw, v, w, look, lat, settle, freeze)
         pos, rot = cat.animator.pose  # the full pose of that update
         pos[:, 2] += bob
+        pos[:, 0] += cat.animator.shift  # sitting: the body moves forward
         return Sample(cat.x, cat.y, cat.yaw, pos, rot)
 
     def _clear_move(self, cat: Cat, x: float, y: float, yaw: float) -> bool:

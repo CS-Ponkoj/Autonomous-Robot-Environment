@@ -39,6 +39,21 @@ TAIL_AMP_RATE = 0.1  # rad/s: how fast the tail's sway may grow or calm
 BEND_RATE = 0.5  # rad/s: how fast the spine's bend into a turn may change
 PIVOT_STEP = 0.012  # m: turning on the spot, a paw this far off its spot under the body steps
 PAW_RETURN_SPEED = 0.6  # m/s at most of a paw taken back to where it lifted from (a withdrawn step)
+# Sitting (posture weight `sit`, 0 standing to 1 sitting, eased): the haunches come down onto the
+# folded hind legs while the shoulders stay over the planted front paws (the front legs stay
+# upright), so the back rises to about 30 degrees; the hind feet turn toward flat about the planted
+# toes (the hocks come down), the head is kept level, and the tail lies along the floor, curled round.
+SIT_HIPS_Z = 0.08  # m: hip joint height when sitting (the haunches on the floor)
+SIT_SHOULDER_DROP = 0.005  # m the shoulders come down
+SIT_FOOT = math.radians(28.0)  # hind feet: from their standing angle toward flat
+# Tail, per joint from the base: raised (about y) so the tail runs from the low hips at about 15,
+# 25, 20 degrees down and then rests along the floor, tip slightly up; and wrapped round to one side
+# (about the vertical, 150 degrees in all, so its height is unchanged), as a sitting cat's tail is.
+SIT_TAIL_LIFT = tuple(math.radians(a) for a in (38.3, 25.2, 2.3, 14.3, -18.1))
+SIT_TAIL_CURL = tuple(math.radians(a) for a in (10.0, 25.0, 35.0, 40.0, 40.0))
+SIT_SETTLE = 0.008  # m: before sitting down, paws further than this off their rest spots step under the body
+SIT_DOWN_TIME = 0.8  # s from standing to sitting
+SIT_UP_TIME = 0.5  # s from sitting to standing
 
 
 def rot_y(a: float) -> np.ndarray:
@@ -117,6 +132,20 @@ class CatAnimator:
         self.tail_amp = 0.0  # rad: the sway now, eased toward its target (never snapping)
         self.tail_lift_target = 0.0  # rad: how high to raise the tail (set by the herd when alert)
         self.tail_lift = 0.0  # rad, eased toward the target
+        self.sit_target = 0.0  # 0 stand, 1 sit (set by the herd)
+        self.sit = 0.0  # the posture now, eased toward the target (never jumping)
+        self.shift = 0.0  # m the body is moved forward this update (sitting); the caller adds it
+        self._hips = rig.joint("Hips_01")
+        # the sitting geometry from the skeleton: the hips pivot nose-up and the body moves down and
+        # forward so the shoulders (front of the spine) end where they stand, a little lower
+        hips, shoulders = rig.bind_pos[self._hips], rig.bind_pos[rig.joint("Spine3_013")]
+        span = shoulders - hips
+        length, angle0 = math.hypot(span[0], span[2]), math.atan2(span[2], span[0])
+        rise = (shoulders[2] - SIT_SHOULDER_DROP) - SIT_HIPS_Z
+        self._sit_pitch = math.asin(min(rise / length, 0.95)) - angle0  # nose-up, about the hips
+        self._sit_drop = hips[2] - SIT_HIPS_Z
+        self._sit_shift = shoulders[0] - (hips[0] + length * math.cos(angle0 + self._sit_pitch))  # forward
+        self._tail_side = 1.0 if self.rng.random() < 0.5 else -1.0  # which side the tail wraps round
 
     # ----- geometry -----
     def _parent_order(self) -> list:
@@ -161,10 +190,10 @@ class CatAnimator:
         """Everything update() changes, to undo a rejected step."""
         legs = tuple((leg.planted, leg.world.copy(), leg.swing_from.copy(), leg.swing_to.copy(), leg.progress,
                       leg.duration, leg.lifted_cycle, leg.short, leg.short_start) for leg in self.legs.values())
-        return legs, self.cycles, self.time, self.head_yaw, self.tail_amp, self.bend, self.tail_lift
+        return legs, self.cycles, self.time, self.head_yaw, self.tail_amp, self.bend, self.tail_lift, self.sit
 
     def restore(self, snap: tuple) -> None:
-        legs, self.cycles, self.time, self.head_yaw, self.tail_amp, self.bend, self.tail_lift = snap
+        legs, self.cycles, self.time, self.head_yaw, self.tail_amp, self.bend, self.tail_lift, self.sit = snap
         for leg, (planted, world, frm, to, progress, duration, lifted, short, start) in zip(self.legs.values(), legs):
             leg.planted, leg.progress, leg.duration, leg.lifted_cycle = planted, progress, duration, lifted
             leg.short, leg.short_start = short, start
@@ -194,6 +223,7 @@ class CatAnimator:
             leg.planted, leg.progress, leg.lifted_cycle, leg.short, leg.short_start = True, 0.0, -1, False, 0.0
             leg.world = self._to_world(leg.neutral, x, y, yaw)
         self.cycles, self.head_yaw, self.bend, self.tail_amp, self.tail_lift = 0.0, 0.0, 0.0, 0.0, 0.0
+        self.sit = 0.0
         self._started = True
 
     # ----- per update -----
@@ -216,8 +246,17 @@ class CatAnimator:
         freq = (speed / (2 * half) + 0.25 * abs(w)) if moving else 0.0
         if not freeze:
             self.cycles += freq * dt
+        # sitting down or getting up, eased (smoothly: the weight follows a smoothstep in time)
+        # (it starts sitting only once every paw is planted under the body: until then the paws
+        # shuffle into place, below; while sitting no paw steps)
+        if not freeze and (self.sit > 0.0 or self.sit_target <= 0.0 or all(
+                leg.planted and self._drift(leg, x, y, yaw) <= SIT_SETTLE for leg in self.legs.values())):
+            rate = dt / (SIT_DOWN_TIME if self.sit_target > self.sit else SIT_UP_TIME)
+            self.sit += float(clip(self.sit_target - self.sit, -rate, rate))
+        sit = smoothstep(self.sit)
         # body: a small bob per step, the spine bends into turns, breathing at the chest
-        bob = 0.003 * math.sin(4 * math.pi * self.cycles) * min(speed / 0.3, 1.0)
+        bob = 0.003 * math.sin(4 * math.pi * self.cycles) * min(speed / 0.3, 1.0) * (1.0 - sit) - self._sit_drop * sit
+        self.shift = self._sit_shift * sit  # m the whole body moves forward (sitting)
         # the spine bends into turns, easing (never jumping when the turn rate changes)
         want_bend = float(clip(w * 0.10, -0.25, 0.25))
         if not freeze:
@@ -242,9 +281,28 @@ class CatAnimator:
         # spine, neck and head, tail (a wave running to the tip, most of the lift at the base):
         # kernels.posture, written into the local rotations (the dict holds views of them)
         L = self._identity.copy()
+        # (sitting, the tail lies curled round: only a small flick of the sway is left)
         kernels.posture(L, self._spine_ids, bend, breathe, self.neck[0], self.head, self.head_yaw, self._tail_ids,
-                        self._tail_rate, self.time, self._tail_phase, amp, self.tail_lift)
+                        self._tail_rate, self.time, self._tail_phase, amp * (1.0 - 0.85 * sit), self.tail_lift)
+        if sit > 0.0:
+            pitch = self._sit_pitch * sit
+            L[self._hips] = rot_y(-pitch)  # nose up about the hips
+            L[self.neck[0]] = L[self.neck[0]] @ rot_y(0.5 * pitch)  # the head stays level
+            L[self.head] = L[self.head] @ rot_y(0.5 * pitch)
+            # the tail lowered (about y) and wrapped round about the vertical, so wrapping it never
+            # changes how high any part of it is: each joint's turn is about the cat's z axis seen in
+            # its parent's frame (up: the parent's rotation in the cat frame, before the turn)
+            up = np.eye(3)
+            k = self._parents[self.tail[0]]
+            while k >= 0:
+                up, k = L[k] @ up, self._parents[k]
+            for jj, lift, curl in zip(self.tail, SIT_TAIL_LIFT, SIT_TAIL_CURL):
+                lowered = rot_y(lift * sit) @ L[jj]
+                L[jj] = up.T @ rot_z(self._tail_side * curl * sit) @ up @ lowered
+                up = up @ lowered
         local: dict[int, np.ndarray] = {jj: L[jj] for jj in self._posture_ids}
+        if sit > 0.0:
+            local[self._hips] = L[self._hips]
         # legs (turning on the spot: paws step in diagonal pairs as soon as they drift a little)
         # turning or side-stepping on the spot: paws step in diagonal pairs
         pivot = speed <= 0.02 and (abs(w) > 0.15 or abs(lat) > 0.02)
@@ -260,9 +318,9 @@ class CatAnimator:
                     leg.duration = (1.0 - duty) / max(freq, 1e-6)
                 elif self._reach(leg, x, y, yaw) > MAX_REACH:
                     lift, leg.duration = True, 0.18  # stretched too far: step now
-                elif settle and ((pivot and self._pair_free(leg)) or (not moving and swinging == 0)):
-                    drift = np.linalg.norm(leg.world[:2] - self._to_world(leg.neutral, x, y, yaw)[:2])
-                    if drift > (PIVOT_STEP if pivot else SETTLE_DIST):
+                elif settle and self.sit == 0.0 and ((pivot and self._pair_free(leg)) or (not moving and swinging == 0)):
+                    limit = PIVOT_STEP if pivot else (SIT_SETTLE if self.sit_target > 0.0 else SETTLE_DIST)
+                    if self._drift(leg, x, y, yaw) > limit:
                         lift, leg.duration = True, 0.2 if pivot else 0.22  # step back under the body
                 if lift:
                     leg.planted, leg.progress = False, 0.0
@@ -295,15 +353,33 @@ class CatAnimator:
                     leg.world = leg.swing_to.copy()
                     leg.world[2] = leg.neutral[2]
         pos, rot = self._fk_array(L)
+        foot = {}  # each paw's wanted orientation in the cat frame (sitting: hind feet flat)
         for leg in self.legs.values():
-            contact = self._to_cat(leg.world, x, y, yaw) - [0.0, 0.0, bob]
-            end = contact - (self.rig.bind_pos[leg.contact] - self.rig.bind_pos[leg.paw])  # foot kept level
+            contact = self._to_cat(leg.world, x, y, yaw) - [self.shift, 0.0, bob]
+            foot[leg.name] = rot_y(-SIT_FOOT * sit) if (sit > 0.0 and leg.scapula is None) else None
+            offset = self.rig.bind_pos[leg.contact] - self.rig.bind_pos[leg.paw]
+            if foot[leg.name] is not None:
+                offset = foot[leg.name] @ offset  # the foot turns flat about the planted toe
+            end = contact - offset  # foot kept level (or flat)
             for k, m in self._leg_ik(leg, end, pos, rot).items():
                 local[k] = L[k] = m
         # the legs' own joints and everything below them, now that their rotations are known (the
         # rest of the skeleton does not depend on them): the full pose, as _fk(local) would give
         self.pose = self._fk_array(L, pos, rot)
+        if sit > 0.0:
+            # the hips' pitch tilts every paw: turn each back to level (front) or flat (hind)
+            p_, r_ = self.pose
+            for leg in self.legs.values():
+                want = foot[leg.name] if foot[leg.name] is not None else np.eye(3)
+                local[leg.paw] = L[leg.paw] = L[leg.paw] @ (r_[leg.paw].T @ want)
+                if foot[leg.name] is not None:  # the toes stay flat on the floor as the foot turns
+                    local[leg.contact] = L[leg.contact] = want.T
+            self.pose = self._fk_array(L, pos, rot)
         return local, bob
+
+    def _drift(self, leg: Leg, x, y, yaw) -> float:
+        """How far (m, horizontally) a paw is from its rest spot under the body."""
+        return float(np.linalg.norm(leg.world[:2] - self._to_world(leg.neutral, x, y, yaw)[:2]))
 
     def _pair_free(self, leg: Leg) -> bool:
         """While pivoting, a paw may lift if every lifted paw is its diagonal partner."""

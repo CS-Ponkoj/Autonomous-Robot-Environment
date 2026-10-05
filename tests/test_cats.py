@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 from robot_env import config as C
+from robot_env.cat_motion import SIT_UP_TIME
 from robot_env.cats import (ACCEL, ANIM_PERIOD, CAT_GAP, MAX_CATS, MIN_TURN_SPEED, PIVOT_RATE, ROBOT_GAP, V_MAX, WALL_GAP,
                             YAW_ACCEL, YAW_RATE, cat_world)
 from robot_env.sim import RobotSim
@@ -447,8 +448,8 @@ def test_lidar_with_one_cat_partly_hiding_another():
 
 
 def test_sit_and_dart_states_have_their_durations_and_are_logged(tmp_path):
-    """Forced states: sit holds still for 3 to 8 s; dart runs fast for 0.4 to 0.8 s. Every
-    transition reaches the drive log with its time."""
+    """Forced states: sit holds still for 3 to 8 s (the cat sits down); dart runs fast for 0.4 to
+    0.8 s once the cat has got up. Every transition reaches the drive log with its time."""
     from robot_env.drive_log import DriveLog, read_log
     s = RobotSystem(cats=1, cat_seed=7)
     with DriveLog(tmp_path / "states.jsonl") as log:
@@ -461,9 +462,13 @@ def test_sit_and_dart_states_have_their_durations_and_are_logged(tmp_path):
         x0, y0 = cat.x, cat.y
         s.advance(1.0)
         assert cat.state == "sit" and math.hypot(cat.x - x0, cat.y - y0) < 0.02  # settles where it is
+        assert cat.animator.sit == 1.0  # sat down
+        up = cat.animator.sit * SIT_UP_TIME  # getting up comes first
         herd._enter(cat, "dart")
-        dart_len = cat.state_until - herd.time
+        dart_len = cat.state_until - herd.time - up
         assert 0.4 <= dart_len <= 0.8
+        while cat.animator.sit > 0.0:
+            s.advance(C.CONTROL_PERIOD)
         start, top = herd.time, 0.0
         while herd.time < start + dart_len - 0.02:
             s.advance(C.CONTROL_PERIOD)
@@ -473,6 +478,42 @@ def test_sit_and_dart_states_have_their_durations_and_are_logged(tmp_path):
     events = [r for r in read_log(tmp_path / "states.jsonl") if r["kind"] == "event" and r["name"] == "cat_state"]
     assert {"sit", "dart"} <= {e["evaluation_only_truth"]["state"] for e in events}
     assert all(e["evaluation_only_truth"]["cat"] == 0 and e["t"] >= 0.0 for e in events)
+    s.close()
+
+
+def test_a_cat_sits_only_when_still_and_is_up_before_it_moves():
+    """Sitting: a walking cat told to sit first stops (no sitting while it moves), then sits down
+    with its paws planted where they are (none steps while sitting) and its root fixed; told to
+    flee, it gets up first (its root held until it is up), then moves, every gap kept."""
+    from robot_env.cat_motion import SIT_DOWN_TIME
+    from robot_env.cats import SIT_MOVE
+    s = RobotSystem(cats=1, cat_seed=7)
+    s.reset(-4.0, -2.5, 0.0, (4.0, 2.5))
+    herd, cat = s.cats, s.cats.cats[0]
+    herd.place(0, 2.0, 0.0, 0.0, v=0.25, state="walk")
+    s.advance(0.5)
+    herd._enter(cat, "sit")
+    while abs(cat.v) >= 0.01:
+        assert cat.animator.sit == 0.0  # not while it is still moving
+        s.advance(C.CONTROL_PERIOD)
+    while cat.animator.sit == 0.0:  # paws settling under the body
+        s.advance(C.CONTROL_PERIOD)
+    x0, y0, yaw0 = cat.x, cat.y, cat.yaw
+    paws = {n: leg.world.copy() for n, leg in cat.animator.legs.items()}
+    s.advance(SIT_DOWN_TIME + 0.2)
+    assert cat.animator.sit == 1.0 and cat.state == "sit"
+    assert (cat.x, cat.y, cat.yaw) == (x0, y0, yaw0)
+    for n, leg in cat.animator.legs.items():
+        assert leg.planted and np.allclose(leg.world, paws[n])
+    herd._enter(cat, "flee")
+    cat.target_v = 0.35
+    while cat.animator.sit > SIT_MOVE:
+        assert (cat.x, cat.y) == (x0, y0)  # getting up: not moving yet
+        s.advance(C.CONTROL_PERIOD)
+    s.advance(1.5)
+    assert math.hypot(cat.x - x0, cat.y - y0) > 0.1  # then off
+    g = herd.current_gaps()[0]
+    assert g["wall"] >= WALL_GAP - 0.001 and s.cat_contacts == 0
     s.close()
 
 
@@ -997,12 +1038,15 @@ def test_a_paw_landing_short_never_goes_below_the_floor(monkeypatch, which, outs
 
 
 @pytest.mark.slow
-def test_a_crowded_cat_finds_its_way_out_on_the_retry():
+def test_a_crowded_cat_finds_its_way_out_on_the_retry(monkeypatch):
     """Regression (roaming seed 4): three cats crowd by the office door; the way-out search of
     the one in the middle finds nothing (t = 224.62 s) and finds one ESCAPE_RETRY later, once
-    the cat ahead has moved on, instead of GIVE_WAY_AFTER later; no contact, every gap kept."""
+    the cat ahead has moved on, instead of GIVE_WAY_AFTER later; no contact, every gap kept.
+    Replayed as recorded, before cats sat down (sitting changes the trajectory): sitting off."""
+    from robot_env.cat_motion import CatAnimator
     from robot_env.cats import ESCAPE_RETRY, GIVE_WAY_AFTER
     from robot_env.layout import RoomMap
+    monkeypatch.setattr(CatAnimator, "sit_target", property(lambda self: 0.0, lambda self, value: None), raising=False)
     s = RobotSystem(cats=3, cat_seed=4)
     task = RoomMap(s.sim.model).sample_task(1000)
     s.reset(*task.start, task.goal)

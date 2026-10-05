@@ -4,7 +4,8 @@ motion computed at every physics step). Development gate.
 Scenarios (scripted, so both runs follow the same paths): a cat walking into the stopped robot,
 the robot driving into a still cat, a cat walking past the robot while turning, a cat that sees
 the robot raising its tail (the alert lift starting mid-run) as it walks into it, and the robot
-driving into a cat's low tail and into its raised tail. For each: the largest difference of a
+driving into a cat's low tail and into its raised tail, and the robot driving into a cat that
+sits down as it comes (the sitting transition, then the sitting pose). For each: the largest difference of a
 collider endpoint over the run (gate: 10 mm for the body and head, 10 mm for the tail; 20 mm for
 the legs, whose steps can only start at a sample boundary, so a paw swinging at about 1.5 m/s
 can be up to one 10 ms sample, 15 mm, behind the reference), the time of the first
@@ -48,7 +49,9 @@ SCENARIOS = {
     "alert cat raises its tail walking into the robot": ((-2.0, 0.0, 0.0), (0.0, 0.0), (0.0, 0.0, math.pi), (0.4, 0.0), 6.0, True),
     "robot drives into a low tail": ((-2.0, 0.0, 0.0), (0.3, 0.0), (-0.95, 0.0, 0.0), (0.0, 0.0), 4.0, False),
     "robot drives at a cat with its tail raised": ((-2.0, 0.0, 0.0), (0.3, 0.0), (-0.95, 0.0, 0.0), (0.0, 0.0), 4.0, True),
+    "robot drives into a cat sitting down": ((-2.2, 0.0, 0.0), (0.3, 0.0), (-1.0, 0.0, math.pi / 2), (0.0, 0.0), 5.0, False),
 }
+SITTING = {"robot drives into a cat sitting down"}  # placed in the sit state (it sits down at once)
 
 
 def run(name: str, reference: bool) -> dict:
@@ -69,7 +72,7 @@ def run(name: str, reference: bool) -> dict:
         def straight(c):
             c.cmd_v, c.cmd_w, c.cmd_lat = ccmd[0], ccmd[1], 0.0
         h._plan = straight
-        h.place(0, *cat, v=ccmd[0], state="walk")
+        h.place(0, *cat, v=ccmd[0], state="sit" if name in SITTING else "walk")
         h.cats[0].sees_robot = sees  # (behaviour is off: fixed for the run)
         lifts = []
         parts = set()
@@ -101,7 +104,7 @@ def run(name: str, reference: bool) -> dict:
                 "initiators": [e.get("initiator") for e in events],
                 "force": max([e.get("peak_force_n", 0.0) for e in events] or [0.0]),
                 "impulse": max([e.get("impulse_ns", 0.0) for e in events] or [0.0]),
-                "moved_in_contact": moved_in_contact, "lift": max(lifts),
+                "moved_in_contact": moved_in_contact, "lift": max(lifts), "sit": h.cats[0].animator.sit,
                 "parts": sorted(parts)}
     finally:
         K.ANIM_PERIOD, K.ROOT_SUBSTEPS = saved
@@ -125,15 +128,16 @@ def main() -> int:
         same = prod["contacts"] == ref["contacts"] and prod["initiators"] == ref["initiators"] and prod["parts"] == ref["parts"]
         tunnel = prod["moved_in_contact"] <= 0.002 and ref["moved_in_contact"] <= 0.002
         lifted = (prod["lift"] > 0.5) == SCENARIOS[name][5] and (ref["lift"] > 0.5) == SCENARIOS[name][5]
+        sat = (prod["sit"] == 1.0 and ref["sit"] == 1.0) if name in SITTING else (prod["sit"] == ref["sit"] == 0.0)
         force_ok = abs(prod["force"] - ref["force"]) <= max(FORCE_REL * max(prod["force"], ref["force"]), FORCE_FLOOR)
         impulse_ok = abs(prod["impulse"] - ref["impulse"]) <= max(FORCE_REL * max(prod["impulse"], ref["impulse"]),
                                                                   IMPULSE_FLOOR)
-        passed = (all(worst[k] <= LIMITS[k] for k in LIMITS) and onset_ok and same and tunnel and lifted
+        passed = (all(worst[k] <= LIMITS[k] for k in LIMITS) and onset_ok and same and tunnel and lifted and sat
                   and force_ok and impulse_ok)
         ok &= passed
         print(f"{name}: endpoint difference body {1000 * worst['body']:.2f} mm, tail {1000 * worst['tail']:.2f} mm, "
               f"legs {1000 * worst['legs']:.2f} mm; tail lift {prod['lift']:.2f} / {ref['lift']:.2f} rad; "
-              f"onset {prod['onset']} vs {ref['onset']}; parts touched {prod['parts']} vs {ref['parts']}; "
+              f"sat {prod['sit']:.2f} / {ref['sit']:.2f}; onset {prod['onset']} vs {ref['onset']}; parts touched {prod['parts']} vs {ref['parts']}; "
               f"contacts {prod['contacts']} vs {ref['contacts']} initiators {prod['initiators']} vs {ref['initiators']}; "
               f"robot moved while touched {1000 * prod['moved_in_contact']:.2f} / {1000 * ref['moved_in_contact']:.2f} mm; "
               f"peak force {prod['force']:.2f} vs {ref['force']:.2f} N, impulse {prod['impulse']:.4f} vs {ref['impulse']:.4f} N s: "

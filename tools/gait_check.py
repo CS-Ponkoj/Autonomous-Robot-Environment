@@ -24,7 +24,7 @@ DT = 0.0005  # physics step
 
 
 def run(profile, seconds: float, seed: int = 0, step: float = DT, rate_every: int = 1):
-    """profile(t) -> (v, w). Integrates the cat's root, animates every `rate_every` steps, and
+    """profile(t) -> (v, w[, lat[, sit]]). Integrates the cat's root, animates every `rate_every` steps, and
     records each paw's world position and planted flag per animation update."""
     rig = load_rig()
     an = CatAnimator(rig, seed)
@@ -47,6 +47,7 @@ def run(profile, seconds: float, seed: int = 0, step: float = DT, rate_every: in
         t = i * step
         v, w, *side = profile(t)
         lat = side[0] if side else 0.0  # a side step (m/s, to the left), as the cats' planner uses
+        an.sit_target = side[1] if len(side) > 1 else 0.0  # 1: sit down (the herd asks only when still)
         yaw += w * step
         x += (v * math.cos(yaw) - lat * math.sin(yaw)) * step
         y += (v * math.sin(yaw) + lat * math.cos(yaw)) * step
@@ -54,6 +55,7 @@ def run(profile, seconds: float, seed: int = 0, step: float = DT, rate_every: in
             continue
         local, bob = an.update(step * rate_every, x, y, yaw, v, w, None, lat)
         pos, rot = an._fk(local)
+        pos[:, 0] += an.shift  # sitting: the body moves forward
         # heights do not depend on the root's x, y, yaw: the cat frame's z plus the body bob
         skin_z = (W * (pos[J][:, :, 2] + np.einsum("nkj,nkj->nk", rot[J][:, :, 2, :], rel))).sum(1) + bob
         za = pos[ca][:, 2] + np.einsum("nj,nj->n", rot[ca][:, 2, :], oa) + bob
@@ -116,6 +118,8 @@ PROFILES = {
     "back up turning": lambda t: (-0.12, 0.8),
     "side step 0.08": lambda t: (0.0, 0.0, 0.08),
     "side step back": lambda t: (0.0, 0.0, (0.08 if (t % 2) < 1 else -0.08)),
+    # walk, stop, sit down, get up, walk on (moving again only once up, as the herd does)
+    "sit and stand": lambda t: ((0.2 if t < 0.8 or t >= 3.4 else 0.0), 0.0, 0.0, (1.0 if 1.0 <= t < 2.8 else 0.0)),
 }
 
 SLIP_MAX = 0.01  # m/s: a planted paw (outside 50 ms of touchdown and lift-off)
