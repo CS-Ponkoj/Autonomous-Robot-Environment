@@ -72,8 +72,9 @@ ROUTE_ROBOT_ROOM = 0.25  # m beyond the robot gap that routes keep from the robo
 ARRIVE = 0.3  # m from the destination counts as arrived
 STALL_TIME = 4.0  # s without 0.15 m of progress: a travelling cat picks a new route
 RESTING = ("sit", "pause")
-SIT_CHECK_TIME = 2.5  # s: the longest a sit-down (paws shuffling under the body, then sitting) may take
+SIT_CHECK_TIME = 3.0  # s: the longest a sit-down and getting up (paws shuffling first) may take
 SIT_CHECK_CHUNK = 6  # sit-down poses checked per 10 ms sample (about 2 ms of work)
+SIT_ROOM = 0.05  # m beyond the robot and cat gaps a sit-down keeps from them where they are (they move)
 PATROL_MEMORY = 120.0  # s: a room never visited counts as last seen this long ago
 PATROL_BASE = 10.0  # s added to every room's weight, so a recent room is still possible
 # Local planner: every PLAN_PERIOD each moving cat scores candidate motions over PLAN_HORIZON
@@ -1394,9 +1395,11 @@ class CatHerd:
         self._load_blend(cat)
 
     def _sit_check(self, cat: Cat) -> bool | None:
-        """Whether the whole sit-down from here fits: every 10 ms pose (paws shuffling under the
-        body, then sitting; the root fixed) keeps the wall gap over each move, as pose_ok's sweep
-        measures it. Worked out on a copy of the animator, SIT_CHECK_CHUNK poses per call so no
+        """Whether the whole sit-down from here fits, and getting up again: every 10 ms pose (paws
+        shuffling under the body, sitting, then standing up; the root fixed) keeps the wall gap,
+        and SIT_ROOM beyond the robot and cat gaps from where they are now, over each move, as
+        pose_ok's sweep measures it (the tail is still throughout, so the cat gets up through the
+        poses checked here). Worked out on a copy of the animator, SIT_CHECK_CHUNK poses per call so no
         frame stalls: None while still checking (begun again if a paw moves meanwhile). The robot
         and the other cats move, so each sample is still checked as it comes (a cat that cannot
         go on stands up)."""
@@ -1412,13 +1415,16 @@ class CatHerd:
         for _ in range(SIT_CHECK_CHUNK):
             s = self._animate(cat, 0.0, 0.0, None, an=probe)
             inflate = self._half_chord(cat, self.circles(cat, s.x, s.y, s.yaw, s), self.circles(cat, pose=prev))
-            if self.gaps(cat, s.x, s.y, s.yaw, s, inflate, sweep=True)[0] < WALL_GAP:
+            g = self.gaps(cat, s.x, s.y, s.yaw, s, inflate, sweep=True)
+            if g[0] < WALL_GAP or g[1] < ROBOT_GAP + SIT_ROOM or g[2] < CAT_GAP + SIT_ROOM:
                 return False
             if probe.sit >= 1.0:
+                probe.sit_target = 0.0  # sat: now getting up
+            elif probe.sit == 0.0 and probe.sit_target == 0.0:
                 return True
             prev, done = s, done + 1
             if done >= round(SIT_CHECK_TIME / ANIM_PERIOD):
-                return False  # would not get down in time
+                return False  # would not get down and up in time
         cat.sit_probe[1], cat.sit_probe[2] = prev, done
         return None
 

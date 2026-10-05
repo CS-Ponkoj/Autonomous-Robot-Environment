@@ -276,19 +276,21 @@ class CatAnimator:
         if not freeze:
             self.head_yaw += float(clip(want - self.head_yaw, -HEAD_RATE * dt, HEAD_RATE * dt))
         # tail: a slow wave running to the tip, larger when idle
-        want_amp = (0.10 if moving else 0.18) * self.tail_target
+        # (sitting down, sitting, or getting up, the tail is still: those poses depend only on how
+        # far the cat has sat, so the check of the whole sit-down holds for them)
+        want_amp = 0.0 if (self.sit > 0.0 or self.sit_target > 0.0) else (0.10 if moving else 0.18) * self.tail_target
         if not freeze:
             self.tail_amp += float(clip(want_amp - self.tail_amp, -TAIL_AMP_RATE * dt, TAIL_AMP_RATE * dt))
         amp = self.tail_amp
         # an alert cat (the robot close) raises its tail, eased; most of the lift at the base
         if not freeze:
-            self.tail_lift += float(clip(self.tail_lift_target - self.tail_lift, -TAIL_LIFT_RATE * dt, TAIL_LIFT_RATE * dt))
+            lift_to = 0.0 if (self.sit > 0.0 or self.sit_target > 0.0) else self.tail_lift_target  # (sitting: still)
+            self.tail_lift += float(clip(lift_to - self.tail_lift, -TAIL_LIFT_RATE * dt, TAIL_LIFT_RATE * dt))
         # spine, neck and head, tail (a wave running to the tip, most of the lift at the base):
         # kernels.posture, written into the local rotations (the dict holds views of them)
         L = self._identity.copy()
-        # (sitting, the tail lies curled round: only a small flick of the sway is left)
         kernels.posture(L, self._spine_ids, bend, breathe, self.neck[0], self.head, self.head_yaw, self._tail_ids,
-                        self._tail_rate, self.time, self._tail_phase, amp * (1.0 - 0.85 * sit), self.tail_lift)
+                        self._tail_rate, self.time, self._tail_phase, amp, self.tail_lift)
         if sit > 0.0:
             pitch = self._sit_pitch * sit
             L[self._hips] = rot_y(-pitch)  # nose up about the hips
