@@ -805,6 +805,100 @@ def test_a_cat_cannot_park_in_a_seated_cats_room_to_get_up(monkeypatch):
     s.close()
 
 
+def _room_excess(room, circ):
+    """How far (m) the circle furthest outside every room circle sticks out (<= 0: all inside)."""
+    d = np.hypot(circ[:, None, 0] - room[None, :, 0], circ[:, None, 1] - room[None, :, 1])
+    return float((d + circ[:, None, 2] - room[None, :, 2]).min(axis=1).max())
+
+
+@pytest.mark.parametrize("seed", [0, 3, 7])
+@pytest.mark.parametrize("how", ["settled", "alert", "flee after 1 s"])
+def test_a_cats_room_holds_its_whole_sit_down_and_get_up(seed, how):
+    """Review D5: every circle of the live cat (grown by its move, as pose_ok measures it), from
+    its first sitting pose until it is fully up, lies inside the room it claimed, by at least
+    half ROOM_MARGIN: after standing 3 s (tail swaying), with the robot in sight (tail raised),
+    and with the sit cut short by a flight 1 s in (fully up within SIT_UP_TIME, root fixed)."""
+    from robot_env.cat_motion import SIT_UP_TIME
+    from robot_env.cats import ROOM_MARGIN
+    s = RobotSystem(cats=1, cat_seed=seed)
+    s.reset(*((1.0, 0.0, math.pi) if how == "alert" else (-4.0, -2.5, 0.0)), (4.0, 2.5))
+    herd, cat = s.cats, s.cats.cats[0]
+    herd.place(0, 2.0, 0.0, 0.0, state="pause")
+    s.advance(3.0)
+    herd._enter(cat, "sit")
+    cat.state_until = math.inf
+    root = (cat.x, cat.y, cat.yaw)
+    worst, room, t_sit, t_flee, prev = -math.inf, None, None, None, None
+    while s.time < 15.0:
+        s.advance(C.PHYSICS_DT)
+        if cat.room is not None and room is None:
+            room = cat.room.copy()
+        if cat.t0 == herd.time:  # a new sample this step
+            if room is not None and (cat.animator.sit > 0.0 or (prev is not None and prev[1] > 0.0)):
+                circ = herd.circles(cat).copy()
+                circ[:, 2] += herd._half_chord(cat, circ, prev[0])
+                worst = max(worst, _room_excess(room, circ))
+            prev = (herd.circles(cat).copy(), cat.animator.sit)
+        if t_sit is None and cat.animator.sit > 0.0:
+            t_sit = s.time
+        if t_sit is not None and cat.state == "sit" and s.time >= t_sit + (1.0 if how.startswith("flee") else 3.5):
+            t_flee = s.time
+            herd._enter(cat, "flee" if how.startswith("flee") else "pause")
+            cat.target_v, cat.state_until = 0.0, math.inf
+        if t_flee is not None:
+            if cat.animator.sit > 0.0:
+                assert (cat.x, cat.y, cat.yaw) == root  # getting up: not moving yet
+            else:
+                break
+    assert room is not None and t_flee is not None and cat.animator.sit == 0.0
+    assert s.time <= t_flee + SIT_UP_TIME + 2 * ANIM_PERIOD
+    assert worst <= -ROOM_MARGIN / 2
+    s.close()
+
+
+def test_a_cat_cannot_park_in_a_settled_seated_cats_room_from_its_tail_side(monkeypatch):
+    """Review D5: as test_a_cat_cannot_park_in_a_seated_cats_room_to_get_up, but the seated cat
+    stood 3 s first (its tail swaying when told to sit) and the walker comes from the side its
+    tail wraps round to: it stops outside the room (CAT_GAP from it), and the seated cat, told to
+    go, is fully up within SIT_UP_TIME, every gap kept, no contact."""
+    from robot_env.cat_motion import SIT_UP_TIME
+    s = RobotSystem(cats=2, cat_seed=3)
+    s.reset(-4.0, -2.5, 0.0, (4.0, 2.5))
+    herd = s.cats
+    monkeypatch.setattr(herd, "tick", lambda **k: None)
+    seated, walker = herd.cats
+    herd.place(0, 2.0, 0.0, 0.0, state="pause")
+    herd.place(1, 3.5, -0.4, 0.0, state="pause")  # out of the way
+    s.advance(3.0)
+    herd._enter(seated, "sit")
+    seated.state_until = math.inf
+    s.advance(3.0)
+    assert seated.animator.sit == 1.0 and seated.room is not None
+    side = 1.0 if seated.room[:, 1].max() > -seated.room[:, 1].min() else -1.0  # where the tail lies
+    x0, y0 = 1.2, side * 0.3
+    heading = math.atan2(0.0 - y0, 1.85 - x0)
+    herd.place(1, x0, y0, heading, v=0.2, state="walk")
+    walker.target_v, walker.target_yaw = 0.2, heading
+    low = [[math.inf] * 3, [math.inf] * 3]
+    for _ in range(int(4.0 / C.PHYSICS_DT)):
+        s.advance(C.PHYSICS_DT)
+        _low_gaps(herd, low)
+    assert math.hypot(walker.x - x0, walker.y - y0) > 0.1  # it came up
+    wc = herd.circles(walker)
+    d = np.hypot(seated.room[:, None, 0] - wc[None, :, 0], seated.room[:, None, 1] - wc[None, :, 1])
+    gap_room = float((d - seated.room[:, None, 2] - wc[None, :, 2]).min())
+    assert CAT_GAP - 0.001 <= gap_room < CAT_GAP + 0.05  # parked just outside the room
+    t0 = herd.time
+    herd._enter(seated, "walk")
+    seated.target_v, seated.target_yaw = 0.2, -side * math.pi / 2
+    while seated.animator.sit > 0.0:
+        s.advance(C.PHYSICS_DT)
+        _low_gaps(herd, low)
+    assert herd.time <= t0 + SIT_UP_TIME + 2 * ANIM_PERIOD  # up at once, fully
+    assert _gaps_kept(low) and s.cat_contacts == 0
+    s.close()
+
+
 def test_a_cat_sits_by_a_wall_with_the_robot_in_sight():
     """Regression (review D2): by the corridor's south wall with the robot in sight, the cat does
     not turn its head toward the robot while its sit-down is checked, sitting, or getting up (the
@@ -846,12 +940,12 @@ def test_a_parked_robot_creeping_does_not_let_a_cat_inside_the_robot_gap():
 
 def test_a_cat_that_has_stood_a_while_sits_and_gets_up_near_the_robot_and_a_cat():
     """Review D4: the boundary transitions again, from a cat that has stood 3 s first (its tail
-    swaying, or raised with the robot in sight) rather than freshly placed: the check sees that
-    tail as it eases still, so the closest gap it accepts is wider; just outside that, the cats
-    sit fully and get up fully, every gap holding at every step; just inside it, the cat by the
-    robot stays standing, and of the two cats the first sits while the second, too close to the
-    room the first claimed, does not sit at all."""
-    for robot_x, sits in ((1.0, True), (1.02, False)):  # the robot behind, in sight (alert tail)
+    swaying, or raised with the robot in sight) rather than freshly placed: told to sit, it first
+    calms (the tail stops swaying and comes down) and only then is its sit-down checked; at the
+    closest gap that passes, the cats sit fully and get up fully, every gap holding at every
+    step; 2 cm closer, the cat by the robot stays standing, and of the two cats the first sits
+    while the second, too close to the room the first claimed, does not sit at all."""
+    for robot_x, sits in ((1.04, True), (1.06, False)):  # the robot behind, in sight (alert tail)
         s = RobotSystem(cats=1, cat_seed=3)
         s.reset(robot_x, 0.0, math.pi, (4.0, 2.5))
         herd, cat = s.cats, s.cats.cats[0]

@@ -36,6 +36,7 @@ HEAD_RATE = 2.5  # rad/s the head may turn
 SETTLE_DIST = 0.02  # m: standing, a paw further than this from its rest spot steps back to it
 TAIL_LIFT_RATE = 2.0  # rad/s: how fast the tail rises or settles
 TAIL_AMP_RATE = 0.1  # rad/s: how fast the tail's sway may grow or calm
+SIT_CALM_RATE = 1.0  # rad/s: how fast the tail's sway calms in a cat about to sit (or sitting)
 BEND_RATE = 0.5  # rad/s: how fast the spine's bend into a turn may change
 PIVOT_STEP = 0.012  # m: turning on the spot, a paw this far off its spot under the body steps
 PAW_RETURN_SPEED = 0.6  # m/s at most of a paw taken back to where it lifted from (a withdrawn step)
@@ -133,7 +134,7 @@ class CatAnimator:
         self.tail_lift_target = 0.0  # rad: how high to raise the tail (set by the herd when alert)
         self.tail_lift = 0.0  # rad, eased toward the target
         self.sit_target = 0.0  # 0 stand, 1 sit (set by the herd)
-        self.calm = False  # set by the herd while a sit-down is being checked: the tail eases still
+        self.calm = False  # set by the herd while the cat is to sit: spine, head, and tail ease still
         self.sit = 0.0  # the posture now, eased toward the target (never jumping)
         self.shift = 0.0  # m the body is moved forward this update (sitting); the caller adds it
         self._hips = rig.joint("Hips_01")
@@ -263,8 +264,13 @@ class CatAnimator:
         # body: a small bob per step, the spine bends into turns, breathing at the chest
         bob = 0.003 * math.sin(4 * math.pi * self.cycles) * min(speed / 0.3, 1.0) * (1.0 - sit) - self._sit_drop * sit
         self.shift = self._sit_shift * sit  # m the whole body moves forward (sitting)
+        # A cat about to sit (calm, set by the herd), sitting down, sitting, or getting up keeps its
+        # spine straight, its head forward (the herd gives it no look), and its tail still (no sway,
+        # no alert lift), all eased: the herd checks a sit-down only once all of that has come to
+        # rest, so the check and the cat go through the same poses
+        still = self.calm or self.sit > 0.0 or self.sit_target > 0.0
         # the spine bends into turns, easing (never jumping when the turn rate changes)
-        want_bend = float(clip(w * 0.10, -0.25, 0.25))
+        want_bend = 0.0 if still else float(clip(w * 0.10, -0.25, 0.25))
         if not freeze:
             self.bend += float(clip(want_bend - self.bend, -BEND_RATE * dt, BEND_RATE * dt))
         bend = self.bend
@@ -276,14 +282,11 @@ class CatAnimator:
             want = float(clip(math.atan2(to[1], to[0] - 0.18), -1.0, 1.0))
         if not freeze:
             self.head_yaw += float(clip(want - self.head_yaw, -HEAD_RATE * dt, HEAD_RATE * dt))
-        # tail: a slow wave running to the tip, larger when idle
-        # (while a sit-down is checked, sitting down, sitting, and getting up, the tail's sway and
-        # lift ease to zero, the same way as in the check of the whole sit-down, so the poses the cat
-        # goes through are the ones checked)
-        still = self.calm or self.sit > 0.0 or self.sit_target > 0.0
+        # tail: a slow wave running to the tip, larger when idle (still: calming quickly)
         want_amp = 0.0 if still else (0.10 if moving else 0.18) * self.tail_target
         if not freeze:
-            self.tail_amp += float(clip(want_amp - self.tail_amp, -TAIL_AMP_RATE * dt, TAIL_AMP_RATE * dt))
+            rate = SIT_CALM_RATE if still else TAIL_AMP_RATE
+            self.tail_amp += float(clip(want_amp - self.tail_amp, -rate * dt, rate * dt))
         amp = self.tail_amp
         # an alert cat (the robot close) raises its tail, eased; most of the lift at the base
         if not freeze:

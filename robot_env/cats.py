@@ -79,6 +79,7 @@ SIT_RISE = 0.01  # m: a seated cat gets up once the robot comes within this of t
 # room to get up in (still clear of it); a room is taken only this clear of the robot and the cats
 ROBOT_RELIEF = 0.005  # m inside ROBOT_GAP before the robot counts as having driven in (not a creep)
 ROOM_STEP = 0.01  # m: a seated cat's room to get up in is covered by circles grouping moves this small
+ROOM_MARGIN = 0.005  # m the room is grown by: breathing, and a get-up begun at another time than checked
 PATROL_MEMORY = 120.0  # s: a room never visited counts as last seen this long ago
 PATROL_BASE = 10.0  # s added to every room's weight, so a recent room is still possible
 # Local planner: every PLAN_PERIOD each moving cat scores candidate motions over PLAN_HORIZON
@@ -1324,9 +1325,10 @@ class CatHerd:
         cat.blocked = False
         dt = ANIM_PERIOD / ROOT_SUBSTEPS
         x, y, yaw, v, w = cat.x, cat.y, cat.yaw, cat.v, cat.w
-        # Sitting: the cat sits down only once it is still with every paw planted, and only if the
-        # whole sit-down fits here; it stays put (no plan, no command) until it is fully up again
-        # (any new state, a flight or giving way included, first gets it up: at most SIT_UP_TIME)
+        # Sitting: the cat sits down only once it is still with every paw planted and its spine,
+        # head, and tail at rest (calm), and only if the whole sit-down fits here; it stays put (no
+        # plan, no command) until it is fully up again (any new state, a flight or giving way
+        # included, first gets it up: at most SIT_UP_TIME)
         an = cat.animator
         if cat.state != "sit" or cat.no_sit:
             an.sit_target = 0.0
@@ -1334,7 +1336,8 @@ class CatHerd:
         elif an.sit_target > 0.0 and self._room_robot_gap(cat) < ROBOT_GAP + SIT_RISE:
             an.sit_target, cat.no_sit = 0.0, True  # the robot has come near its room: up while it can
         elif an.sit_target == 0.0 and abs(cat.v) < 0.01 and abs(cat.w) < 0.05 and \
-                all(leg.planted for leg in an.legs.values()):
+                all(leg.planted for leg in an.legs.values()) and \
+                an.tail_amp == an.tail_lift == an.head_yaw == an.bend == 0.0:
             verdict = self._sit_check(cat)
             if verdict is not None:
                 cat.sit_probe = None
@@ -1342,7 +1345,7 @@ class CatHerd:
                 cat.no_sit = not verdict  # if it does not fit, it stays standing until its next state
         if an.sit == 0.0 and an.sit_target == 0.0:
             cat.room = None  # up: the room to get up in is free again
-        an.calm = cat.sit_probe is not None
+        an.calm = cat.state == "sit" and not cat.no_sit
         resting = cat.state in RESTING or an.sit > 0.0
         if not resting and self.time >= cat.plan_at - 1e-9:
             self._plan(cat)
@@ -1454,11 +1457,14 @@ class CatHerd:
         """Whether the whole sit-down from here fits, and getting up again: every 10 ms pose (paws
         shuffling under the body, sitting, then standing up; the root fixed) keeps the wall gap,
         and SIT_ROOM beyond the robot and cat gaps from where they are now, over each move, as
-        pose_ok's sweep measures it (the tail is still throughout, so the cat gets up through the
-        poses checked here). Worked out on a copy of the animator, SIT_CHECK_CHUNK poses per call so no
-        frame stalls: None while still checking (begun again if a paw moves meanwhile). On a pass,
-        the area those poses sweep (every pose from the first sitting one, each circle grown by
-        its move to the next) becomes the cat's room (`room`) until it is up again: the other cats
+        pose_ok's sweep measures it. It starts only once the cat is calm (spine straight, head
+        forward, tail without sway or lift; see CatAnimator.update), and it stays so until it is
+        up again, so the poses the cat goes through are the ones checked, but for its breathing
+        and when it starts (ROOM_MARGIN covers those). Worked out on a copy of the animator,
+        SIT_CHECK_CHUNK poses per call so no frame stalls: None while still checking (begun again
+        if a paw moves meanwhile). On a pass, the area those poses sweep (every pose from the first
+        sitting one, each circle grown by its move to the next, then by ROOM_MARGIN) becomes the
+        cat's room (`room`) until it is up again: the other cats
         keep their gap from it as from the cat itself, so none can stand where it needs to get up;
         the robot does not, so a seated cat gets up once the robot comes within SIT_RISE of the
         robot gap from its room (and if the robot keeps coming, that get-up keeps only ROBOT_HARD
@@ -1484,7 +1490,7 @@ class CatHerd:
             if probe.sit >= 1.0:
                 probe.sit_target = 0.0  # sat: now getting up
             elif probe.sit == 0.0 and probe.sit_target == 0.0:
-                return self._take_room(cat, _cover(np.array(swept)))
+                return self._take_room(cat, _cover(np.array(swept)) + [0.0, 0.0, ROOM_MARGIN])
             prev, done = s, done + 1
             if done >= round(SIT_CHECK_TIME / ANIM_PERIOD):
                 return False  # would not get down and up in time
