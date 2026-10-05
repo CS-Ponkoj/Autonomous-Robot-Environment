@@ -31,9 +31,7 @@ on the panels changes the number (0 to 4), and `--cats N` sets it at start.*
 | ![Goal reached, full panels](docs/screenshot_goal.png) | ![The lidar panel](docs/lidar_panel.png) |
 | Goal reached, with the full panels (H): every status line, the Options button, the robot camera inset, and the lidar map. | The lidar panel: free space (shaded) and returns (green outline). |
 
-![The four cat coats, three views, three lights](docs/cat_faces.png)
 
-*The four coats (brown tabby, ginger tabby, black and white, grey tabby), each seen from 45 degrees right, the front, and 45 degrees left, under a lamp overhead, to the left, and to the right.*
 
 **Contents:** [1. What it is](#1-what-it-is) ·
 [2. Setup](#2-setup) ·
