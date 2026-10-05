@@ -765,6 +765,22 @@ def test_drag_turns_and_tilts_the_view_the_same_frame(mode):
     sim.close()
 
 
+@pytest.mark.parametrize("pose,dy", [((0.0, 0.0, 1.5708), -10), (CAMERA_POSES["wall"], 10)])
+def test_the_automatic_tilt_never_steps_against_a_slow_drag(pose, dy):
+    """Regression (review): a mouse that reports less often than frames are drawn left frames of a
+    drag without a motion event, and on those the automatic tilt stepped back against the hand."""
+    sim, view = _settled_view(pose)
+    view.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(640, 360)))
+    els = []
+    for frame in range(60):
+        if frame % 3 == 0:
+            _drag(view, 0, dy)
+        els.append(view.apply(sim, 1 / 60).elevation)
+    steps = np.diff(els)
+    assert (steps * (-dy) >= -1e-9).all(), steps  # never against the drag (up for dy < 0)
+    sim.close()
+
+
 def test_a_tilt_up_with_room_for_min_view_is_kept_after_the_release():
     """Regression (review): the automatic tilt-back margin (TILT_BACK) also judged the user's own
     tilt, so in orbit next to the chair (about 0.7 to 1.1 m of room at every pitch) a tilt up to -3

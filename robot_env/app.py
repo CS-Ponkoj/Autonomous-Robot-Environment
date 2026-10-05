@@ -252,6 +252,7 @@ class ViewCamera:
         self._user_az = self._user_el = 0.0  # the user's drag since the last frame (degrees)
         self._held = False  # the left button is down on the view (a drag in progress)
         self._user_time = -math.inf  # clock time of the last drag motion
+        self._tilt_dir = 0.0  # direction of the drag's tilt (+1 up, -1 down) while it lasts
         self.ignore_drag = False  # the press went to a panel or menu: its drag does not turn the view
         self._targets = []
 
@@ -262,7 +263,7 @@ class ViewCamera:
         if t == pygame.MOUSEBUTTONDOWN and event.button == 1:
             self._held = not self.ignore_drag
         elif t == pygame.MOUSEBUTTONUP and event.button == 1:
-            self._held, self.ignore_drag = False, False
+            self._held, self.ignore_drag, self._tilt_dir = False, False, 0.0
         elif t == pygame.MOUSEMOTION and event.buttons[0] and not self.ignore_drag and third_person:
             self._held = True
             daz = -event.rel[0] * self.DRAG_GAIN
@@ -270,11 +271,14 @@ class ViewCamera:
             self.azimuth += daz
             self._user_az += daz
             self._user_el += el - self.elevation
+            if event.rel[1]:
+                self._tilt_dir = -1.0 if event.rel[1] > 0 else 1.0
             self.elevation = el
             if event.rel[0] or event.rel[1]:
                 self._user_time = self._clock
         elif (t == pygame.MOUSEMOTION and not event.buttons[0]) or t == pygame.WINDOWFOCUSLOST:
-            self._held, self.ignore_drag = False, False  # the press is over (a release the window never saw)
+            # the press is over (a release the window never saw)
+            self._held, self.ignore_drag, self._tilt_dir = False, False, 0.0
         elif t == pygame.MOUSEWHEEL and third_person:
             if event.y > 0 and self._init and self._limit < self.distance:
                 # Walls hold the camera in: zoom in from where it is, so the first notch shows.
@@ -325,7 +329,10 @@ class ViewCamera:
         # ray results for this frame (the look-at moves)
         self._clear_cache, self._beam_cache, self._sight_cache = {}, {}, {}
         user_az, user_el = self._user_az, self._user_el  # the user's drag since the last frame
-        drag_el = user_el  # its tilt direction (user_el becomes the tilt actually shown)
+        # The tilt direction of a drag in progress, kept between its motion events (a mouse may
+        # report less often than frames are drawn) until the release or USER_HOLD without motion.
+        tilting = self._held and self._clock - self._user_time < self.USER_HOLD
+        drag_dir = self._tilt_dir if tilting else 0.0
         self._user_az = self._user_el = 0.0
         heading = math.degrees(yaw) if view == "chase" else 0.0
         target_look = np.array([x, y, 0.1])
@@ -409,7 +416,7 @@ class ViewCamera:
             self._elev = target_elev  # first frame after a reset: start at a clear angle
         step = (target_elev - self._elev) * self._alpha(dt, self.ELEV_TAU)
         step = float(np.clip(step, -self.ELEV_RATE * max(dt, 0.0), self.ELEV_RATE * max(dt, 0.0)))
-        if step * drag_el < 0:
+        if step * drag_dir < 0:
             step = 0.0  # while the user tilts, the automatic tilt never moves the other way
         self._elev += step
         if not snap and self.cam.distance > 0:
