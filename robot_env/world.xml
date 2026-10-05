@@ -19,7 +19,7 @@
   <visual>
     <global offwidth="2560" offheight="1440"/>
     <quality shadowsize="4096" offsamples="4"/>
-    <headlight ambient="0.55 0.55 0.55" diffuse="0.03 0.03 0.03" specular="0.1 0.1 0.1"/>
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.03 0.03 0.03" specular="0.1 0.1 0.1"/>
     <!-- Clip planes are fractions of the model extent; znear keeps cameras from seeing
          through walls they are close to. -->
     <map znear="0.0005" zfar="3" shadowclip="1" shadowscale="0.6"/>
@@ -34,7 +34,8 @@
     <texture name="plaster" type="2d" file="plaster.png"/>
     <texture name="door_wood" type="2d" file="door_wood.png"/>
     <!-- CC0 photo textures (tools/fetch_textures.py; sources and licences in assets/textures/*.json) -->
-    <texture name="tx_plaster" type="2d" file="painted_plaster_wall.png"/>
+    <texture name="tx_plaster" type="2d" file="plastered_wall_04.png"/>
+    <texture name="tx_blind" type="2d" file="hessian_230.png"/>
     <texture name="tx_laminate" type="2d" file="laminate_floor_02.png"/>
     <texture name="tx_veneer" type="2d" file="white_oak_veneer.png"/>
     <texture name="tx_ceiling" type="2d" file="OfficeCeiling001.png"/>
@@ -57,19 +58,20 @@
     <material name="tile" texture="tx_porcelain" texrepeat="0.5 0.5" texuniform="true" specular="0.5" shininess="0.4" reflectance="0.22"/>
     <material name="tile_dark" texture="tx_concrete" texrepeat="0.25 0.25" texuniform="true" specular="0.2" shininess="0.2" reflectance="0.05"/>
     <material name="carpet" texture="tx_carpet" texrepeat="1 1" texuniform="true" specular="0" shininess="0"/>
-    <material name="plaster" texture="tx_plaster" texrepeat="0.5 0.5" texuniform="true" rgba="0.97 0.95 0.91 1" specular="0.1" shininess="0.1"/>
-    <material name="ceiling" texture="tx_ceiling" texrepeat="0.278 0.278" texuniform="true" rgba="0.97 0.96 0.94 1" emission="0.25"/>
+    <material name="plaster" texture="tx_plaster" texrepeat="0.3125 0.3125" texuniform="true" rgba="0.97 0.95 0.91 1" emission="0.26" specular="0.1" shininess="0.1"/>
+    <material name="ceiling" texture="tx_ceiling" texrepeat="0.278 0.278" texuniform="true" rgba="0.97 0.96 0.94 1" emission="0.45"/>
     <material name="light_panel" rgba="1 0.98 0.92 1" emission="0.36"/>
     <material name="fitting_frame" rgba="0.95 0.95 0.94 1" emission="0.35" specular="0.3"/>
-    <material name="skirting" rgba="0.98 0.98 0.96 1" emission="0.05" specular="0.5" shininess="0.5"/>
+    <material name="skirting" rgba="0.98 0.98 0.96 1" emission="0.18" specular="0.5" shininess="0.5"/>
     <material name="shadow_line" rgba="0.32 0.31 0.3 1" specular="0"/>
-    <material name="threshold" rgba="0.72 0.73 0.74 1" specular="0.8" shininess="0.7"/>
-    <material name="kick_plate" rgba="0.55 0.56 0.58 1" specular="0.9" shininess="0.8" reflectance="0.05"/>
-    <material name="closer" rgba="0.62 0.63 0.65 1" specular="0.6" shininess="0.6"/>
-    <material name="frame" rgba="0.98 0.98 0.97 1" emission="0.05" specular="0.4" shininess="0.4"/>
+    <material name="threshold" rgba="0.72 0.73 0.74 1" emission="0.08" specular="0.8" shininess="0.7"/>
+    <material name="kick_plate" rgba="0.55 0.56 0.58 1" emission="0.08" specular="0.9" shininess="0.8"/>
+    <material name="kick_band" rgba="0.72 0.73 0.75 1" emission="0.1" specular="0.9" shininess="0.8"/>
+    <material name="closer" rgba="0.62 0.63 0.65 1" emission="0.08" specular="0.6" shininess="0.6"/>
+    <material name="frame" rgba="0.98 0.98 0.97 1" emission="0.18" specular="0.4" shininess="0.4"/>
     <material name="door" texture="tx_veneer" texrepeat="1 1" texuniform="false" specular="0.25" shininess="0.3"/>
     <material name="door_b" texture="tx_veneer" texrepeat="1.6 1" texuniform="false" specular="0.25" shininess="0.3"/>
-    <material name="strike_plate" rgba="0.7 0.71 0.73 1" specular="0.9" shininess="0.8"/>
+    <material name="strike_plate" rgba="0.7 0.71 0.73 1" emission="0.08" specular="0.9" shininess="0.8"/>
     <material name="desk_wood" texture="door_wood" texrepeat="1 1" texuniform="true" specular="0.25"/>
     <material name="desk_body" rgba="0.55 0.56 0.58 1" specular="0.2"/>
     <material name="metal" rgba="0.62 0.64 0.67 1" specular="0.5" shininess="0.6"/>
@@ -98,38 +100,38 @@
     <material name="bin_blue" rgba="0.25 0.4 0.62 1"/>
     <material name="bin_grey" rgba="0.5 0.52 0.55 1"/>
     <material name="seam" rgba="0.35 0.36 0.38 1"/>
-    <material name="handle" rgba="0.7 0.71 0.73 1" specular="0.7"/>
+    <material name="handle" rgba="0.7 0.71 0.73 1" emission="0.08" specular="0.8" shininess="0.7"/>
     <material name="glass" texture="outdoor_view" emission="0.95" specular="0.6" shininess="0.9"/>
-    <material name="window_frame" rgba="0.95 0.95 0.94 1" specular="0.3"/>
-    <material name="sill" rgba="0.95 0.95 0.94 1" specular="0.4" shininess="0.4"/>
-    <material name="blind" rgba="0.9 0.88 0.82 1" emission="0.35" specular="0"/>
+    <material name="window_frame" rgba="0.98 0.98 0.97 1" emission="0.18" specular="0.4" shininess="0.4"/>
+    <material name="sill" rgba="0.98 0.98 0.97 1" emission="0.18" specular="0.45" shininess="0.45"/>
+    <material name="blind" texture="tx_blind" texrepeat="3.7 3.7" texuniform="true" rgba="0.95 0.92 0.86 1" emission="0.4" specular="0"/>
     <material name="blind_rail" rgba="0.82 0.82 0.8 1" specular="0.5"/>
     <texture name="view_0" type="2d" file="view_0.png"/>
-    <material name="view_0" texture="view_0" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
+    <material name="view_0" texture="view_0" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
     <texture name="view_1" type="2d" file="view_1.png"/>
-    <material name="view_1" texture="view_1" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
+    <material name="view_1" texture="view_1" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
     <texture name="view_2" type="2d" file="view_2.png"/>
-    <material name="view_2" texture="view_2" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
+    <material name="view_2" texture="view_2" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
     <texture name="view_3" type="2d" file="view_3.png"/>
-    <material name="view_3" texture="view_3" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
+    <material name="view_3" texture="view_3" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
     <texture name="view_4" type="2d" file="view_4.png"/>
-    <material name="view_4" texture="view_4" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
+    <material name="view_4" texture="view_4" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
     <texture name="view_5" type="2d" file="view_5.png"/>
-    <material name="view_5" texture="view_5" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
+    <material name="view_5" texture="view_5" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
     <texture name="view_6" type="2d" file="view_6.png"/>
-    <material name="view_6" texture="view_6" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
+    <material name="view_6" texture="view_6" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
     <texture name="view_7" type="2d" file="view_7.png"/>
-    <material name="view_7" texture="view_7" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
+    <material name="view_7" texture="view_7" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
     <texture name="view_8" type="2d" file="view_8.png"/>
-    <material name="view_8" texture="view_8" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
+    <material name="view_8" texture="view_8" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
     <texture name="view_9" type="2d" file="view_9.png"/>
-    <material name="view_9" texture="view_9" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
+    <material name="view_9" texture="view_9" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
     <texture name="tx_rug_red" type="2d" file="rug_red_woven.png"/>
     <texture name="tx_rug_blue" type="2d" file="rug_blue_woven.png"/>
     <material name="rug_red" texture="tx_rug_red" specular="0" shininess="0"/>
     <material name="rug_blue" texture="tx_rug_blue" specular="0" shininess="0"/>
-    <material name="rug_red_edge" rgba="0.32 0.08 0.07 1" specular="0"/>
-    <material name="rug_blue_edge" rgba="0.08 0.12 0.24 1" specular="0"/>
+    <material name="rug_red_edge" rgba="0.17 0.04 0.035 1" specular="0"/>
+    <material name="rug_blue_edge" rgba="0.04 0.06 0.13 1" specular="0"/>
     <material name="painting_1" texture="painting_1" emission="0.1"/>
     <material name="painting_2" texture="painting_2" emission="0.1"/>
     <material name="whiteboard" texture="whiteboard" emission="0.15" specular="0.5"/>
@@ -173,10 +175,8 @@
     <!-- Base floor (physics). Room floors on top are visual only. -->
     <geom name="floor" type="plane" size="5.6 5.6 0.1" material="tile"/>
     <geom name="floor_office" type="box" pos="-2.5250 2.9000 0.0006" size="2.4750 2.1000 0.0005" material="carpet" class="visual"/>
-    <geom name="floor_lab" type="box" pos="2.5250 2.9000 0.0006" size="2.4750 2.1000 0.0005" material="tile" class="visual"/>
     <geom name="floor_storage" type="box" pos="-2.5250 -2.9000 0.0006" size="2.4750 2.1000 0.0005" material="tile_dark" class="visual"/>
     <geom name="floor_reception" type="box" pos="2.5250 -2.9000 0.0006" size="2.4750 2.1000 0.0005" material="wood_floor" class="visual"/>
-    <geom name="floor_corridor" type="box" pos="0.0000 0.0000 0.0006" size="5.0000 0.7000 0.0005" material="tile" class="visual"/>
 
     <!-- Outer walls (inner faces at +/-5 m) -->
     <geom name="wall_north_0" type="box" pos="0.0000 5.0500 1.2000" size="5.1000 0.0500 1.2000" material="plaster"/>
@@ -434,7 +434,9 @@
     <geom type="cylinder" pos="-2.9300 0.8320 1.0000" size="0.0080 0.0450" material="handle" class="visual"/>
     <geom type="cylinder" pos="-2.9300 0.8320 1.8000" size="0.0080 0.0450" material="handle" class="visual"/>
     <geom class="visual" type="box" pos="-2.9515 1.2600 0.1400" size="0.4200 0.1250 0.0005" xyaxes="0 -1 0 0 0 1" material="kick_plate"/>
+    <geom class="visual" type="box" pos="-2.9519 1.2600 0.2550" size="0.4200 0.0080 0.0005" xyaxes="0 -1 0 0 0 1" material="kick_band"/>
     <geom class="visual" type="box" pos="-2.9085 1.2600 0.1400" size="0.4200 0.1250 0.0005" xyaxes="0 1 0 0 0 1" material="kick_plate"/>
+    <geom class="visual" type="box" pos="-2.9081 1.2600 0.2550" size="0.4200 0.0080 0.0005" xyaxes="0 1 0 0 0 1" material="kick_band"/>
     <geom type="box" pos="-2.9750 1.0000 1.9800" size="0.0250 0.1300 0.0300" material="closer" class="visual"/>
     <geom class="visual" type="cylinder" pos="-2.9540 1.6300 1.0" size="0.025 0.004" zaxis="1 0 0" material="handle"/>
     <geom type="box" pos="-2.9740 1.5800 1.0000" size="0.0080 0.0600 0.0080" material="handle" class="visual"/>
@@ -447,7 +449,9 @@
     <geom type="cylinder" pos="2.0700 0.8320 1.0000" size="0.0080 0.0450" material="handle" class="visual"/>
     <geom type="cylinder" pos="2.0700 0.8320 1.8000" size="0.0080 0.0450" material="handle" class="visual"/>
     <geom class="visual" type="box" pos="2.0485 1.2600 0.1400" size="0.4200 0.1250 0.0005" xyaxes="0 -1 0 0 0 1" material="kick_plate"/>
+    <geom class="visual" type="box" pos="2.0481 1.2600 0.2550" size="0.4200 0.0080 0.0005" xyaxes="0 -1 0 0 0 1" material="kick_band"/>
     <geom class="visual" type="box" pos="2.0915 1.2600 0.1400" size="0.4200 0.1250 0.0005" xyaxes="0 1 0 0 0 1" material="kick_plate"/>
+    <geom class="visual" type="box" pos="2.0919 1.2600 0.2550" size="0.4200 0.0080 0.0005" xyaxes="0 1 0 0 0 1" material="kick_band"/>
     <geom type="box" pos="2.0250 1.0000 1.9800" size="0.0250 0.1300 0.0300" material="closer" class="visual"/>
     <geom class="visual" type="cylinder" pos="2.0460 1.6300 1.0" size="0.025 0.004" zaxis="1 0 0" material="handle"/>
     <geom type="box" pos="2.0260 1.5800 1.0000" size="0.0080 0.0600 0.0080" material="handle" class="visual"/>
@@ -460,7 +464,9 @@
     <geom type="cylinder" pos="-3.4300 -0.8320 1.0000" size="0.0080 0.0450" material="handle" class="visual"/>
     <geom type="cylinder" pos="-3.4300 -0.8320 1.8000" size="0.0080 0.0450" material="handle" class="visual"/>
     <geom class="visual" type="box" pos="-3.4515 -1.2600 0.1400" size="0.4200 0.1250 0.0005" xyaxes="0 -1 0 0 0 1" material="kick_plate"/>
+    <geom class="visual" type="box" pos="-3.4519 -1.2600 0.2550" size="0.4200 0.0080 0.0005" xyaxes="0 -1 0 0 0 1" material="kick_band"/>
     <geom class="visual" type="box" pos="-3.4085 -1.2600 0.1400" size="0.4200 0.1250 0.0005" xyaxes="0 1 0 0 0 1" material="kick_plate"/>
+    <geom class="visual" type="box" pos="-3.4081 -1.2600 0.2550" size="0.4200 0.0080 0.0005" xyaxes="0 1 0 0 0 1" material="kick_band"/>
     <geom type="box" pos="-3.3850 -1.0000 1.9800" size="0.0250 0.1300 0.0300" material="closer" class="visual"/>
     <geom class="visual" type="cylinder" pos="-3.4540 -1.6300 1.0" size="0.025 0.004" zaxis="1 0 0" material="handle"/>
     <geom type="box" pos="-3.4740 -1.5800 1.0000" size="0.0080 0.0600 0.0080" material="handle" class="visual"/>
@@ -473,7 +479,9 @@
     <geom type="cylinder" pos="1.5700 -0.8320 1.0000" size="0.0080 0.0450" material="handle" class="visual"/>
     <geom type="cylinder" pos="1.5700 -0.8320 1.8000" size="0.0080 0.0450" material="handle" class="visual"/>
     <geom class="visual" type="box" pos="1.5485 -1.2600 0.1400" size="0.4200 0.1250 0.0005" xyaxes="0 -1 0 0 0 1" material="kick_plate"/>
+    <geom class="visual" type="box" pos="1.5481 -1.2600 0.2550" size="0.4200 0.0080 0.0005" xyaxes="0 -1 0 0 0 1" material="kick_band"/>
     <geom class="visual" type="box" pos="1.5915 -1.2600 0.1400" size="0.4200 0.1250 0.0005" xyaxes="0 1 0 0 0 1" material="kick_plate"/>
+    <geom class="visual" type="box" pos="1.5919 -1.2600 0.2550" size="0.4200 0.0080 0.0005" xyaxes="0 1 0 0 0 1" material="kick_band"/>
     <geom type="box" pos="1.6150 -1.0000 1.9800" size="0.0250 0.1300 0.0300" material="closer" class="visual"/>
     <geom class="visual" type="cylinder" pos="1.5460 -1.6300 1.0" size="0.025 0.004" zaxis="1 0 0" material="handle"/>
     <geom type="box" pos="1.5260 -1.5800 1.0000" size="0.0080 0.0600 0.0080" material="handle" class="visual"/>
@@ -486,7 +494,9 @@
     <geom type="cylinder" pos="0.0820 3.0700 1.0000" size="0.0080 0.0450" material="handle" class="visual"/>
     <geom type="cylinder" pos="0.0820 3.0700 1.8000" size="0.0080 0.0450" material="handle" class="visual"/>
     <geom class="visual" type="box" pos="0.5100 3.0485 0.1400" size="0.4200 0.1250 0.0005" xyaxes="1 0 0 0 0 1" material="kick_plate"/>
+    <geom class="visual" type="box" pos="0.5100 3.0481 0.2550" size="0.4200 0.0080 0.0005" xyaxes="1 0 0 0 0 1" material="kick_band"/>
     <geom class="visual" type="box" pos="0.5100 3.0915 0.1400" size="0.4200 0.1250 0.0005" xyaxes="-1 0 0 0 0 1" material="kick_plate"/>
+    <geom class="visual" type="box" pos="0.5100 3.0919 0.2550" size="0.4200 0.0080 0.0005" xyaxes="-1 0 0 0 0 1" material="kick_band"/>
     <geom type="box" pos="0.2500 3.0250 1.9800" size="0.1300 0.0250 0.0300" material="closer" class="visual"/>
     <geom class="visual" type="cylinder" pos="0.8800 3.0460 1.0" size="0.025 0.004" zaxis="0 1 0" material="handle"/>
     <geom type="box" pos="0.8300 3.0260 1.0000" size="0.0600 0.0080 0.0080" material="handle" class="visual"/>
@@ -1068,6 +1078,7 @@
     <geom type="box" pos="-3.8000 4.9200 0.8400" size="0.8100 0.0800 0.0200" material="sill" class="visual"/>
     <geom class="visual" type="cylinder" pos="-3.8000 4.8400 0.8400" size="0.02 0.8100" zaxis="1 0 0" material="sill"/>
     <geom type="box" pos="-3.8000 4.9500 2.2050" size="0.7700 0.0500 0.0450" material="window_frame" class="visual"/>
+    <geom class="visual" type="cylinder" pos="-3.8000 4.9400 2.1480" size="0.018 0.7420" zaxis="1 0 0" material="blind"/>
     <geom class="visual" type="box" pos="-3.8000 4.9400 1.9920" size="0.7420 0.1680 0.0005" xyaxes="1 0 0 0 0 1" material="blind"/>
     <geom type="box" pos="-3.8000 4.9400 1.8140" size="0.7420 0.0080 0.0120" material="blind_rail" class="visual"/>
     <light pos="-3.800 4.900 1.800" dir="0.00 -1.00 -0.7" directional="false" cutoff="70" exponent="2" diffuse="0.15 0.17 0.21" specular="0 0 0" attenuation="1 0.2 0.05" castshadow="false"/>
@@ -1084,6 +1095,7 @@
     <geom type="box" pos="-1.6000 4.9200 0.8400" size="0.8100 0.0800 0.0200" material="sill" class="visual"/>
     <geom class="visual" type="cylinder" pos="-1.6000 4.8400 0.8400" size="0.02 0.8100" zaxis="1 0 0" material="sill"/>
     <geom type="box" pos="-1.6000 4.9500 2.2050" size="0.7700 0.0500 0.0450" material="window_frame" class="visual"/>
+    <geom class="visual" type="cylinder" pos="-1.6000 4.9400 2.1480" size="0.018 0.7420" zaxis="1 0 0" material="blind"/>
     <geom class="visual" type="box" pos="-1.6000 4.9400 1.9920" size="0.7420 0.1680 0.0005" xyaxes="1 0 0 0 0 1" material="blind"/>
     <geom type="box" pos="-1.6000 4.9400 1.8140" size="0.7420 0.0080 0.0120" material="blind_rail" class="visual"/>
     <light pos="-1.600 4.900 1.800" dir="0.00 -1.00 -0.7" directional="false" cutoff="70" exponent="2" diffuse="0.15 0.17 0.21" specular="0 0 0" attenuation="1 0.2 0.05" castshadow="false"/>
@@ -1100,6 +1112,7 @@
     <geom type="box" pos="1.6000 4.9200 0.9400" size="0.7100 0.0800 0.0200" material="sill" class="visual"/>
     <geom class="visual" type="cylinder" pos="1.6000 4.8400 0.9400" size="0.02 0.7100" zaxis="1 0 0" material="sill"/>
     <geom type="box" pos="1.6000 4.9500 2.3050" size="0.6700 0.0500 0.0450" material="window_frame" class="visual"/>
+    <geom class="visual" type="cylinder" pos="1.6000 4.9400 2.2480" size="0.018 0.6420" zaxis="1 0 0" material="blind"/>
     <geom class="visual" type="box" pos="1.6000 4.9400 2.0920" size="0.6420 0.1680 0.0005" xyaxes="1 0 0 0 0 1" material="blind"/>
     <geom type="box" pos="1.6000 4.9400 1.9140" size="0.6420 0.0080 0.0120" material="blind_rail" class="visual"/>
     <light pos="1.600 4.900 1.900" dir="0.00 -1.00 -0.7" directional="false" cutoff="70" exponent="2" diffuse="0.15 0.17 0.21" specular="0 0 0" attenuation="1 0.2 0.05" castshadow="false"/>
@@ -1116,6 +1129,7 @@
     <geom type="box" pos="3.6000 4.9200 0.9400" size="0.7100 0.0800 0.0200" material="sill" class="visual"/>
     <geom class="visual" type="cylinder" pos="3.6000 4.8400 0.9400" size="0.02 0.7100" zaxis="1 0 0" material="sill"/>
     <geom type="box" pos="3.6000 4.9500 2.3050" size="0.6700 0.0500 0.0450" material="window_frame" class="visual"/>
+    <geom class="visual" type="cylinder" pos="3.6000 4.9400 2.2480" size="0.018 0.6420" zaxis="1 0 0" material="blind"/>
     <geom class="visual" type="box" pos="3.6000 4.9400 2.0920" size="0.6420 0.1680 0.0005" xyaxes="1 0 0 0 0 1" material="blind"/>
     <geom type="box" pos="3.6000 4.9400 1.9140" size="0.6420 0.0080 0.0120" material="blind_rail" class="visual"/>
     <light pos="3.600 4.900 1.900" dir="0.00 -1.00 -0.7" directional="false" cutoff="70" exponent="2" diffuse="0.15 0.17 0.21" specular="0 0 0" attenuation="1 0.2 0.05" castshadow="false"/>
@@ -1132,6 +1146,7 @@
     <geom type="box" pos="4.9200 3.6000 0.8400" size="0.0800 0.7100 0.0200" material="sill" class="visual"/>
     <geom class="visual" type="cylinder" pos="4.8400 3.6000 0.8400" size="0.02 0.7100" zaxis="0 1 0" material="sill"/>
     <geom type="box" pos="4.9500 3.6000 2.2050" size="0.0500 0.6700 0.0450" material="window_frame" class="visual"/>
+    <geom class="visual" type="cylinder" pos="4.9400 3.6000 2.1480" size="0.018 0.6420" zaxis="0 1 0" material="blind"/>
     <geom class="visual" type="box" pos="4.9400 3.6000 1.9920" size="0.6420 0.1680 0.0005" xyaxes="0 -1 0 0 0 1" material="blind"/>
     <geom type="box" pos="4.9400 3.6000 1.8140" size="0.0080 0.6420 0.0120" material="blind_rail" class="visual"/>
     <light pos="4.900 3.600 1.800" dir="-1.00 0.00 -0.7" directional="false" cutoff="70" exponent="2" diffuse="0.15 0.17 0.21" specular="0 0 0" attenuation="1 0.2 0.05" castshadow="false"/>
@@ -1148,6 +1163,7 @@
     <geom type="box" pos="1.3000 -4.9200 0.8400" size="0.8100 0.0800 0.0200" material="sill" class="visual"/>
     <geom class="visual" type="cylinder" pos="1.3000 -4.8400 0.8400" size="0.02 0.8100" zaxis="1 0 0" material="sill"/>
     <geom type="box" pos="1.3000 -4.9500 2.2050" size="0.7700 0.0500 0.0450" material="window_frame" class="visual"/>
+    <geom class="visual" type="cylinder" pos="1.3000 -4.9400 2.1480" size="0.018 0.7420" zaxis="1 0 0" material="blind"/>
     <geom class="visual" type="box" pos="1.3000 -4.9400 1.9920" size="0.7420 0.1680 0.0005" xyaxes="-1 0 0 0 0 1" material="blind"/>
     <geom type="box" pos="1.3000 -4.9400 1.8140" size="0.7420 0.0080 0.0120" material="blind_rail" class="visual"/>
     <light pos="1.300 -4.900 1.800" dir="0.00 1.00 -0.7" directional="false" cutoff="70" exponent="2" diffuse="0.15 0.17 0.21" specular="0 0 0" attenuation="1 0.2 0.05" castshadow="false"/>
@@ -1164,6 +1180,7 @@
     <geom type="box" pos="3.9000 -4.9200 0.8400" size="0.6100 0.0800 0.0200" material="sill" class="visual"/>
     <geom class="visual" type="cylinder" pos="3.9000 -4.8400 0.8400" size="0.02 0.6100" zaxis="1 0 0" material="sill"/>
     <geom type="box" pos="3.9000 -4.9500 2.2050" size="0.5700 0.0500 0.0450" material="window_frame" class="visual"/>
+    <geom class="visual" type="cylinder" pos="3.9000 -4.9400 2.1480" size="0.018 0.5420" zaxis="1 0 0" material="blind"/>
     <geom class="visual" type="box" pos="3.9000 -4.9400 1.9920" size="0.5420 0.1680 0.0005" xyaxes="-1 0 0 0 0 1" material="blind"/>
     <geom type="box" pos="3.9000 -4.9400 1.8140" size="0.5420 0.0080 0.0120" material="blind_rail" class="visual"/>
     <light pos="3.900 -4.900 1.800" dir="0.00 1.00 -0.7" directional="false" cutoff="70" exponent="2" diffuse="0.15 0.17 0.21" specular="0 0 0" attenuation="1 0.2 0.05" castshadow="false"/>
@@ -1180,6 +1197,7 @@
     <geom type="box" pos="4.9200 -3.4000 0.8400" size="0.0800 0.7100 0.0200" material="sill" class="visual"/>
     <geom class="visual" type="cylinder" pos="4.8400 -3.4000 0.8400" size="0.02 0.7100" zaxis="0 1 0" material="sill"/>
     <geom type="box" pos="4.9500 -3.4000 2.2050" size="0.0500 0.6700 0.0450" material="window_frame" class="visual"/>
+    <geom class="visual" type="cylinder" pos="4.9400 -3.4000 2.1480" size="0.018 0.6420" zaxis="0 1 0" material="blind"/>
     <geom class="visual" type="box" pos="4.9400 -3.4000 1.9920" size="0.6420 0.1680 0.0005" xyaxes="0 -1 0 0 0 1" material="blind"/>
     <geom type="box" pos="4.9400 -3.4000 1.8140" size="0.0080 0.6420 0.0120" material="blind_rail" class="visual"/>
     <light pos="4.900 -3.400 1.800" dir="-1.00 0.00 -0.7" directional="false" cutoff="70" exponent="2" diffuse="0.15 0.17 0.21" specular="0 0 0" attenuation="1 0.2 0.05" castshadow="false"/>
@@ -1196,6 +1214,7 @@
     <geom type="box" pos="-4.9200 -4.5500 1.1400" size="0.0800 0.4100 0.0200" material="sill" class="visual"/>
     <geom class="visual" type="cylinder" pos="-4.8400 -4.5500 1.1400" size="0.02 0.4100" zaxis="0 1 0" material="sill"/>
     <geom type="box" pos="-4.9500 -4.5500 2.5050" size="0.0500 0.3700 0.0450" material="window_frame" class="visual"/>
+    <geom class="visual" type="cylinder" pos="-4.9400 -4.5500 2.4480" size="0.018 0.3420" zaxis="0 1 0" material="blind"/>
     <geom class="visual" type="box" pos="-4.9400 -4.5500 2.2920" size="0.3420 0.1680 0.0005" xyaxes="0 1 0 0 0 1" material="blind"/>
     <geom type="box" pos="-4.9400 -4.5500 2.1140" size="0.0080 0.3420 0.0120" material="blind_rail" class="visual"/>
     <light pos="-4.900 -4.550 2.100" dir="1.00 0.00 -0.7" directional="false" cutoff="70" exponent="2" diffuse="0.15 0.17 0.21" specular="0 0 0" attenuation="1 0.2 0.05" castshadow="false"/>
@@ -1212,6 +1231,7 @@
     <geom type="box" pos="4.9200 0.0000 0.8400" size="0.0800 0.6100 0.0200" material="sill" class="visual"/>
     <geom class="visual" type="cylinder" pos="4.8400 0.0000 0.8400" size="0.02 0.6100" zaxis="0 1 0" material="sill"/>
     <geom type="box" pos="4.9500 0.0000 2.2050" size="0.0500 0.5700 0.0450" material="window_frame" class="visual"/>
+    <geom class="visual" type="cylinder" pos="4.9400 0.0000 2.1480" size="0.018 0.5420" zaxis="0 1 0" material="blind"/>
     <geom class="visual" type="box" pos="4.9400 0.0000 1.9920" size="0.5420 0.1680 0.0005" xyaxes="0 -1 0 0 0 1" material="blind"/>
     <geom type="box" pos="4.9400 0.0000 1.8140" size="0.0080 0.5420 0.0120" material="blind_rail" class="visual"/>
     <light pos="4.900 0.000 1.800" dir="-1.00 0.00 -0.7" directional="false" cutoff="70" exponent="2" diffuse="0.15 0.17 0.21" specular="0 0 0" attenuation="1 0.2 0.05" castshadow="false"/>
@@ -1281,20 +1301,20 @@
     <geom type="box" pos="3.7500 -0.2900 2.3900" size="0.2800 0.0100 0.0100" material="fitting_frame" class="ceiling"/>
     <geom type="box" pos="3.7500 0.2900 2.3900" size="0.2800 0.0100 0.0100" material="fitting_frame" class="ceiling"/>
     <geom type="box" pos="3.7500 0.0000 2.3950" size="0.2800 0.2800 0.0050" material="light_panel" class="ceiling"/>
-    <light name="fill_1" directional="true" dir="0.45 0.3 -0.84" diffuse="0.2 0.2 0.19" specular="0 0 0" castshadow="false"/>
-    <light name="fill_2" directional="true" dir="-0.3 -0.45 -0.84" diffuse="0.14 0.14 0.14" specular="0 0 0" castshadow="false"/>
-    <light name="light_office" pos="-3.75 2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.800 0.776 0.736" ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
-    <light name="light_office_2" pos="-1.25 2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.800 0.776 0.736" ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
-    <light name="light_lab" pos="1.25 2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.784 0.792 0.800" ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
-    <light name="light_lab_2" pos="3.75 2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.784 0.792 0.800" ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
-    <light name="light_storage" pos="-3.75 -2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.784 0.784 0.784" ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
-    <light name="light_storage_2" pos="-1.25 -2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.784 0.784 0.784" ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
-    <light name="light_reception" pos="1.25 -2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.800 0.768 0.720" ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
-    <light name="light_reception_2" pos="3.75 -2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.800 0.768 0.720" ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
-    <light name="light_corridor_w" pos="-3.75 0.0 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.600 0.588 0.570" ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
-    <light name="light_corridor_w2" pos="-1.25 0.0 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.600 0.588 0.570" ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
-    <light name="light_corridor_e2" pos="1.25 0.0 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.600 0.588 0.570" ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
-    <light name="light_corridor_e" pos="3.75 0.0 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.600 0.588 0.570" ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
+    <light name="fill_1" directional="true" dir="0.45 0.3 -0.84" diffuse="0.26 0.26 0.25" specular="0 0 0" castshadow="false"/>
+    <light name="fill_2" directional="true" dir="-0.3 -0.45 -0.84" diffuse="0.18 0.18 0.18" specular="0 0 0" castshadow="false"/>
+    <light name="light_office" pos="-3.75 2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="1.100 1.067 1.012" ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
+    <light name="light_office_2" pos="-1.25 2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="1.100 1.067 1.012" ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
+    <light name="light_lab" pos="1.25 2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="1.078 1.089 1.100" ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
+    <light name="light_lab_2" pos="3.75 2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="1.078 1.089 1.100" ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
+    <light name="light_storage" pos="-3.75 -2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="1.078 1.078 1.078" ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
+    <light name="light_storage_2" pos="-1.25 -2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="1.078 1.078 1.078" ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
+    <light name="light_reception" pos="1.25 -2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="1.100 1.056 0.990" ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
+    <light name="light_reception_2" pos="3.75 -2.9 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="1.100 1.056 0.990" ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
+    <light name="light_corridor_w" pos="-3.75 0.0 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.850 0.833 0.807" ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
+    <light name="light_corridor_w2" pos="-1.25 0.0 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.850 0.833 0.807" ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
+    <light name="light_corridor_e2" pos="1.25 0.0 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.850 0.833 0.807" ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
+    <light name="light_corridor_e" pos="3.75 0.0 2.34" dir="0 0 -1" directional="false" cutoff="85" exponent="1" diffuse="0.850 0.833 0.807" ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>
 
     <!-- Goal marker: moved at every reset; visual only -->
     <body name="goal" mocap="true" pos="2 2 0">

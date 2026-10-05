@@ -29,7 +29,7 @@ PANORAMA = "buikslotermeerplein"
 VIEW_DISTANCE = 1.5  # m from the window a person stands (sets each window's field of view)
 EXPOSURE = 1.4  # the crops are brightened by this: daylight outside outshines the room
 WIDTH = 640  # px of each crop (height from the window's shape)
-KNEE, ROLL = 0.72, 0.24
+KNEE, ROLL = 0.76, 0.22
 SATURATION = 0.85  # the photo's colour a little calmer (its grass reads neon in the room's light)  # highlight roll-off: linear up to KNEE, then easing toward KNEE + ROLL
 # Panorama azimuth (degrees) seen looking north (+y); east (+x) is 90 degrees clockwise from it.
 NORTH = 300.0

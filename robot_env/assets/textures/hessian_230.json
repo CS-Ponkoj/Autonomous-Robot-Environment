@@ -1,0 +1,35 @@
+{
+ "id": "hessian_230",
+ "file": "hessian_230.png",
+ "size_px": 512,
+ "repeat_m": [
+  0.2687538661074732,
+  0.2671999931335449
+ ],
+ "neutral": null,
+ "licence": "CC0 1.0",
+ "source": "https://polyhaven.com/a/hessian_230",
+ "authors": [
+  "Rico Cilliers",
+  "colormass"
+ ],
+ "inputs": {
+  "Diffuse": {
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/hessian_230/hessian_230_diff_2k.jpg",
+   "sha256": "1c1d66e3764dded1cfafa5147ea56a28ef7648e3c5cae6892b8dada92d408685"
+  },
+  "AO": {
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/hessian_230/hessian_230_ao_2k.jpg",
+   "sha256": "90e4fc2a23b63fab8c52370873195c4c2428128b7044eff54fa53b5b92c9f1a0"
+  },
+  "nor_gl": {
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/hessian_230/hessian_230_nor_gl_2k.jpg",
+   "sha256": "a285b3716eed4e7c8eddbe9412d35049c2e05e85d9dc78d6052ab74db5041204"
+  }
+ },
+ "ao_strength": 0.9,
+ "relief": 0.35,
+ "tool_sha256": "962110e84e8722e6ac372e3d169db9446514bf30208092597a01675995c63d68",
+ "sha256": "cb2155d671603e0d69c3a8e56cbe04c924d78d265f00d0b7d08f3ba777d89361",
+ "bytes": 626735
+}

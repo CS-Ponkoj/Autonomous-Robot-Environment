@@ -40,15 +40,18 @@ LIGHT = np.array([0.0, 0.35, 1.0]) / np.linalg.norm([0.0, 0.35, 1.0])  # from ab
 # (mean, contrast) to turn the colour to grey of that mean, its variation scaled by contrast
 # (the material's colour then tints it), or None to keep the source colour.
 TEXTURES: dict[str, dict] = {
-    "painted_plaster_wall": dict(source="polyhaven", size=1024, neutral=(0.95, 0.8)),
+    # walls: a fine indoor roller-paint plaster, grey, its variation set (std 0.04 of full scale)
+    "plastered_wall_04": dict(source="polyhaven", size=1024, neutral=(0.93, None, 0.04)),
+    # window blinds: a woven hessian, light
+    "hessian_230": dict(source="polyhaven", size=512, saturation=0.5, target_mean=0.8),
     "laminate_floor_02": dict(source="polyhaven", size=1024, neutral=None),
     "white_oak_veneer": dict(source="polyhaven", size=1024, neutral=None),
     "OfficeCeiling001": dict(source="ambientcg", size=1024, repeat_m=1.2, neutral=None),
     # carpet: laid as 0.5 m carpet tiles, quarter-turned, brighter and calmer than the source
     "Carpet012": dict(source="ambientcg", size=1024, repeat_m=1.0, neutral=None, gain=4.6, variation=0.6,
-                      quarter_tiles=True),
+                      quarter_tiles=True, target_mean=0.57, saturation=0.55, tile_tones=(1.04, 0.97, 1.0, 0.96)),
     # porcelain: a 4 x 4 block of 0.5 m tiles from the 2K source (2 mm per texel), 2 m repeat
-    "Tiles040": dict(source="ambientcg", res="2K", size=1024, repeat_m=2.0, crop=0.5, neutral=None),
+    "Tiles040": dict(source="ambientcg", res="2K", size=1024, repeat_m=2.0, crop=0.5, neutral=None, variation=0.7),
     "Concrete031": dict(source="ambientcg", res="2K", size=1024, repeat_m=4.0, neutral=None),
 }
 
@@ -112,7 +115,8 @@ def download(tex_id: str, res: str = "2k") -> dict:
 
 
 def prepare(maps: dict, size: int, neutral=None, gain: float = 1.0, crop: float = 1.0,
-            variation: float = 1.0, quarter_tiles: bool = False) -> Image.Image:
+            variation: float = 1.0, quarter_tiles: bool = False, target_mean: float | None = None,
+            saturation: float = 1.0, tile_tones=(1.0, 1.0, 1.0, 1.0)) -> Image.Image:
     """Diffuse x occlusion x normal-map shading, resized (LANCZOS) to size x size, sRGB; with
     `neutral` (mean, contrast) turned grey first, `crop` (the top-left fraction of the source
     kept: more texels per metre), `variation` (its light variation scaled around the mean), and
@@ -124,11 +128,16 @@ def prepare(maps: dict, size: int, neutral=None, gain: float = 1.0, crop: float 
             im = im.crop((0, 0, int(im.width * crop), int(im.height * crop)))
         return np.asarray(im, dtype=np.float64) / 255.0
     diff = load(maps["Diffuse"][0], "RGB")
-    if neutral is not None:
-        mean, contrast = neutral
+    if neutral is not None:  # (mean, contrast) or (mean, None, std): grey, its variation set
+        mean, contrast, *std = neutral
         g = diff @ np.array([0.2126, 0.7152, 0.0722])
+        if contrast is None:
+            contrast = std[0] / max(float(g.std()), 1e-6)
         g = mean + (g - g.mean()) * contrast
         diff = np.repeat(np.clip(g, 0.0, 1.0)[..., None], 3, axis=2)
+    if saturation != 1.0:
+        g = (diff @ np.array([0.2126, 0.7152, 0.0722]))[..., None]
+        diff = np.clip(g + saturation * (diff - g), 0.0, 1.0)
     lin = diff ** 2.2 * gain  # work in linear light (gain: brighter than the source)
     if "AO" in maps:
         ao = load(maps["AO"][0], "L")
@@ -142,6 +151,8 @@ def prepare(maps: dict, size: int, neutral=None, gain: float = 1.0, crop: float 
         mean = lin.mean(axis=(0, 1), keepdims=True)
         lin = mean + (lin - mean) * variation
     rgb = np.clip(lin, 0.0, 1.0) ** (1 / 2.2)
+    if target_mean is not None:  # brightness set directly: the mean of the image (sRGB, 0 to 1)
+        rgb = np.clip(rgb * (target_mean / max(float(rgb.mean()), 1e-6)), 0.0, 1.0)
     img = Image.fromarray((rgb * 255.0 + 0.5).astype(np.uint8), "RGB")
     if not quarter_tiles:
         return img.resize((size, size), Image.LANCZOS)
@@ -152,7 +163,7 @@ def prepare(maps: dict, size: int, neutral=None, gain: float = 1.0, crop: float 
     out = np.zeros((size, size, 3))
     for i in range(2):
         for j in range(2):
-            out[i * half:(i + 1) * half, j * half:(j + 1) * half] = np.rot90(tile, k=(i + 2 * j) % 4) * seam
+            out[i * half:(i + 1) * half, j * half:(j + 1) * half] = np.rot90(tile, k=(i + 2 * j) % 4) * seam * tile_tones[i + 2 * j]
     return Image.fromarray(np.clip(out + 0.5, 0, 255).astype(np.uint8), "RGB")
 
 
@@ -178,7 +189,8 @@ def build(out: Path, wanted: list[str]) -> list[dict]:
             repeat = [d / 1000.0 if d else None for d in dims[:2]]
             page = f"https://polyhaven.com/a/{tex_id}"
         data = _png(prepare(maps, spec["size"], spec.get("neutral"), spec.get("gain", 1.0), spec.get("crop", 1.0),
-                            spec.get("variation", 1.0), spec.get("quarter_tiles", False)))
+                            spec.get("variation", 1.0), spec.get("quarter_tiles", False), spec.get("target_mean"),
+                            spec.get("saturation", 1.0), spec.get("tile_tones", (1.0, 1.0, 1.0, 1.0))))
         (out / f"{tex_id}.png").write_bytes(data)
         rec = {"id": tex_id, "file": f"{tex_id}.png", "size_px": spec["size"], "repeat_m": repeat,
                "neutral": spec.get("neutral"), "licence": "CC0 1.0", "source": page,

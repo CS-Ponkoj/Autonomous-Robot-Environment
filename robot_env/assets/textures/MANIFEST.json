@@ -1,11 +1,11 @@
 {
  "Carpet012.json": {
-  "sha256": "7d2a77ad73d500797c3dcb966ff777b739af313090de11a0859147c3184cf010",
+  "sha256": "07e653e81e2b5100a454f741538c9e761e0064234c567c64e027b62ed7d1f2ba",
   "bytes": 1080
  },
  "Carpet012.png": {
-  "sha256": "793f6fcd70143cb79c02dfb86181cbe574c07451b6940674a84e7fcc2a7597fe",
-  "bytes": 2614129
+  "sha256": "e8f550b2f3cbf8e2a5ef8f867e2a6046317651bcc0fd82abdd58235f30938471",
+  "bytes": 2744771
  },
  "Concrete031.json": {
   "sha256": "d3e06f67e7b11d2915a0f325ad19b32c152a663d315a36ae422d363fa9589898",
@@ -14,6 +14,14 @@
  "Concrete031.png": {
   "sha256": "5a7643a1edc091d7acc615eaa13fd1d789b35aab54187c85c1e46d4202c7cd99",
   "bytes": 1408147
+ },
+ "hessian_230.json": {
+  "sha256": "d0abb46b0099121f79728a332898d92609f17bb6fa3ece37ffa5c99dfefb22d0",
+  "bytes": 1153
+ },
+ "hessian_230.png": {
+  "sha256": "cb2155d671603e0d69c3a8e56cbe04c924d78d265f00d0b7d08f3ba777d89361",
+  "bytes": 626735
  },
  "laminate_floor_02.json": {
   "sha256": "8643053c701e3c90c142afe827e82e2639ea5f110c27368346a4f7225687f2f6",
@@ -39,93 +47,117 @@
   "sha256": "30ef836cb675c4263322c6419a5017020e5490a11f9b9e8dc6a5a12d0992a506",
   "bytes": 798791
  },
+ "plastered_wall_04.json": {
+  "sha256": "ca74ff05a09b35fe6dc679f7967a1f8e4f7668de6fa014d1008d626bd48b59d5",
+  "bytes": 1216
+ },
+ "plastered_wall_04.png": {
+  "sha256": "ac908c4735d595739891c95fac0d280970d7894503ddc3ae08f06e8d7df3c4ba",
+  "bytes": 529492
+ },
+ "rug_blue_woven.json": {
+  "sha256": "41207fe48ab5b3e5f65bb0cdd1ed131edac75ee2a71b067a1fe44b8df9378698",
+  "bytes": 747
+ },
+ "rug_blue_woven.png": {
+  "sha256": "4263a3d9af421f1ed9fa97248cc5d8f90aa63160a4f08e17e3c714e8e8a62d0a",
+  "bytes": 778812
+ },
+ "rug_red_woven.json": {
+  "sha256": "6a90e8dfb577331a1fa9608dcd7e7af91c9783ced7665a6d8ed34bf8f3396615",
+  "bytes": 744
+ },
+ "rug_red_woven.png": {
+  "sha256": "28b624802c57d14f7a1fb1952aaffdbfd46cc10f521e66121ef31eb9506cd363",
+  "bytes": 806852
+ },
  "Tiles040.json": {
-  "sha256": "34d5b12ca086a59f255478c277019544009f3b63c03be3f1a3f489278bdf4d7b",
+  "sha256": "bb7820757aee0fde58db71e16864952ba1409fba47bc7284bde1548bf3248ade",
   "bytes": 871
  },
  "Tiles040.png": {
-  "sha256": "bc6a00d901449dda3dec5405a2e9540e42d33d07e87fe685cb021ed363bf4c7f",
-  "bytes": 1900581
+  "sha256": "320fc65a4d0a94d4ae55b3b04369c0821af36afbb1763caff2bf2a6509973276",
+  "bytes": 1761081
  },
  "view_0.json": {
-  "sha256": "bcae841b8707b8163e8f79f6dc2ba7f9f488de25d73038a5c4d55ada53269815",
+  "sha256": "14f865267bf22ebcef48b1c23fe1f79cd75bc1fcd2ff39a9833b91c2ae0ef94e",
   "bytes": 667
  },
  "view_0.png": {
-  "sha256": "5900313e648b87be9e0e959ac3da0e3f2189157fe431089ecf9236268e94421a",
-  "bytes": 631167
+  "sha256": "208a62ec3183e7d8617c8767fab26a9d52ed2e5280ec9ea15b7910731bf142e7",
+  "bytes": 633815
  },
  "view_1.json": {
-  "sha256": "3abab92e181552f9733a84aae24bc69497673d96f7fb40dc955d66a721afb313",
+  "sha256": "5a331cbcba8eeb86063a682ca2c509573a38d941f4cedb679562938e6faf1326",
   "bytes": 667
  },
  "view_1.png": {
-  "sha256": "e3da70bac9dfbe14500ddf66142991d1f8291f1c8b6bb4e2825f4224d23aae7b",
-  "bytes": 595035
+  "sha256": "740c9575dfeb305927b3a34a4446a76723f6dc33057e2dfe71a5bd91c29160ac",
+  "bytes": 598445
  },
  "view_2.json": {
-  "sha256": "bd9fa78ae58e960c01d13af904e3d7916c86363c63b05597ac81a6b8c17892ac",
+  "sha256": "2b46c0e4b91ff5ca5344bf04b11bb0aafb3ef04f13a19f4746fe3fee46ef520b",
   "bytes": 666
  },
  "view_2.png": {
-  "sha256": "06cce89a9dc7b567bf5ec92fbc7802cb4e9fe4c351400e076a7b7690888d76af",
-  "bytes": 668855
+  "sha256": "cd2602cfbc3581bcb6a14f17cc00f2bcd154fc34f6c17308f5f9e01b20b6e9bb",
+  "bytes": 674265
  },
  "view_3.json": {
-  "sha256": "b8e588201d7b416666a90128ce7c76f3d5cb17e517c7a92373b2be7b1ffee007",
+  "sha256": "7162165d743fb68daedaf40256730456911d44e34e2f827d0ff5905580fb95c7",
   "bytes": 666
  },
  "view_3.png": {
-  "sha256": "da26cddff404b6151ef58c67fb346a2019a2f29d123d9b3ff8bccb98744e8a2b",
-  "bytes": 670642
+  "sha256": "a49bbdda1fae6d75b0b14fc478ea4aa13410d9b54122bcb54494a91627179482",
+  "bytes": 676124
  },
  "view_4.json": {
-  "sha256": "750a871b170830d875abecaade8d05a0547fe203fc4285a317e4cf14b5dccdb2",
+  "sha256": "65d15834721b823de77e71f256a84449075503e5f6b73fa646826e734716b186",
   "bytes": 667
  },
  "view_4.png": {
-  "sha256": "a8f34423ae875a8694934b48e779d9b77758f466d5cd86e0a0a26642220a60ec",
-  "bytes": 839644
+  "sha256": "209449a7e3ce4af02d133f15b0c912d049022e1769faa69cad163a41a65a9977",
+  "bytes": 845054
  },
  "view_5.json": {
-  "sha256": "da5ef17898fe9dc16594611f2dc1e405b059c3e2bbf5deaded684d495c45f961",
+  "sha256": "88b6059851720c89ec542f3d224a263b4e977eadf2ceed034c3946a83b6a153f",
   "bytes": 668
  },
  "view_5.png": {
-  "sha256": "4c2de6abb4ba6f56590c1fd092f416f62b6fed079702264a659af5b06e1d3a03",
-  "bytes": 649660
+  "sha256": "8bc04653949121015e67d19e3a6bbef29906f44a4352a6c418e67e1fc0fe0b38",
+  "bytes": 653394
  },
  "view_6.json": {
-  "sha256": "8a23d5bd6ce6ca1ebf34d5b9dcaa81ffd1643bbc83efcbb35b7adfa87cf1f88b",
+  "sha256": "0a7ec7f996ab39597480f26dd942eaf5bd0eb881992e87a4d569e560ccc4600f",
   "bytes": 668
  },
  "view_6.png": {
-  "sha256": "e16da0bc09be1b2888fcf39534091c80a9f1f7345b9952a4aa546bdb35e33345",
-  "bytes": 941179
+  "sha256": "7ca5d19eeaf0ca5a962e259b6e334f3276df594d8433ac05dc70d7c33640ab03",
+  "bytes": 945267
  },
  "view_7.json": {
-  "sha256": "302d6713fb93f1ea5a4241df75acf71d3838a92f2ca02ca3d60a0371173f3675",
+  "sha256": "5be38aa551d9260fb433055bf9632bf22beb8bc18df984744a2c79dc568ea7ed",
   "bytes": 668
  },
  "view_7.png": {
-  "sha256": "296d3bc88063c734c8e9281e04acf40e3266b26203c0986864f80d1a488b9a40",
-  "bytes": 727497
+  "sha256": "5e6ed591b04ea9ac197b097fe402e2a698b2028748f7d5065c99c288794982c6",
+  "bytes": 731557
  },
  "view_8.json": {
-  "sha256": "f2c4c597656c97b0cf171711d4b92b15fc930ce002ed18a255729abc7b3bb321",
+  "sha256": "70691035938454877b8d7bc3ec3293e9b3c6fb12c7ab05234c47159545fa29b0",
   "bytes": 670
  },
  "view_8.png": {
-  "sha256": "fa5aa7a1cb3ba7a6238341d86ef9fdaff81bdf143b0d8a67aa572561f2c28c62",
-  "bytes": 871746
+  "sha256": "0cbf114904c440a86c071b7b95cbc654ebe23fd55470728f9a49e0b7d31b4402",
+  "bytes": 879216
  },
  "view_9.json": {
-  "sha256": "55c74b22fc661a91e18ccca5e105aed0d593dab3950a0f9450f9d9d5b2c00dc1",
+  "sha256": "23d88ec2b12b904d151eab38a8532af4cf26ca053dc260001b15298c6c552229",
   "bytes": 667
  },
  "view_9.png": {
-  "sha256": "dd809625ffae132b16ae7f23f2f8cafc5d51222c6cbc6086c6e307d7cd77b093",
-  "bytes": 921788
+  "sha256": "c34376aa13ddd57071660ba66fbf15985ba23c2b4d71377d340bd25914f4c327",
+  "bytes": 928358
  },
  "white_oak_veneer.json": {
   "sha256": "4dae394baced03745363f0ac6ddcd9baa4be817044b4ef6b74ad77229de1e467",
