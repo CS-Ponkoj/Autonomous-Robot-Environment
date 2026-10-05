@@ -204,6 +204,14 @@ class RobotSim:
         """The robot camera's image. posed=True: the caller has just run before_render at this
         simulated time (the same frame), so the skins are not posed a second time.
         reflections=False skips the floor's reflection pass (the window's small preview)."""
+        self.prepare_camera(size, posed, reflections)
+        return self.render_prepared()
+
+    def prepare_camera(self, size: tuple[int, int] = (240, 320), posed: bool = False,
+                       reflections: bool = True) -> None:
+        """The first half of render_camera: the robot camera's scene as it is now (lights,
+        shadows, and skins included), drawn by render_prepared (the window splits the two over
+        consecutive frames)."""
         if self._camera_renderer is None or (self._camera_renderer.height, self._camera_renderer.width) != size:
             self.close()
             self._camera_renderer = mujoco.Renderer(self.model, height=size[0], width=size[1])
@@ -211,6 +219,9 @@ class RobotSim:
             self.before_render()
         self._camera_renderer.update_scene(self.data, camera="robot_cam", scene_option=self.camera_option)
         self._camera_renderer.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = reflections
+
+    def render_prepared(self) -> np.ndarray:
+        """The second half of render_camera: draw the scene prepare_camera made."""
         return self._camera_renderer.render()
 
     def ray_to_solid(self, origin, direction) -> float:

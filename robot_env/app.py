@@ -539,6 +539,7 @@ class App:
         self.renderer = None
         self._make_renderer()
         self._inset = None  # cached robot-camera inset and the simulated time it shows
+        self._inset_pending = None  # (size, time) of an inset scene prepared, drawn next frame
         self._shadow_lights = None  # the room lights that may cast shadows (from the model)
         self._inset_time = -math.inf
         self.frame_times: list[float] = []  # seconds between presented frames (measured)
@@ -730,6 +731,9 @@ class App:
         s.sim.before_render()  # pose the visual-only skins (cats) for this frame
         self._choose_shadow_lights(camera)
         self.renderer.update_scene(s.sim.data, camera=camera, scene_option=option)
+        # the top view looks straight down on the whole floor: its faint floor reflections (4-6%)
+        # are invisible from there, and the reflection pass re-draws the scene
+        self.renderer.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = VIEWS[self.view.mode] != "top"
         vis.fovy = normal_fovy
         image = self.renderer.render()
         self.screen.blit(_surface(image), (0, 0))
@@ -740,23 +744,34 @@ class App:
             return
         width, height = self.screen.get_size()
         compact = self.hud == "compact"
-        if camera != "robot_cam":  # the main view already shows the robot camera: no duplicate inset
+        if camera == "robot_cam":  # the main view already shows the robot camera: no duplicate inset
+            self._inset_pending = None
+        else:
             cam_rect = pygame.Rect(width - 256, 16, 240, 180) if compact else pygame.Rect(width - 336, 16, 320, 240)
-            stale = self._inset is None or self._inset.get_size() != cam_rect.size
-            if stale or abs(s.time - self._inset_time) >= INSET_PERIOD - 1e-9:
-                # rendered at the shown size, without shadow or floor-reflection passes (each
-                # re-draws the whole scene, and the small inset shows neither); the skins were
-                # posed for this frame
-                m = s.sim.model
-                cast = m.light_castshadow.copy()
-                m.light_castshadow[:] = 0
-                try:
-                    image = s.sim.render_camera((cam_rect.height, cam_rect.width), posed=True, reflections=False)
-                finally:
-                    m.light_castshadow[:] = cast
+            size = (cam_rect.height, cam_rect.width)
+            if self._inset_pending is not None and self._inset_pending[0] == size:
+                # second half: draw the scene prepared last frame (one frame old, on a 10 Hz preview)
+                image = s.sim.render_prepared()
                 self._inset_pixels = image  # the cached surface shares these pixels
-                self._inset, self._inset_time = _surface(image), s.time
-            self.screen.blit(self._inset, cam_rect.topleft)
+                self._inset, self._inset_time = _surface(image), self._inset_pending[1]
+                self._inset_pending = None
+            else:
+                stale = self._inset is None or self._inset.get_size() != cam_rect.size
+                if stale or abs(s.time - self._inset_time) >= INSET_PERIOD - 1e-9:
+                    # first half: the scene, at the shown size, without shadow or floor-reflection
+                    # passes (each re-draws the whole scene, and the small inset shows neither);
+                    # the skins were posed for this frame. Drawn in the next frame: the cost is
+                    # split over two frames.
+                    m = s.sim.model
+                    cast = m.light_castshadow.copy()
+                    m.light_castshadow[:] = 0
+                    try:
+                        s.sim.prepare_camera(size, posed=True, reflections=False)
+                    finally:
+                        m.light_castshadow[:] = cast
+                    self._inset_pending = (size, s.time)
+            if self._inset is not None:
+                self.screen.blit(self._inset, cam_rect.topleft)
             pygame.draw.rect(self.screen, (235, 240, 245), cam_rect, 2)
             _text_box(self.screen, self.font, ["robot camera"], (cam_rect.x + 8, cam_rect.bottom + 9))
         lidar = 160 if compact else 220

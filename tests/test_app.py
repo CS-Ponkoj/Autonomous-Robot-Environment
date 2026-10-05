@@ -36,13 +36,13 @@ def test_every_view_renders(tmp_path, view):
 def test_robot_camera_inset_is_skipped_in_robot_camera_view(tmp_path, monkeypatch, view, expect_inset):
     from robot_env.sim import RobotSim
     calls = []
-    original = RobotSim.render_camera
+    original = RobotSim.prepare_camera
 
     def counting(self, *args, **kwargs):
         calls.append(1)
         return original(self, *args, **kwargs)
 
-    monkeypatch.setattr(RobotSim, "render_camera", counting)
+    monkeypatch.setattr(RobotSim, "prepare_camera", counting)
     run_app(tmp_path, frames=5, view=view)
     assert bool(calls) == expect_inset
 
@@ -786,7 +786,7 @@ def test_inset_failure_restores_the_shadow_lights(monkeypatch):
     def broken(*args, **kwargs):
         assert not sim.model.light_castshadow.any()  # no shadow passes for the inset
         raise RuntimeError("inset render failed")
-    monkeypatch.setattr(sim, "render_camera", broken)
+    monkeypatch.setattr(sim, "prepare_camera", broken)
     with pytest.raises(RuntimeError):
         app.draw()
     assert np.array_equal(sim.model.light_castshadow, chosen["cast"])
@@ -812,10 +812,12 @@ def test_inset_leaves_the_main_view_and_the_robot_camera_unchanged():
         main = app.renderer.render().copy()
         w, h = app._inset.get_size()  # the robot camera at the inset's size (the same renderer)
         return sim.model.light_castshadow.copy(), main, sim.render_camera((h, w)).copy()
-    app.draw()  # the main view picks its shadow lights; the inset renders
+    app.draw()  # the main view picks its shadow lights; the inset's scene is prepared...
+    app.draw()  # ... and drawn
     cast1, main1, robot1 = renders()
     app._inset_time = -float("inf")
     app.draw()  # the same instant: the same lights, and the inset renders again
+    app.draw()
     cast2, main2, robot2 = renders()
     assert np.array_equal(cast1, cast2)
     for before, after in ((main1, main2), (robot1, robot2)):
@@ -839,10 +841,12 @@ def test_views_stay_drawn_when_a_renderer_is_replaced():
     for hud in ("compact", "full", "compact"):
         app.hud = hud
         app._inset_time = -float("inf")
-        app.draw()
+        app.draw()  # prepares the inset at its new size (a new renderer)...
+        app.draw()  # ... and draws it
         seen.append((float(app.renderer.render().mean()), float(app._inset_pixels.mean())))
     app._make_renderer()  # as on a window resize
     app._inset_time = -float("inf")
+    app.draw()
     app.draw()
     seen.append((float(app.renderer.render().mean()), float(app._inset_pixels.mean())))
     first = seen[0]
@@ -936,3 +940,27 @@ def test_fps_protocol_measures_exactly_the_sample_intervals():
     assert len(got) == fp.SAMPLE_FRAMES and got[0] == fp.WARMUP_FRAMES
     with pytest.raises(RuntimeError):
         fp.sample_intervals(times[:-1])
+
+
+@pytest.mark.gui
+def test_the_inset_is_prepared_in_one_frame_and_drawn_in_the_next(monkeypatch):
+    """The robot-camera preview splits its cost: one frame prepares its scene (as the simulation
+    is then), the next draws it; it is shown from then on, stamped with the time it shows."""
+    app = _app_for_inset()
+    sim = app.system.sim
+    draws = []
+    real = sim.render_prepared
+    monkeypatch.setattr(sim, "render_prepared", lambda: draws.append(1) or real())
+    app.draw()
+    assert app._inset is None and app._inset_pending is not None and not draws
+    prepared_at = app._inset_pending[1]
+    app.system.advance(1 / 60)
+    app.draw()
+    assert app._inset is not None and app._inset_pending is None and draws == [1]
+    assert app._inset_time == prepared_at
+    app.draw()  # not due again yet: nothing new
+    assert draws == [1] and app._inset_pending is None
+    close_renderer(app.renderer)
+    app.system.close()
+    app.display.close()
+    pygame.quit()
