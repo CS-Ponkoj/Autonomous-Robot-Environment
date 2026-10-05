@@ -642,7 +642,7 @@ def room_lights():
         k = 0.64 if not name.startswith("light_corridor") else 0.48
         geoms.append(f'    <light name="{name}" pos="{x} {y} {WH - 0.06:.2f}" dir="0 0 -1" directional="false" '
                      f'cutoff="70" exponent="2" diffuse="{k * r:.3f} {k * g:.3f} {k * b:.3f}" '
-                     f'ambient="0.03 0.03 0.03" specular="0.3 0.3 0.3" attenuation="1 0.25 0.08" castshadow="true"/>')
+                     f'ambient="0 0 0" specular="0.3 0.3 0.3" attenuation="1 0.25 0.08" castshadow="true"/>')
 
 
 def _wheel_visuals(side: int) -> str:
@@ -787,10 +787,10 @@ HEADER = """<!--
   <visual>
     <global offwidth="2560" offheight="1440"/>
     <quality shadowsize="4096" offsamples="4"/>
-    <headlight ambient="0.25 0.25 0.25" diffuse="0.03 0.03 0.03" specular="0.1 0.1 0.1"/>
+    <headlight ambient="0.28 0.28 0.28" diffuse="0.03 0.03 0.03" specular="0.1 0.1 0.1"/>
     <!-- Clip planes are fractions of the model extent; znear keeps cameras from seeing
          through walls they are close to. -->
-    <map znear="0.0005" zfar="3" shadowclip="1" shadowscale="0.6"/>
+    <map znear="0.0005" zfar="3" shadowclip="1" shadowscale="1"/>
   </visual>
 
   <asset>
@@ -832,8 +832,8 @@ HEADER = """<!--
     <material name="ceiling" texture="tx_ceiling" texrepeat="0.278 0.278" texuniform="true" rgba="0.97 0.96 0.94 1" emission="0.72"/>
     <material name="light_panel" rgba="1 0.98 0.92 1" emission="0.75"/>
     <material name="fitting_frame" rgba="0.95 0.95 0.94 1" emission="0.35" specular="0.3"/>
-    <material name="skirting" rgba="1 1 0.98 1" emission="0.3" specular="0.25" shininess="0.5"/>
-    <material name="skirting_bead" rgba="0.8 0.8 0.78 1" emission="0.25" specular="0.12" shininess="0.5"/>
+    <material name="skirting" rgba="1 1 0.98 1" emission="0.36" specular="0.25" shininess="0.5"/>
+    <material name="skirting_bead" rgba="0.8 0.8 0.78 1" emission="0.3" specular="0.25" shininess="0.5"/>
     <material name="shadow_line" rgba="0.32 0.31 0.3 1" specular="0"/>
     <material name="threshold" rgba="0.72 0.73 0.74 1" emission="0.26" specular="0.8" shininess="0.7"/>
     <material name="kick_plate" rgba="0.62 0.63 0.65 1" emission="0.32" specular="0.9" shininess="0.8"/>
@@ -873,30 +873,30 @@ HEADER = """<!--
     <material name="seam" rgba="0.35 0.36 0.38 1"/>
     <material name="handle" rgba="0.7 0.71 0.73 1" emission="0.26" specular="0.8" shininess="0.7"/>
     <material name="glass" texture="outdoor_view" emission="0.95" specular="0.6" shininess="0.9"/>
-    <material name="window_frame" rgba="0.98 0.98 0.97 1" emission="0.22" specular="0.12" shininess="0.4"/>
-    <material name="sill" rgba="0.86 0.86 0.85 1" emission="0.25" specular="0.08" shininess="0.45"/>
+    <material name="window_frame" rgba="0.98 0.98 0.97 1" emission="0.27" specular="0.12" shininess="0.4"/>
+    <material name="sill" rgba="0.86 0.86 0.85 1" emission="0.2" specular="0.08" shininess="0.45"/>
     <material name="blind" texture="tx_blind" texrepeat="14 14" texuniform="true" rgba="0.97 0.96 0.93 1" emission="0.56" specular="0"/>
     <material name="blind_rail" rgba="0.82 0.82 0.8 1" specular="0.5"/>
     <texture name="view_0" type="2d" file="view_0.png"/>
-    <material name="view_0" texture="view_0" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
+    <material name="view_0" texture="view_0" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
     <texture name="view_1" type="2d" file="view_1.png"/>
-    <material name="view_1" texture="view_1" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
+    <material name="view_1" texture="view_1" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
     <texture name="view_2" type="2d" file="view_2.png"/>
-    <material name="view_2" texture="view_2" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
+    <material name="view_2" texture="view_2" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
     <texture name="view_3" type="2d" file="view_3.png"/>
-    <material name="view_3" texture="view_3" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
+    <material name="view_3" texture="view_3" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
     <texture name="view_4" type="2d" file="view_4.png"/>
-    <material name="view_4" texture="view_4" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
+    <material name="view_4" texture="view_4" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
     <texture name="view_5" type="2d" file="view_5.png"/>
-    <material name="view_5" texture="view_5" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
+    <material name="view_5" texture="view_5" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
     <texture name="view_6" type="2d" file="view_6.png"/>
-    <material name="view_6" texture="view_6" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
+    <material name="view_6" texture="view_6" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
     <texture name="view_7" type="2d" file="view_7.png"/>
-    <material name="view_7" texture="view_7" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
+    <material name="view_7" texture="view_7" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
     <texture name="view_8" type="2d" file="view_8.png"/>
-    <material name="view_8" texture="view_8" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
+    <material name="view_8" texture="view_8" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
     <texture name="view_9" type="2d" file="view_9.png"/>
-    <material name="view_9" texture="view_9" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
+    <material name="view_9" texture="view_9" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
     <texture name="tx_rug_red" type="2d" file="rug_red_woven.png"/>
     <texture name="tx_rug_blue" type="2d" file="rug_blue_woven.png"/>
     <material name="rug_red" texture="tx_rug_red" emission="0" specular="0" shininess="0" rgba="0.7 0.7 0.7 1"/>
