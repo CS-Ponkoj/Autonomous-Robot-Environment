@@ -1,0 +1,138 @@
+{
+ "Carpet012.json": {
+  "sha256": "491cc1e2c171bb5f051961c36f682b6eda2967aca7bacc68c0e4a0dcf5b4d808",
+  "bytes": 1080
+ },
+ "Carpet012.png": {
+  "sha256": "9f5c74b6b97cea4f2052b5d929b5a4c60192c9049bbd766c097a6a3853454e69",
+  "bytes": 2650660
+ },
+ "Concrete031.json": {
+  "sha256": "22077632f4831a9bc75d23ac52a0945a2676350319c9f6b6b4739b14aac3800f",
+  "bytes": 1098
+ },
+ "Concrete031.png": {
+  "sha256": "36315b8e85d35540c044b4237e9d79fdbe6ed0f75c1fd54cfd553b0ab551d34c",
+  "bytes": 1455236
+ },
+ "laminate_floor_02.json": {
+  "sha256": "bfd1cd2493c5600c30c832d254074a93a2fbff0668d74a80a00485c21f2c5ffb",
+  "bytes": 1218
+ },
+ "laminate_floor_02.png": {
+  "sha256": "c9f9746296dbebb2725fd328a255f5568c5c36dc5e01de28cfb79c863a9ea86c",
+  "bytes": 1643966
+ },
+ "OfficeCeiling001.json": {
+  "sha256": "33711cf0115b99615fea76e8853f8abcf58004c5135679f8af5e4c4fdea2f568",
+  "bytes": 1142
+ },
+ "OfficeCeiling001.png": {
+  "sha256": "d18b9d9a5e3444ff2111dc078470a4f6ebd18de447b575aeb4482d09c7c672cd",
+  "bytes": 949103
+ },
+ "painted_plaster_wall.json": {
+  "sha256": "c2b0962f923d9868645589130de744ad3a4ea716991388248e4b8303a6e64d5f",
+  "bytes": 1204
+ },
+ "painted_plaster_wall.png": {
+  "sha256": "f3d27b7e9a2cc5beb6122878fffb87647a4c162971932e339b48d370ae7707c0",
+  "bytes": 687358
+ },
+ "Tiles040.json": {
+  "sha256": "09c8c3fd3e399004b713a01b6c854187a52415909c400545e5919b7344175dc1",
+  "bytes": 871
+ },
+ "Tiles040.png": {
+  "sha256": "72686c2ee6de35033c92002eb807863dca8e4b8d5a81bdb14dfb0d38a2fdfbcb",
+  "bytes": 2170698
+ },
+ "view_0.json": {
+  "sha256": "1d6d423890ea64cbf509732770d2be6e053a2301b80f8e2ad27a43b505a16773",
+  "bytes": 667
+ },
+ "view_0.png": {
+  "sha256": "e1b4040a79e4d8a3825f33dd5ea20370fb9799096139d7cee083c93f599781fb",
+  "bytes": 630385
+ },
+ "view_1.json": {
+  "sha256": "e23baadf9b31d8ef569c5112a2e8fef57a1ca4ee4de60459d191dbcda5c11a04",
+  "bytes": 667
+ },
+ "view_1.png": {
+  "sha256": "f139aa2cd0e572eb7298ef2ca2ca560ea49dbbea34b5fce0bbafd2a201c375eb",
+  "bytes": 597277
+ },
+ "view_2.json": {
+  "sha256": "834701261bd0c7f1d2b078b97086bdf0ba39bd5bf387b1f03e615bee0dc5166d",
+  "bytes": 666
+ },
+ "view_2.png": {
+  "sha256": "c09aa59fdfe416c7a9b37914b76bf84898e32a5a297d9a6d7fe2b4fa44bfcf21",
+  "bytes": 672858
+ },
+ "view_3.json": {
+  "sha256": "7249098ce54cf5b615f4ffe5356628f6e31332ef5d095df2e2c4dbb0de8bb38f",
+  "bytes": 666
+ },
+ "view_3.png": {
+  "sha256": "496e343f8b178082f9b739d91746d043162c548507db024e7211234b3344e5b8",
+  "bytes": 673958
+ },
+ "view_4.json": {
+  "sha256": "23ac2685854e50196cf508160d3aa3431f837a7482f22c95cea62aec4c4fbac7",
+  "bytes": 667
+ },
+ "view_4.png": {
+  "sha256": "1dd05ad650939d376f3bbbee95db97177b835b6cdb14a4809cfa58a570ecdf45",
+  "bytes": 838791
+ },
+ "view_5.json": {
+  "sha256": "1f3ac7fa306e0235a25d0c8fd6919589e38af4552002f69e63069757f3869c4b",
+  "bytes": 668
+ },
+ "view_5.png": {
+  "sha256": "2d15ff17c3f880bcc63c511093f65b27b16bd2144f25fd89ca90c74eb320a84b",
+  "bytes": 652623
+ },
+ "view_6.json": {
+  "sha256": "91120d5584a5e4b357a64494f80265194b52c07d31e53b5e9537f3c3f6998783",
+  "bytes": 668
+ },
+ "view_6.png": {
+  "sha256": "3386fe5e7c5d6efbeffe501375fee43c5e4f9e557e0add62321930ba5e2f309e",
+  "bytes": 940722
+ },
+ "view_7.json": {
+  "sha256": "8e6687320a97c5aa3129c136ad9fffdee5bc860820655d2e1782a9b3c906ada1",
+  "bytes": 668
+ },
+ "view_7.png": {
+  "sha256": "76b00e75155f0215428b4f4b1ea10d7afd8f60db7c07978426a7b4f18014fdf5",
+  "bytes": 731649
+ },
+ "view_8.json": {
+  "sha256": "44c610bbc35ef62c2d5ea0fcd392219f6aafdc22ec06e5f5247e5423dd4f7b53",
+  "bytes": 670
+ },
+ "view_8.png": {
+  "sha256": "33d589f02f51b3e2c0fb57d857089f77e65b55af6bda52c349a38e334058c9d4",
+  "bytes": 889368
+ },
+ "view_9.json": {
+  "sha256": "55bd9e1ce525a143e08008b2cd9fec663b4ce3d68ace5da1babb1a3477b0010d",
+  "bytes": 667
+ },
+ "view_9.png": {
+  "sha256": "67caca0daacf75444e94cb588968ff67b4f8ddefb4496a8835d6fb03230f7714",
+  "bytes": 925401
+ },
+ "white_oak_veneer.json": {
+  "sha256": "c55eb86130691a8ab65b36d6e549f89c8c9bef8ed4d374308ed8c9f1a0b248a3",
+  "bytes": 1160
+ },
+ "white_oak_veneer.png": {
+  "sha256": "ff71104483e72e1234764f988355f4084fc0eae707a55076b472df1676851d4a",
+  "bytes": 1430017
+ }
+}

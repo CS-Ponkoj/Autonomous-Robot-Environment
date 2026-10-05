@@ -1,0 +1,34 @@
+{
+ "id": "OfficeCeiling001",
+ "file": "OfficeCeiling001.png",
+ "size_px": 1024,
+ "repeat_m": [
+  1.2,
+  1.2
+ ],
+ "neutral": null,
+ "licence": "CC0 1.0",
+ "source": "https://ambientcg.com/view?id=OfficeCeiling001",
+ "authors": [
+  "ambientCG"
+ ],
+ "inputs": {
+  "Diffuse": {
+   "url": "https://ambientcg.com/get?file=OfficeCeiling001_1K-JPG.zip#OfficeCeiling001_1K-JPG_Color.jpg",
+   "sha256": "1a34c9db312a12c49365875630136e421d77e729f275ef93529ad20c0b336208"
+  },
+  "AO": {
+   "url": "https://ambientcg.com/get?file=OfficeCeiling001_1K-JPG.zip#OfficeCeiling001_1K-JPG_AmbientOcclusion.jpg",
+   "sha256": "8fd06fe37279f2c3e2c4f2cfbb9930086a188d777967900809482f1db836f670"
+  },
+  "nor_gl": {
+   "url": "https://ambientcg.com/get?file=OfficeCeiling001_1K-JPG.zip#OfficeCeiling001_1K-JPG_NormalGL.jpg",
+   "sha256": "d9d337c9bf76b844c8e5f7839cac1dcc2b2f6eccec4cc1efe36d43f9e239b70c"
+  }
+ },
+ "ao_strength": 0.9,
+ "relief": 0.35,
+ "tool_sha256": "22e590c5dfb4dadddd64935e24364aa17fd9a1e59c1ca72d46328a22c98a6d22",
+ "sha256": "d18b9d9a5e3444ff2111dc078470a4f6ebd18de447b575aeb4482d09c7c672cd",
+ "bytes": 949103
+}

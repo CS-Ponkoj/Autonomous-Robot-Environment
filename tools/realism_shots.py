@@ -22,18 +22,20 @@ from robot_env.system import RobotSystem  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 W, H = 1280, 720
 FOVY = 60.0
-# name: (eye x, y, z), (look at x, y, z)
+# name: (eye x, y, z), (look at x, y, z)[, vertical field of view]: the poses agreed for judging
+# (the doors' open leaves and the shelving kept out of the frame)
 SHOTS = {
-    "office_from_door": ((-0.6, 1.15, 1.55), (-3.6, 3.9, 0.6)),
+    "office_from_door": ((-0.97, 1.49, 1.55), (-3.6, 3.9, 0.6)),
     "office_desk": ((-4.6, 1.2, 1.45), (-2.2, 4.6, 0.8)),
-    "lab_from_door": ((0.6, 1.15, 1.55), (3.3, 3.9, 0.7)),
-    "lab_benches": ((4.6, 1.2, 1.45), (1.4, 4.3, 0.8)),
-    "storage_aisles": ((-0.5, -1.15, 1.55), (-3.6, -3.9, 0.7)),
-    "reception_from_door": ((4.6, -1.15, 1.55), (1.4, -4.1, 0.6)),
-    "reception_sofa": ((0.6, -1.15, 1.45), (3.4, -3.8, 0.6)),
+    "lab_from_door": ((0.95, 1.6, 1.55), (3.3, 3.9, 0.7)),
+    "lab_benches": ((4.2, 0.95, 1.45), (1.6, 4.3, 0.8)),
+    "storage_aisles": ((-0.87, -1.48, 1.55), (-3.6, -3.9, 0.7)),
+    "reception_from_door": ((4.23, -1.49, 1.55), (1.4, -4.1, 0.6)),
+    "reception_sofa": ((0.96, -1.49, 1.45), (3.4, -3.8, 0.6)),
     "corridor": ((-4.6, 0.0, 1.55), (4.0, 0.0, 0.9)),
     "corridor_robot_height": ((-4.2, 0.0, 0.25), (3.0, 0.0, 0.45)),
-    "detail_wall_corner": ((-1.2, 1.45, 0.75), (-0.15, 0.95, 0.25)),
+    "corridor_robot_camera": ((-4.2, 0.0, 0.2), (3.0, 0.0, 0.2), 75.0),
+    "detail_wall_corner": ((1.2, -1.5, 0.75), (0.15, -0.95, 0.25)),
     "detail_door": ((-2.5, -0.35, 1.25), (-2.5, 0.95, 1.0)),
     "detail_window": ((-3.2, 3.6, 1.4), (-3.8, 5.0, 1.5)),
     "detail_floor_rug": ((-2.6, 2.6, 0.9), (-3.8, 3.9, 0.0)),
@@ -52,7 +54,8 @@ def render(label: str) -> Path:
     opt.geomgroup[3] = 1  # the ceiling and its lights, as a person standing in the room sees them
     light_pos = np.array(m.light_pos)
     tiles = []
-    for name, (eye, at) in SHOTS.items():
+    for name, (eye, at, *fov) in SHOTS.items():
+        m.vis.global_.fovy = fov[0] if fov else FOVY
         eye, at = np.array(eye, dtype=float), np.array(at, dtype=float)
         v = at - eye
         cam = mujoco.MjvCamera()

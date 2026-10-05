@@ -1,0 +1,30 @@
+{
+ "id": "Tiles040",
+ "file": "Tiles040.png",
+ "size_px": 1024,
+ "repeat_m": [
+  1.2,
+  1.2
+ ],
+ "neutral": null,
+ "licence": "CC0 1.0",
+ "source": "https://ambientcg.com/view?id=Tiles040",
+ "authors": [
+  "ambientCG"
+ ],
+ "inputs": {
+  "Diffuse": {
+   "url": "https://ambientcg.com/get?file=Tiles040_1K-JPG.zip#Tiles040_1K-JPG_Color.jpg",
+   "sha256": "01b519c9a02661f266c7945e656b09900746eadae27970e6956832b3512a6bea"
+  },
+  "nor_gl": {
+   "url": "https://ambientcg.com/get?file=Tiles040_1K-JPG.zip#Tiles040_1K-JPG_NormalGL.jpg",
+   "sha256": "5eb099cce9e6fec60c43d0ad3d80839b6710a312ffd84a0132fb70d14d5082c4"
+  }
+ },
+ "ao_strength": 0.9,
+ "relief": 0.35,
+ "tool_sha256": "22e590c5dfb4dadddd64935e24364aa17fd9a1e59c1ca72d46328a22c98a6d22",
+ "sha256": "72686c2ee6de35033c92002eb807863dca8e4b8d5a81bdb14dfb0d38a2fdfbcb",
+ "bytes": 2170698
+}

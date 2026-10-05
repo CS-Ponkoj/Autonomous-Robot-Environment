@@ -71,6 +71,7 @@ def yaw_from_quat(q: np.ndarray) -> float:
 class RobotSim:
     def __init__(self, include_obstacles: bool = True, extra_world_xml: str = "", extra: WorldExtra | None = None):
         assets = {p.name: p.read_bytes() for p in ASSETS.glob("*.png")}
+        assets.update({p.name: p.read_bytes() for p in sorted((ASSETS / "textures").glob("*.png"))})  # CC0 photo textures
         if extra is not None:
             assets.update(extra.files)
         xml = load_world_xml(include_obstacles, extra_world_xml, extra)

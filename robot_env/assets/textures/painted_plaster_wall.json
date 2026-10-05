@@ -1,0 +1,37 @@
+{
+ "id": "painted_plaster_wall",
+ "file": "painted_plaster_wall.png",
+ "size_px": 1024,
+ "repeat_m": [
+  2.0,
+  2.0
+ ],
+ "neutral": [
+  0.95,
+  0.45
+ ],
+ "licence": "CC0 1.0",
+ "source": "https://polyhaven.com/a/painted_plaster_wall",
+ "authors": [
+  "Amal Kumar"
+ ],
+ "inputs": {
+  "Diffuse": {
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/painted_plaster_wall/painted_plaster_wall_diff_2k.jpg",
+   "sha256": "6fd812ed8dd5be1873c29aeef38ce9bf1fb30a22c6d4b3a12db725e98c26a1be"
+  },
+  "AO": {
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/painted_plaster_wall/painted_plaster_wall_ao_2k.jpg",
+   "sha256": "3d89b5ea1f9d93d611ab0015d887b620ec9c6623e19effadba84ee9345c4c6fc"
+  },
+  "nor_gl": {
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/painted_plaster_wall/painted_plaster_wall_nor_gl_2k.jpg",
+   "sha256": "2d601a46ed5ce2af866741c53cafa3cba472620c272e633b6484d4de16a80eb1"
+  }
+ },
+ "ao_strength": 0.9,
+ "relief": 0.35,
+ "tool_sha256": "dbe1d82ad565ad429dfea18c720c755f1b045f30602921d619ce3b98de05847b",
+ "sha256": "f3d27b7e9a2cc5beb6122878fffb87647a4c162971932e339b48d370ae7707c0",
+ "bytes": 687358
+}

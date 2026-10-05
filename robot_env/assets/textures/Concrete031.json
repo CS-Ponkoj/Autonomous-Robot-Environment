@@ -1,0 +1,34 @@
+{
+ "id": "Concrete031",
+ "file": "Concrete031.png",
+ "size_px": 1024,
+ "repeat_m": [
+  2.5,
+  2.5
+ ],
+ "neutral": null,
+ "licence": "CC0 1.0",
+ "source": "https://ambientcg.com/view?id=Concrete031",
+ "authors": [
+  "ambientCG"
+ ],
+ "inputs": {
+  "Diffuse": {
+   "url": "https://ambientcg.com/get?file=Concrete031_1K-JPG.zip#Concrete031_1K-JPG_Color.jpg",
+   "sha256": "d374e274b7a000304e8530ad7171d534e7eb6b766c7a0038bfe8bd7e086d717e"
+  },
+  "AO": {
+   "url": "https://ambientcg.com/get?file=Concrete031_1K-JPG.zip#Concrete031_1K-JPG_AmbientOcclusion.jpg",
+   "sha256": "93a76cffb44f7a5a3cfa054dcd5ca9d204549eb5c2cb0d22d7426a49f02934cc"
+  },
+  "nor_gl": {
+   "url": "https://ambientcg.com/get?file=Concrete031_1K-JPG.zip#Concrete031_1K-JPG_NormalGL.jpg",
+   "sha256": "57f18cfd67763a767db13a4fb1eac4abb9a845477264e3ff301826868e6476f3"
+  }
+ },
+ "ao_strength": 0.9,
+ "relief": 0.35,
+ "tool_sha256": "22e590c5dfb4dadddd64935e24364aa17fd9a1e59c1ca72d46328a22c98a6d22",
+ "sha256": "36315b8e85d35540c044b4237e9d79fdbe6ed0f75c1fd54cfd553b0ab551d34c",
+ "bytes": 1455236
+}

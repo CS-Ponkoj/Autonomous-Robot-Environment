@@ -1,0 +1,35 @@
+{
+ "id": "laminate_floor_02",
+ "file": "laminate_floor_02.png",
+ "size_px": 1024,
+ "repeat_m": [
+  1.6999999284744263,
+  1.7000000476837158
+ ],
+ "neutral": null,
+ "licence": "CC0 1.0",
+ "source": "https://polyhaven.com/a/laminate_floor_02",
+ "authors": [
+  "Charlotte Baglioni",
+  "Dario Barresi"
+ ],
+ "inputs": {
+  "Diffuse": {
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/laminate_floor_02/laminate_floor_02_diff_2k.jpg",
+   "sha256": "2a1e6519309b369f749f06aaf241ac67ea762c686b6a848c1a79331b18a30521"
+  },
+  "AO": {
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/laminate_floor_02/laminate_floor_02_ao_2k.jpg",
+   "sha256": "2c99e8f63e2307d52f93355b6fe93af9b1b74e276848777095aae1adac9660f3"
+  },
+  "nor_gl": {
+   "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/laminate_floor_02/laminate_floor_02_nor_gl_2k.jpg",
+   "sha256": "49aa58c34c6770d209e63f9bdb4d16326f5dab24474cfeb18433e63fc54456de"
+  }
+ },
+ "ao_strength": 0.9,
+ "relief": 0.35,
+ "tool_sha256": "22e590c5dfb4dadddd64935e24364aa17fd9a1e59c1ca72d46328a22c98a6d22",
+ "sha256": "c9f9746296dbebb2725fd328a255f5568c5c36dc5e01de28cfb79c863a9ea86c",
+ "bytes": 1643966
+}

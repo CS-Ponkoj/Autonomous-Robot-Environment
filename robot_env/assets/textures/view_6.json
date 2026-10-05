@@ -1,0 +1,23 @@
+{
+ "id": "view_6",
+ "file": "view_6.png",
+ "panorama": "buikslotermeerplein",
+ "heading_deg": 180.0,
+ "along_m": 3.9,
+ "window_m": [
+  1.0,
+  1.2
+ ],
+ "licence": "CC0 1.0",
+ "source": "https://polyhaven.com/a/buikslotermeerplein",
+ "authors": [
+  "Greg Zaal"
+ ],
+ "input": {
+  "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/buikslotermeerplein.jpg",
+  "sha256": "f87304a9c554246506f1b3a767484703b6ae076a6689008eb21b945ef0043ce1"
+ },
+ "tool_sha256": "71e3cf4117e0acaedd5d3b3a20e4629611c99f2b85c8b5d39e8b123cf2bf0546",
+ "sha256": "3386fe5e7c5d6efbeffe501375fee43c5e4f9e557e0add62321930ba5e2f309e",
+ "bytes": 940722
+}

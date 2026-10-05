@@ -206,6 +206,24 @@ def comment(text):
     geoms.append(f"\n    <!-- {text} -->")
 
 
+def skin(center, normal, half_along, half_up, material, out=0.001):
+    """A visual-only face over a wall or door face whose normal is the world `normal` axis ('x'
+    or 'y', pointing to the side the face is seen from, as a signed unit: +1 or -1). The classic
+    renderer maps a 2D texture with texuniform only onto a box's local x-y faces, so the
+    panel's local x runs along the face and its local y up it; the solid geom behind keeps its
+    simple upright box (planners and the lidar read those)."""
+    axis, sign = normal
+    x, y, z = center
+    if axis == "x":
+        x += sign * out
+        xy = "0 1 0 0 0 1" if sign > 0 else "0 -1 0 0 0 1"
+    else:
+        y += sign * out
+        xy = "-1 0 0 0 0 1" if sign > 0 else "1 0 0 0 0 1"
+    geoms.append(f'    <geom class="visual" type="box" pos="{x:.4f} {y:.4f} {z:.4f}" '
+                 f'size="{half_along:.4f} {half_up:.4f} 0.0005" xyaxes="{xy}" material="{material}"/>')
+
+
 def wall(name, axis, fixed, a, b, doors=(), skirt_sides=(-1, 1)):
     """A wall along `axis` ('x' or 'y') at coordinate `fixed`, from a to b, with door
     openings centered at `doors`. Each door gets jambs, a header, and skirting gaps."""
@@ -220,12 +238,25 @@ def wall(name, axis, fixed, a, b, doors=(), skirt_sides=(-1, 1)):
             box(f"{name}_{i // 2}", (mid, fixed, WH / 2), (half, T / 2, WH / 2), "plaster")
         else:
             box(f"{name}_{i // 2}", (fixed, mid, WH / 2), (T / 2, half, WH / 2), "plaster")
+        for side in skirt_sides:  # the painted face on each side seen from a room
+            face = fixed + side * T / 2
+            centre = (mid, face, WH / 2) if axis == "x" else (face, mid, WH / 2)
+            skin(centre, ("y" if axis == "x" else "x", side), half, WH / 2, "plaster")
         for side in skirt_sides:  # skirting board, solid, 1.2 cm proud of the wall
             off = fixed + side * (T / 2 + 0.006)
             if axis == "x":
                 box(None, (mid, off, 0.04), (half, 0.006, 0.04), "skirting")
             else:
                 box(None, (off, mid, 0.04), (0.006, half, 0.04), "skirting")
+            # visual: its rounded top up to 10 cm, and the thin shadow line along the wall above it
+            top = fixed + side * (T / 2 + 0.005)
+            line = fixed + side * (T / 2 + 0.0018)
+            if axis == "x":
+                box(None, (mid, top, 0.09), (half, 0.005, 0.01), "skirting", cls="visual")
+                box(None, (mid, line, 0.1015), (half, 0.0015, 0.0015), "shadow_line", cls="visual")
+            else:
+                box(None, (top, mid, 0.09), (0.005, half, 0.01), "skirting", cls="visual")
+                box(None, (line, mid, 0.1015), (0.0015, half, 0.0015), "shadow_line", cls="visual")
     for k, c in enumerate(cuts):
         for sgn in (-1, 1):  # jambs: solid frame inside the gap, slightly proud of the wall
             jc = c + sgn * (DOOR_GAP / 2 - JAMB / 2)
@@ -245,11 +276,40 @@ def wall(name, axis, fixed, a, b, doors=(), skirt_sides=(-1, 1)):
                 box(None, (c, face, DOOR_HEAD + 0.035), (DOOR_GAP / 2 + 0.07, 0.006, 0.035), "frame")
             else:
                 box(None, (face, c, DOOR_HEAD + 0.035), (0.006, DOOR_GAP / 2 + 0.07, 0.035), "frame")
+            # visual: the architrave stands 2.5 cm out (in front of the 2 cm jamb lining), with a
+            # raised bead on its inner edge, so the frame reads as moulded trim, not a flat strip
+            fa = fixed + side * (T / 2 + 0.0125)
+            fb = fixed + side * (T / 2 + 0.028)
+            for sgn in (-1, 1):
+                a_c = c + sgn * (DOOR_GAP / 2 + 0.035)
+                b_c = c + sgn * (DOOR_GAP / 2 + 0.006)
+                hz = (DOOR_HEAD + 0.07) / 2
+                if axis == "x":
+                    box(None, (a_c, fa, hz), (0.035, 0.0125, hz), "frame", cls="visual")
+                    box(None, (b_c, fb, hz), (0.006, 0.003, hz), "frame", cls="visual")
+                else:
+                    box(None, (fa, a_c, hz), (0.0125, 0.035, hz), "frame", cls="visual")
+                    box(None, (fb, b_c, hz), (0.003, 0.006, hz), "frame", cls="visual")
+            if axis == "x":
+                box(None, (c, fa, DOOR_HEAD + 0.035), (DOOR_GAP / 2 + 0.07, 0.0125, 0.035), "frame", cls="visual")
+                box(None, (c, fb, DOOR_HEAD + 0.006), (DOOR_GAP / 2, 0.003, 0.006), "frame", cls="visual")
+            else:
+                box(None, (fa, c, DOOR_HEAD + 0.035), (0.0125, DOOR_GAP / 2 + 0.07, 0.035), "frame", cls="visual")
+                box(None, (fb, c, DOOR_HEAD + 0.006), (0.003, DOOR_GAP / 2, 0.006), "frame", cls="visual")
+        # visual: an aluminium threshold strip across the doorway floor (2 mm, flush enough to drive over)
+        if axis == "x":
+            box(None, (c, fixed, 0.0022), (DOOR_GAP / 2 - JAMB, T / 2 + 0.01, 0.001), "threshold", cls="visual")
+        else:
+            box(None, (fixed, c, 0.0022), (T / 2 + 0.01, DOOR_GAP / 2 - JAMB, 0.001), "threshold", cls="visual")
         head_h = (WH - DOOR_HEAD) / 2
         if axis == "x":
             box(f"{name}_door{k}_head", (c, fixed, DOOR_HEAD + head_h), (DOOR_GAP / 2, T / 2, head_h), "plaster")
         else:
             box(f"{name}_door{k}_head", (fixed, c, DOOR_HEAD + head_h), (T / 2, DOOR_GAP / 2, head_h), "plaster")
+        for side in (-1, 1):
+            face = fixed + side * T / 2
+            centre = (c, face, DOOR_HEAD + head_h) if axis == "x" else (face, c, DOOR_HEAD + head_h)
+            skin(centre, ("y" if axis == "x" else "x", side), DOOR_GAP / 2, head_h, "plaster")
 
 
 def door_leaf(name, axis, fixed, center, into):
@@ -263,10 +323,26 @@ def door_leaf(name, axis, fixed, center, into):
         box(name, (hinge + t, mid, 1.03), (t, w / 2, 1.025), "door")
     else:
         box(name, (mid, hinge + t, 1.03), (w / 2, t, 1.025), "door")
+    for side in (-1, 1):  # the veneer on both faces of the leaf
+        if axis == "x":
+            skin((hinge + t + side * t, mid, 1.03), ("x", side), w / 2, 1.025, "door")
+        else:
+            skin((mid, hinge + t + side * t, 1.03), ("y", side), w / 2, 1.025, "door")
     # Hinges on the hinge edge, lever handles on both faces near the free edge
     for z in (0.25, 1.0, 1.8):
         h_pos = (hinge + t, start + into * 0.012, z) if axis == "x" else (start + into * 0.012, hinge + t, z)
         cyl(None, h_pos, 0.008, 0.045, "handle", cls="visual")
+    for side in (-1, 1):  # kick plates (stainless, the bottom 25 cm) on both faces
+        if axis == "x":
+            skin((hinge + t + side * t, mid, 0.135), ("x", side), w / 2 - 0.02, 0.125, "kick_plate", out=0.0015)
+        else:
+            skin((mid, hinge + t + side * t, 0.135), ("y", side), w / 2 - 0.02, 0.125, "kick_plate", out=0.0015)
+    # an overhead closer on the push side near the hinge, its arm reaching the frame head
+    cside = -into
+    if axis == "x":
+        box(None, (hinge + t + cside * (t + 0.025), start + into * 0.18, 1.98), (0.025, 0.13, 0.03), "closer", cls="visual")
+    else:
+        box(None, (start + into * 0.18, hinge + t + cside * (t + 0.025), 1.98), (0.13, 0.025, 0.03), "closer", cls="visual")
     free = start + into * (w - 0.07)
     for side in (-1, 1):
         face = hinge + t + side * (t + 0.004)
@@ -297,20 +373,68 @@ def _half(axis, along, out, up):
     return (along, out, up) if axis == "x" else (out, along, up)
 
 
-def window(center, axis, facing, width, sill_z, height=1.2):
-    """A window on an outer wall's inner face (visual only; the wall behind stays solid):
-    glass with an outdoor view, a frame with a center mullion, a sill, and soft daylight."""
+# Windows on the outer walls: (centre on the wall's inner face, wall axis, facing into the room,
+# width, sill height, height). Visual only: the wall behind stays solid, like glass to a robot.
+WINDOWS = [((-3.8, H), "x", -1, 1.4, 0.9, 1.2), ((-1.6, H), "x", -1, 1.4, 0.9, 1.2),
+           ((1.6, H), "x", -1, 1.2, 1.0, 1.2), ((3.6, H), "x", -1, 1.2, 1.0, 1.2),
+           ((H, 3.6), "y", -1, 1.2, 0.9, 1.2), ((1.3, -H), "x", +1, 1.4, 0.9, 1.2),
+           ((3.9, -H), "x", +1, 1.0, 0.9, 1.2), ((H, -3.4), "y", -1, 1.2, 0.9, 1.2),
+           ((-H, -4.55), "y", +1, 0.6, 1.2, 1.2), ((H, 0.0), "y", -1, 1.0, 0.9, 1.2)]
+
+
+def _view(center, axis, facing, width, sill, height):
+    """(outward heading in degrees clockwise from north, position along the wall, width, height)."""
+    out = (0.0, -facing) if axis == "x" else (-facing, 0.0)
+    heading = math_deg(out)
+    return heading, center[0] if axis == "x" else center[1], width, height
+
+
+def math_deg(v):
+    import math
+    return math.degrees(math.atan2(v[0], v[1])) % 360.0
+
+
+WINDOW_VIEWS = [_view(*w) for w in WINDOWS]  # the view crops are made for these (tools/fetch_view.py)
+
+
+def window(k, center, axis, facing, width, sill_z, height=1.2):
+    """Window k on an outer wall's inner face (visual only): the glass showing its own crop of
+    the outdoor view (bright: the sky outshines the room), a 7 cm frame standing 5 cm out with a
+    sash and mullion at a second depth, a deep sill with a rounded front edge, a roller blind a
+    quarter down from its head box, and soft daylight into the room."""
     zc = sill_z + height / 2
-    box(None, _on_wall(center, axis, facing, 0, 0.002, zc), _half(axis, width / 2, 0.002, height / 2), "glass", cls="visual")
-    bar = 0.035
-    for zz in (sill_z, sill_z + height):  # top and bottom bars
-        box(None, _on_wall(center, axis, facing, 0, 0.02, zz), _half(axis, width / 2 + bar, 0.02, bar), "window_frame", cls="visual")
-    for a in (-width / 2, 0.0, width / 2):  # sides and mullion
-        box(None, _on_wall(center, axis, facing, a, 0.02, zc), _half(axis, bar if a else bar * 0.6, 0.02, height / 2), "window_frame", cls="visual")
-    box(None, _on_wall(center, axis, facing, 0, 0.05, sill_z - bar - 0.012), _half(axis, width / 2 + 0.06, 0.05, 0.012), "window_frame", cls="visual")
-    lx, ly, lz = _on_wall(center, axis, facing, 0, 0.6, zc)
-    geoms.append(f'    <light pos="{lx:.3f} {ly:.3f} {lz:.3f}" dir="0 0 -1" directional="false" '
-                 'diffuse="0.12 0.13 0.15" specular="0 0 0" attenuation="1 0.3 0.1" castshadow="false"/>')
+    normal = ("y" if axis == "x" else "x", facing)
+    skin(_on_wall(center, axis, facing, 0, 0.0, zc), normal, width / 2, height / 2, f"view_{k}", out=0.004)
+    fw, fd = 0.07, 0.025  # outer frame: width, half depth
+    for zz in (sill_z - fw / 2 + 0.01, sill_z + height + fw / 2 - 0.01):  # head and bottom rail
+        box(None, _on_wall(center, axis, facing, 0, fd, zz), _half(axis, width / 2 + fw, fd, fw / 2), "window_frame", cls="visual")
+    for a in (-1, 1):  # jambs
+        box(None, _on_wall(center, axis, facing, a * (width / 2 + fw / 2), fd, zc), _half(axis, fw / 2, fd, height / 2), "window_frame", cls="visual")
+    sw, sd = 0.035, 0.015  # sash rim and mullion, a step back from the frame
+    box(None, _on_wall(center, axis, facing, 0, 0.004 + sd, zc), _half(axis, sw / 2, sd, height / 2), "window_frame", cls="visual")
+    for zz in (sill_z + sw / 2, sill_z + height - sw / 2):
+        box(None, _on_wall(center, axis, facing, 0, 0.004 + sd, zz), _half(axis, width / 2, sd, sw / 2), "window_frame", cls="visual")
+    for a in (-1, 1):
+        box(None, _on_wall(center, axis, facing, a * (width / 2 - sw / 2), 0.004 + sd, zc), _half(axis, sw / 2, sd, height / 2), "window_frame", cls="visual")
+    # sill: 4 cm thick, 18 cm deep, its front edge rounded
+    zs = sill_z - fw + 0.01
+    box(None, _on_wall(center, axis, facing, 0, 0.08, zs), _half(axis, width / 2 + fw + 0.04, 0.08, 0.02), "sill", cls="visual")
+    fx, fy, fz = _on_wall(center, axis, facing, 0, 0.16, zs)
+    za = "1 0 0" if axis == "x" else "0 1 0"
+    geoms.append(f'    <geom class="visual" type="cylinder" pos="{fx:.4f} {fy:.4f} {fz:.4f}" '
+                 f'size="0.02 {width / 2 + fw + 0.04:.4f}" zaxis="{za}" material="sill"/>')
+    # roller blind: head box above the frame, the fabric a quarter down, a bottom rail
+    top = sill_z + height + fw - 0.01
+    box(None, _on_wall(center, axis, facing, 0, 0.05, top + 0.045), _half(axis, width / 2 + fw, 0.05, 0.045), "window_frame", cls="visual")
+    drop = 0.28 * height
+    skin(_on_wall(center, axis, facing, 0, 0.06, top - drop / 2), normal, width / 2 + fw * 0.6, drop / 2, "blind", out=0.0)
+    box(None, _on_wall(center, axis, facing, 0, 0.06, top - drop - 0.01), _half(axis, width / 2 + fw * 0.6, 0.008, 0.012), "blind_rail", cls="visual")
+    # daylight: a cool spotlight just inside the glass, aimed into the room and down
+    lx, ly, lz = _on_wall(center, axis, facing, 0, 0.1, zc + 0.3)
+    dx, dy = (0.0, float(facing)) if axis == "x" else (float(facing), 0.0)
+    geoms.append(f'    <light pos="{lx:.3f} {ly:.3f} {lz:.3f}" dir="{dx:.2f} {dy:.2f} -0.7" directional="false" '
+                 'cutoff="70" exponent="2" diffuse="0.15 0.17 0.21" specular="0 0 0" attenuation="1 0.2 0.05" '
+                 'castshadow="false"/>')
 
 
 def wall_picture(center, axis, facing, half_size, z, material, frame="window_frame"):
@@ -330,7 +454,7 @@ def floor_lamp(name, xy):
 
 def build_floor():
     comment("Base floor (physics). Room floors on top are visual only.")
-    geoms.append('    <geom name="floor" type="plane" size="5.6 5.6 0.1" material="wood_floor"/>')
+    geoms.append('    <geom name="floor" type="plane" size="5.6 5.6 0.1" material="tile"/>')
     zones = [("office", (-H, -T / 2, CORRIDOR + T, H), "carpet"),
              ("lab", (T / 2, H, CORRIDOR + T, H), "tile"),
              ("storage", (-H, -T / 2, -H, -CORRIDOR - T), "tile_dark"),
@@ -446,23 +570,55 @@ def build_floor():
     geoms.append("    <!-- /OBSTACLES -->")
 
     comment("Windows on the outer walls (visual: the wall behind stays solid, like glass to a robot)")
-    for x in (-3.8, -1.6):
-        window((x, H), "x", -1, 1.4, 0.9)
-    for x in (1.6, 3.6):
-        window((x, H), "x", -1, 1.2, 1.0)
-    window((H, 3.6), "y", -1, 1.2, 0.9)
-    window((1.3, -H), "x", +1, 1.4, 0.9)
-    window((3.9, -H), "x", +1, 1.0, 0.9)
-    window((H, -3.4), "y", -1, 1.2, 0.9)
-    window((-H, -4.55), "y", +1, 0.6, 1.2)
-    window((H, 0.0), "y", -1, 1.0, 0.9)
+    for k, w in enumerate(WINDOWS):
+        window(k, *w)
     comment("Fire extinguisher on the corridor's west end wall (visual, mounted above robot height)")
     cyl(None, (-H + 0.055, 0.45, 0.55), 0.055, 0.17, "extinguisher", cls="visual")
 
-    comment("Ceiling and light panels: group 3, robot camera only (hidden in overview views)")
+    comment("Ceiling and light fittings: group 3, robot camera only (hidden in overview views)")
     box("ceiling", (0, 0, WH + 0.025), (H + T, H + T, 0.025), "ceiling", cls="ceiling")
-    for x, y in ((-2.5, 2.9), (2.5, 2.9), (-2.5, -2.9), (2.5, -2.9), (-2.5, 0.0), (2.5, 0.0)):
-        box(None, (x, y, WH - 0.004), (0.6, 0.3, 0.004), "light_panel", cls="ceiling")
+    for x, y, _, _ in FITTINGS:
+        light_fitting(x, y)
+    room_lights()
+
+
+# Ceiling light fittings (x, y, light name, room tint): two per room, four along the corridor;
+# each has a spotlight just below it. The first of each room keeps the room's light name.
+FITTINGS = [(-3.75, 2.9, "light_office", "1 0.97 0.92"), (-1.25, 2.9, "light_office_2", "1 0.97 0.92"),
+            (1.25, 2.9, "light_lab", "0.98 0.99 1"), (3.75, 2.9, "light_lab_2", "0.98 0.99 1"),
+            (-3.75, -2.9, "light_storage", "0.98 0.98 0.98"), (-1.25, -2.9, "light_storage_2", "0.98 0.98 0.98"),
+            (1.25, -2.9, "light_reception", "1 0.96 0.9"), (3.75, -2.9, "light_reception_2", "1 0.96 0.9"),
+            (-3.75, 0.0, "light_corridor_w", "1 0.98 0.95"), (-1.25, 0.0, "light_corridor_w2", "1 0.98 0.95"),
+            (1.25, 0.0, "light_corridor_e2", "1 0.98 0.95"), (3.75, 0.0, "light_corridor_e", "1 0.98 0.95")]
+FIT_HALF = (0.3, 0.3)  # a 600 x 600 mm surface-mounted panel (corridor: rotated, same size)
+
+
+def light_fitting(x, y):
+    """A surface-mounted LED panel: a 2 cm deep white frame around a diffuser recessed 1 cm."""
+    hx, hy = FIT_HALF
+    rim, depth = 0.02, 0.02
+    for sx in (-1, 1):
+        box(None, (x + sx * (hx - rim / 2), y, WH - depth / 2), (rim / 2, hy, depth / 2), "fitting_frame", cls="ceiling")
+    for sy in (-1, 1):
+        box(None, (x, y + sy * (hy - rim / 2), WH - depth / 2), (hx - rim, rim / 2, depth / 2), "fitting_frame", cls="ceiling")
+    box(None, (x, y, WH - 0.005), (hx - rim, hy - rim, 0.005), "light_panel", cls="ceiling")
+
+
+def room_lights():
+    """A spotlight under every fitting (soft, wide, casting shadows) with a little ambient light
+    each; the headlight is kept low so the rooms are lit by their fittings and windows."""
+    # light bounced off the floor, walls, and ceiling (the renderer has none): two soft fills
+    # from different directions, so walls facing different ways differ, as in a real room
+    geoms.append('    <light name="fill_1" directional="true" dir="0.45 0.3 -0.84" diffuse="0.2 0.2 0.19" '
+                 'specular="0 0 0" castshadow="false"/>')
+    geoms.append('    <light name="fill_2" directional="true" dir="-0.3 -0.45 -0.84" diffuse="0.14 0.14 0.14" '
+                 'specular="0 0 0" castshadow="false"/>')
+    for x, y, name, tint in FITTINGS:
+        r, g, b = (float(v) for v in tint.split())
+        k = 0.36 if not name.startswith("light_corridor") else 0.28
+        geoms.append(f'    <light name="{name}" pos="{x} {y} {WH - 0.06:.2f}" dir="0 0 -1" directional="false" '
+                     f'cutoff="85" exponent="1" diffuse="{k * r:.3f} {k * g:.3f} {k * b:.3f}" '
+                     f'ambient="0.06 0.06 0.06" specular="0.08 0.08 0.08" attenuation="1 0.05 0.02" castshadow="true"/>')
 
 
 def _wheel_visuals(side: int) -> str:
@@ -607,10 +763,10 @@ HEADER = """<!--
   <visual>
     <global offwidth="2560" offheight="1440"/>
     <quality shadowsize="4096" offsamples="4"/>
-    <headlight ambient="0.3 0.3 0.3" diffuse="0.18 0.18 0.18" specular="0.03 0.03 0.03"/>
+    <headlight ambient="0.62 0.62 0.62" diffuse="0.03 0.03 0.03" specular="0 0 0"/>
     <!-- Clip planes are fractions of the model extent; znear keeps cameras from seeing
          through walls they are close to. -->
-    <map znear="0.0005" zfar="3"/>
+    <map znear="0.0005" zfar="3" shadowclip="1" shadowscale="0.6"/>
   </visual>
 
   <asset>
@@ -621,6 +777,14 @@ HEADER = """<!--
     <texture name="carpet" type="2d" file="carpet.png"/>
     <texture name="plaster" type="2d" file="plaster.png"/>
     <texture name="door_wood" type="2d" file="door_wood.png"/>
+    <!-- CC0 photo textures (tools/fetch_textures.py; sources and licences in assets/textures/*.json) -->
+    <texture name="tx_plaster" type="2d" file="painted_plaster_wall.png"/>
+    <texture name="tx_laminate" type="2d" file="laminate_floor_02.png"/>
+    <texture name="tx_veneer" type="2d" file="white_oak_veneer.png"/>
+    <texture name="tx_ceiling" type="2d" file="OfficeCeiling001.png"/>
+    <texture name="tx_carpet" type="2d" file="Carpet012.png"/>
+    <texture name="tx_porcelain" type="2d" file="Tiles040.png"/>
+    <texture name="tx_concrete" type="2d" file="Concrete031.png"/>
     <texture name="sign_office" type="2d" file="label_office.png"/>
     <texture name="sign_lab" type="2d" file="label_lab.png"/>
     <texture name="sign_storage" type="2d" file="label_storage.png"/>
@@ -632,16 +796,22 @@ HEADER = """<!--
     <texture name="painting_2" type="2d" file="painting_2.png"/>
     <texture name="whiteboard" type="2d" file="whiteboard.png"/>
     <texture name="tv_screen" type="2d" file="tv_screen.png"/>
-    <material name="wood_floor" texture="wood_floor" texrepeat="1.67 1.67" texuniform="true" reflectance="0.06"/>
-    <material name="tile" texture="tile" texrepeat="0.8 0.8" texuniform="true" reflectance="0.04"/>
-    <material name="tile_dark" texture="tile_dark" texrepeat="0.8 0.8" texuniform="true"/>
-    <material name="carpet" texture="carpet" texrepeat="2 2" texuniform="true"/>
-    <material name="plaster" texture="plaster" texrepeat="1 1" texuniform="true" specular="0.1"/>
-    <material name="ceiling" rgba="0.93 0.93 0.92 1"/>
-    <material name="light_panel" rgba="1 1 0.97 1" emission="1"/>
-    <material name="skirting" rgba="0.78 0.78 0.76 1" specular="0.2"/>
+    <!-- floors and walls at their real-world scales (texrepeat: repeats per metre) -->
+    <material name="wood_floor" texture="tx_laminate" texrepeat="0.588 0.588" texuniform="true" specular="0.3" shininess="0.3" reflectance="0.08"/>
+    <material name="tile" texture="tx_porcelain" texrepeat="0.25 0.25" texuniform="true" specular="0.5" shininess="0.4" reflectance="0.14"/>
+    <material name="tile_dark" texture="tx_concrete" texrepeat="0.25 0.25" texuniform="true" specular="0.2" shininess="0.2" reflectance="0.05"/>
+    <material name="carpet" texture="tx_carpet" texrepeat="1 1" texuniform="true" specular="0" shininess="0"/>
+    <material name="plaster" texture="tx_plaster" texrepeat="0.5 0.5" texuniform="true" rgba="0.97 0.95 0.91 1" specular="0.1" shininess="0.1"/>
+    <material name="ceiling" texture="tx_ceiling" texrepeat="0.278 0.278" texuniform="true" rgba="0.97 0.96 0.94 1" emission="0.25"/>
+    <material name="light_panel" rgba="1 0.98 0.92 1" emission="0.36"/>
+    <material name="fitting_frame" rgba="0.95 0.95 0.94 1" emission="0.35" specular="0.3"/>
+    <material name="skirting" rgba="0.93 0.93 0.91 1" specular="0.5" shininess="0.5"/>
+    <material name="shadow_line" rgba="0.32 0.31 0.3 1" specular="0"/>
+    <material name="threshold" rgba="0.72 0.73 0.74 1" specular="0.8" shininess="0.7"/>
+    <material name="kick_plate" rgba="0.74 0.75 0.77 1" specular="0.9" shininess="0.8" reflectance="0.05"/>
+    <material name="closer" rgba="0.62 0.63 0.65 1" specular="0.6" shininess="0.6"/>
     <material name="frame" rgba="0.94 0.94 0.93 1" specular="0.3"/>
-    <material name="door" texture="door_wood" texrepeat="1 1" texuniform="true" specular="0.2"/>
+    <material name="door" texture="tx_veneer" texrepeat="1 1" texuniform="false" specular="0.25" shininess="0.3"/>
     <material name="desk_wood" texture="door_wood" texrepeat="1 1" texuniform="true" specular="0.25"/>
     <material name="desk_body" rgba="0.55 0.56 0.58 1" specular="0.2"/>
     <material name="metal" rgba="0.62 0.64 0.67 1" specular="0.5" shininess="0.6"/>
@@ -671,8 +841,31 @@ HEADER = """<!--
     <material name="bin_grey" rgba="0.5 0.52 0.55 1"/>
     <material name="seam" rgba="0.35 0.36 0.38 1"/>
     <material name="handle" rgba="0.7 0.71 0.73 1" specular="0.7"/>
-    <material name="glass" texture="outdoor_view" emission="0.55" specular="0.6" shininess="0.9"/>
+    <material name="glass" texture="outdoor_view" emission="0.95" specular="0.6" shininess="0.9"/>
     <material name="window_frame" rgba="0.95 0.95 0.94 1" specular="0.3"/>
+    <material name="sill" rgba="0.95 0.95 0.94 1" specular="0.4" shininess="0.4"/>
+    <material name="blind" rgba="0.9 0.88 0.82 1" emission="0.35" specular="0"/>
+    <material name="blind_rail" rgba="0.82 0.82 0.8 1" specular="0.5"/>
+    <texture name="view_0" type="2d" file="view_0.png"/>
+    <material name="view_0" texture="view_0" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <texture name="view_1" type="2d" file="view_1.png"/>
+    <material name="view_1" texture="view_1" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <texture name="view_2" type="2d" file="view_2.png"/>
+    <material name="view_2" texture="view_2" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <texture name="view_3" type="2d" file="view_3.png"/>
+    <material name="view_3" texture="view_3" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <texture name="view_4" type="2d" file="view_4.png"/>
+    <material name="view_4" texture="view_4" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <texture name="view_5" type="2d" file="view_5.png"/>
+    <material name="view_5" texture="view_5" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <texture name="view_6" type="2d" file="view_6.png"/>
+    <material name="view_6" texture="view_6" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <texture name="view_7" type="2d" file="view_7.png"/>
+    <material name="view_7" texture="view_7" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <texture name="view_8" type="2d" file="view_8.png"/>
+    <material name="view_8" texture="view_8" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <texture name="view_9" type="2d" file="view_9.png"/>
+    <material name="view_9" texture="view_9" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
     <material name="rug_red" texture="rug_red"/>
     <material name="rug_blue" texture="rug_blue"/>
     <material name="painting_1" texture="painting_1" emission="0.1"/>
@@ -714,16 +907,6 @@ HEADER = """<!--
   </default>
 
   <worldbody>
-    <!-- Interior lights (no shadows from above: the ceiling would block them) -->
-    <!-- Room lights: spotlights just below the ceiling (2.35 m) that cast shadows, so
-         contact with the floor reads correctly. The ceiling is above them, so it cannot
-         block them. -->
-    <light name="light_office" pos="-2.5 2.9 2.3" dir="0 0 -1" directional="false" cutoff="65" exponent="1" diffuse="0.5 0.49 0.46" specular="0.1 0.1 0.1" attenuation="1 0.02 0.01" castshadow="true"/>
-    <light name="light_lab" pos="2.5 2.9 2.3" dir="0 0 -1" directional="false" cutoff="65" exponent="1" diffuse="0.5 0.5 0.5" specular="0.1 0.1 0.1" attenuation="1 0.02 0.01" castshadow="true"/>
-    <light name="light_storage" pos="-2.5 -2.9 2.3" dir="0 0 -1" directional="false" cutoff="65" exponent="1" diffuse="0.46 0.46 0.46" specular="0.1 0.1 0.1" attenuation="1 0.02 0.01" castshadow="true"/>
-    <light name="light_reception" pos="2.5 -2.9 2.3" dir="0 0 -1" directional="false" cutoff="65" exponent="1" diffuse="0.5 0.48 0.44" specular="0.1 0.1 0.1" attenuation="1 0.02 0.01" castshadow="true"/>
-    <light name="light_corridor_w" pos="-2.5 0 2.3" dir="0 0 -1" directional="false" cutoff="65" exponent="1" diffuse="0.32 0.32 0.32" attenuation="1 0.02 0.01" castshadow="true"/>
-    <light name="light_corridor_e" pos="2.5 0 2.3" dir="0 0 -1" directional="false" cutoff="65" exponent="1" diffuse="0.32 0.32 0.32" attenuation="1 0.02 0.01" castshadow="true"/>
 """
 
 FOOTER = """

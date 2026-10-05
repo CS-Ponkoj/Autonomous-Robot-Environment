@@ -1,4 +1,4 @@
-"""Download CC0 surface textures from Poly Haven and prepare them for MuJoCo's classic renderer.
+"""Download CC0 surface textures (Poly Haven, ambientCG) and prepare them for MuJoCo's classic renderer.
 Development tool: the prepared files are committed under robot_env/assets/textures/.
 
     .venv\\Scripts\\python tools\\fetch_textures.py            (every texture in TEXTURES)
@@ -34,8 +34,20 @@ AO_STRENGTH = 0.9  # 0: no occlusion, 1: the full map
 RELIEF = 0.35  # how strongly the normal map's shading is baked in (0: none)
 LIGHT = np.array([0.0, 0.35, 1.0]) / np.linalg.norm([0.0, 0.35, 1.0])  # from above, a little in front
 
-# texture id -> output size in pixels (square). Only textures used in the world.
-TEXTURES: dict[str, int] = {}
+# texture id -> how to prepare it. Only textures used in the world. source: "polyhaven" or
+# "ambientcg"; size: output pixels (square); repeat_m: metres of floor or wall one repeat covers
+# (from the source where it gives one, else measured off the image's own pattern); neutral:
+# (mean, contrast) to turn the colour to grey of that mean, its variation scaled by contrast
+# (the material's colour then tints it), or None to keep the source colour.
+TEXTURES: dict[str, dict] = {
+    "painted_plaster_wall": dict(source="polyhaven", size=1024, neutral=(0.95, 0.45)),
+    "laminate_floor_02": dict(source="polyhaven", size=1024, neutral=None),
+    "white_oak_veneer": dict(source="polyhaven", size=1024, neutral=None),
+    "OfficeCeiling001": dict(source="ambientcg", size=1024, repeat_m=1.2, neutral=None),
+    "Carpet012": dict(source="ambientcg", size=1024, repeat_m=1.0, neutral=None, gain=1.55),
+    "Tiles040": dict(source="ambientcg", size=1024, repeat_m=1.2, neutral=None),
+    "Concrete031": dict(source="ambientcg", size=1024, repeat_m=2.5, neutral=None),
+}
 
 
 def cache_dir() -> Path:
@@ -52,6 +64,27 @@ def _get(url: str) -> bytes:
 
 def _json(url: str) -> dict:
     return json.loads(_get(url))
+
+
+def download_ambientcg(tex_id: str) -> tuple[dict, dict]:
+    """The colour, ambient occlusion, and OpenGL normal maps from ambientCG's 1K JPG zip, cached
+    (the zip's SHA-256 is recorded; ambientCG publishes no checksum)."""
+    import zipfile
+    url = f"https://ambientcg.com/get?file={tex_id}_1K-JPG.zip"
+    target = cache_dir() / tex_id / f"{tex_id}_1K-JPG.zip"
+    if not target.exists():
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(_get(url))
+    zsha = hashlib.sha256(target.read_bytes()).hexdigest()
+    out = {}
+    with zipfile.ZipFile(target) as z:
+        for key, suffix in (("Diffuse", "_Color.jpg"), ("AO", "_AmbientOcclusion.jpg"), ("nor_gl", "_NormalGL.jpg")):
+            names = [n for n in z.namelist() if n.endswith(suffix)]
+            if names:
+                path = target.parent / names[0]
+                path.write_bytes(z.read(names[0]))
+                out[key] = (path, hashlib.sha256(path.read_bytes()).hexdigest(), f"{url}#{names[0]}")
+    return out, {"authors": {"ambientCG": 1}, "zip_sha256": zsha}
 
 
 def download(tex_id: str, res: str = "2k") -> dict:
@@ -75,10 +108,16 @@ def download(tex_id: str, res: str = "2k") -> dict:
     return out, info
 
 
-def prepare(maps: dict, size: int) -> Image.Image:
-    """Diffuse x occlusion x normal-map shading, resized (LANCZOS) to size x size, sRGB."""
+def prepare(maps: dict, size: int, neutral=None, gain: float = 1.0) -> Image.Image:
+    """Diffuse x occlusion x normal-map shading, resized (LANCZOS) to size x size, sRGB; with
+    `neutral` (mean, contrast) turned grey first (see TEXTURES)."""
     diff = np.asarray(Image.open(maps["Diffuse"][0]).convert("RGB"), dtype=np.float64) / 255.0
-    lin = diff ** 2.2  # work in linear light
+    if neutral is not None:
+        mean, contrast = neutral
+        g = diff @ np.array([0.2126, 0.7152, 0.0722])
+        g = mean + (g - g.mean()) * contrast
+        diff = np.repeat(np.clip(g, 0.0, 1.0)[..., None], 3, axis=2)
+    lin = diff ** 2.2 * gain  # work in linear light (gain: brighter than the source)
     if "AO" in maps:
         ao = np.asarray(Image.open(maps["AO"][0]).convert("L"), dtype=np.float64) / 255.0
         lin *= (1.0 - AO_STRENGTH) + AO_STRENGTH * ao[..., None]
@@ -103,13 +142,20 @@ def build(out: Path, wanted: list[str]) -> list[dict]:
     tool = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     records = []
     for tex_id in wanted:
-        maps, info = download(tex_id)
-        data = _png(prepare(maps, TEXTURES[tex_id]))
+        spec = TEXTURES[tex_id]
+        if spec["source"] == "ambientcg":
+            maps, info = download_ambientcg(tex_id)
+            repeat = [spec["repeat_m"]] * 2
+            page = f"https://ambientcg.com/view?id={tex_id}"
+        else:
+            maps, info = download(tex_id)
+            dims = info.get("dimensions") or [None, None]
+            repeat = [d / 1000.0 if d else None for d in dims[:2]]
+            page = f"https://polyhaven.com/a/{tex_id}"
+        data = _png(prepare(maps, spec["size"], spec.get("neutral"), spec.get("gain", 1.0)))
         (out / f"{tex_id}.png").write_bytes(data)
-        dims = info.get("dimensions") or [None, None]
-        rec = {"id": tex_id, "file": f"{tex_id}.png", "size_px": TEXTURES[tex_id],
-               "repeat_m": [d / 1000.0 if d else None for d in dims[:2]],
-               "licence": "CC0 1.0", "source": f"https://polyhaven.com/a/{tex_id}",
+        rec = {"id": tex_id, "file": f"{tex_id}.png", "size_px": spec["size"], "repeat_m": repeat,
+               "neutral": spec.get("neutral"), "licence": "CC0 1.0", "source": page,
                "authors": sorted((info.get("authors") or {}).keys()),
                "inputs": {k: {"url": u, "sha256": h} for k, (_, h, u) in maps.items()},
                "ao_strength": AO_STRENGTH, "relief": RELIEF, "tool_sha256": tool,

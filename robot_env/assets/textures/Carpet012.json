@@ -1,0 +1,34 @@
+{
+ "id": "Carpet012",
+ "file": "Carpet012.png",
+ "size_px": 1024,
+ "repeat_m": [
+  1.0,
+  1.0
+ ],
+ "neutral": null,
+ "licence": "CC0 1.0",
+ "source": "https://ambientcg.com/view?id=Carpet012",
+ "authors": [
+  "ambientCG"
+ ],
+ "inputs": {
+  "Diffuse": {
+   "url": "https://ambientcg.com/get?file=Carpet012_1K-JPG.zip#Carpet012_1K-JPG_Color.jpg",
+   "sha256": "3c4af04d67ad6803be57c82ba4ee2939c24b437dae903061ec3dd1082d0563c5"
+  },
+  "AO": {
+   "url": "https://ambientcg.com/get?file=Carpet012_1K-JPG.zip#Carpet012_1K-JPG_AmbientOcclusion.jpg",
+   "sha256": "dd4e4387c0cf4b8fe3c24a62bbaf4b49ce31ddfdab47044b05b7e51f96bbbb3c"
+  },
+  "nor_gl": {
+   "url": "https://ambientcg.com/get?file=Carpet012_1K-JPG.zip#Carpet012_1K-JPG_NormalGL.jpg",
+   "sha256": "a4be6281a932a071ec0388d024119cacefdb64c9f1dae898b5e4331652e4b9d8"
+  }
+ },
+ "ao_strength": 0.9,
+ "relief": 0.35,
+ "tool_sha256": "d538713fd7dc1e40883528799a8676d790c777afc7cf14993710c54fd9b8b9c1",
+ "sha256": "9f5c74b6b97cea4f2052b5d929b5a4c60192c9049bbd766c097a6a3853454e69",
+ "bytes": 2650660
+}
