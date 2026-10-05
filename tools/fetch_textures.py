@@ -195,6 +195,49 @@ def build(out: Path, wanted: list[str]) -> list[dict]:
     return records
 
 
+# Rugs: the existing designs (robot_env/assets/rug_*.png, tools/make_textures.py) woven into a CC0
+# fibre texture: name -> (design file, rug size in m, fibre texture, metres per fibre repeat).
+RUGS = {"rug_red_woven": ("rug_red.png", (1.7, 1.2), "Carpet014", 0.4),
+        "rug_blue_woven": ("rug_blue.png", (1.9, 1.3), "Carpet014", 0.4)}
+RUG_FIBRE = 0.45  # how strongly the fibre's light and dark show (0: a flat print)
+RUG_BINDING = 0.03  # m: the bound edge, a little darker
+
+
+def make_rugs(out: Path) -> list[dict]:
+    """Each rug's design multiplied by its fibre texture (normalized to mean 1, variation scaled by
+    RUG_FIBRE, repeated at its real scale over the rug) with a darker bound edge; one image
+    mapped once over the rug's top."""
+    records = []
+    for name, (design_file, (w, h), fibre_id, fibre_m) in RUGS.items():
+        maps, info = download_ambientcg(fibre_id)
+        fibre = np.asarray(Image.open(maps["Diffuse"][0]).convert("L"), dtype=np.float64) / 255.0
+        fibre = 1.0 + (fibre / fibre.mean() - 1.0) * RUG_FIBRE
+        px_w = 1024
+        px_h = int(round(px_w * h / w))
+        design = np.asarray(Image.open(ROOT / "robot_env" / "assets" / design_file).convert("RGB").resize((px_w, px_h), Image.LANCZOS),
+                            dtype=np.float64) / 255.0
+        reps = (max(1, int(round(w / fibre_m))), max(1, int(round(h / fibre_m))))
+        tile = Image.fromarray((np.clip(fibre, 0, 2) * 127.5).astype(np.uint8)).resize(
+            (max(1, px_w // reps[0]), max(1, px_h // reps[1])), Image.LANCZOS)
+        tiled = np.tile(np.asarray(tile, dtype=np.float64) / 127.5, (reps[1] + 1, reps[0] + 1))[:px_h, :px_w]
+        rug = design * tiled[..., None]
+        edge = int(round(px_w * RUG_BINDING / w))
+        rug[:edge] *= 0.78
+        rug[-edge:] *= 0.78
+        rug[:, :edge] *= 0.78
+        rug[:, -edge:] *= 0.78
+        data = _png(Image.fromarray((np.clip(rug, 0, 1) * 255 + 0.5).astype(np.uint8), "RGB"))
+        (out / f"{name}.png").write_bytes(data)
+        rec = {"id": name, "file": f"{name}.png", "design": design_file, "fibre": fibre_id,
+               "fibre_source": f"https://ambientcg.com/view?id={fibre_id}", "licence": "CC0 1.0 (fibre); design: this project",
+               "fibre_inputs": {k: {"url": u, "sha256": hsh} for k, (_, hsh, u) in maps.items()},
+               "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
+        (out / f"{name}.json").write_text(json.dumps(rec, indent=1) + "\n", encoding="utf-8")
+        records.append(rec)
+        print(name, len(data) // 1024, "KiB")
+    return records
+
+
 def main(argv: list[str]) -> int:
     if "--check" in argv:
         import tempfile
@@ -203,7 +246,10 @@ def main(argv: list[str]) -> int:
             same = all((Path(tmp) / p.name).read_bytes() == p.read_bytes() for p in OUT.glob("*.png"))
         print("byte-identical" if same else "DIFFERENT")
         return 0 if same else 1
-    build(OUT, [a for a in argv if not a.startswith("--")] or list(TEXTURES))
+    wanted = [a for a in argv if not a.startswith("--")]
+    build(OUT, [a for a in wanted if a in TEXTURES] or ([] if wanted else list(TEXTURES)))
+    if not wanted or any(a in RUGS for a in wanted):
+        make_rugs(OUT)
     return 0
 
 

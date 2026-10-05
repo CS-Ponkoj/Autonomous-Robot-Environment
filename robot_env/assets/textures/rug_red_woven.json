@@ -1,0 +1,20 @@
+{
+ "id": "rug_red_woven",
+ "file": "rug_red_woven.png",
+ "design": "rug_red.png",
+ "fibre": "Carpet014",
+ "fibre_source": "https://ambientcg.com/view?id=Carpet014",
+ "licence": "CC0 1.0 (fibre); design: this project",
+ "fibre_inputs": {
+  "Diffuse": {
+   "url": "https://ambientcg.com/get?file=Carpet014_1K-JPG.zip#Carpet014_1K-JPG_Color.jpg",
+   "sha256": "1c755cf63c1b21f73e722fac05bd1bfc8644650730723d0d39e6626e59b2d6e2"
+  },
+  "nor_gl": {
+   "url": "https://ambientcg.com/get?file=Carpet014_1K-JPG.zip#Carpet014_1K-JPG_NormalGL.jpg",
+   "sha256": "cda4e152936b8ecb5665dfbb5456996c7d0aeef1a8c905efff90618019d72926"
+  }
+ },
+ "sha256": "28b624802c57d14f7a1fb1952aaffdbfd46cc10f521e66121ef31eb9506cd363",
+ "bytes": 806852
+}

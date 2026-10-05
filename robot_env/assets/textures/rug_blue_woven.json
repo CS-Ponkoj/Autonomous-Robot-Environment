@@ -1,0 +1,20 @@
+{
+ "id": "rug_blue_woven",
+ "file": "rug_blue_woven.png",
+ "design": "rug_blue.png",
+ "fibre": "Carpet014",
+ "fibre_source": "https://ambientcg.com/view?id=Carpet014",
+ "licence": "CC0 1.0 (fibre); design: this project",
+ "fibre_inputs": {
+  "Diffuse": {
+   "url": "https://ambientcg.com/get?file=Carpet014_1K-JPG.zip#Carpet014_1K-JPG_Color.jpg",
+   "sha256": "1c755cf63c1b21f73e722fac05bd1bfc8644650730723d0d39e6626e59b2d6e2"
+  },
+  "nor_gl": {
+   "url": "https://ambientcg.com/get?file=Carpet014_1K-JPG.zip#Carpet014_1K-JPG_NormalGL.jpg",
+   "sha256": "cda4e152936b8ecb5665dfbb5456996c7d0aeef1a8c905efff90618019d72926"
+  }
+ },
+ "sha256": "4263a3d9af421f1ed9fa97248cc5d8f90aa63160a4f08e17e3c714e8e8a62d0a",
+ "bytes": 778812
+}

@@ -576,8 +576,10 @@ def build_floor():
     for i, (dx, dy) in enumerate(((-0.2, -0.17), (0.2, -0.17), (-0.2, 0.17), (0.2, 0.17))):
         box(None, (-0.5 + dx, -1.6 + dy, 0.44), (0.19, 0.16, 0.002), "seam", cls="visual")
     comment("Decor on the furnished floor (visual only): rugs, wall art, whiteboard, TV")
-    box(None, (1.3, -3.55, 0.0025), (0.85, 0.6, 0.0015), "rug_red", cls="visual")
-    box(None, (-3.8, 3.95, 0.0025), (0.95, 0.65, 0.0015), "rug_blue", cls="visual")
+    # rugs: a 5 mm pile (its bound edge darker) with the woven design on top
+    for (cx, cy), (hx, hy), name in (((1.3, -3.55), (0.85, 0.6), "rug_red"), ((-3.8, 3.95), (0.95, 0.65), "rug_blue")):
+        box(None, (cx, cy, 0.0026), (hx, hy, 0.0024), f"{name}_edge", cls="visual")
+        box(None, (cx, cy, 0.00515), (hx - 0.004, hy - 0.004, 0.00015), name, cls="visual")
     wall_picture((-0.5, -CORRIDOR), "x", +1, (0.4, 0.27), 1.5, "painting_1")
     wall_picture((0.9, CORRIDOR), "x", -1, (0.4, 0.27), 1.5, "painting_2")
     wall_picture((T / 2, -2.6), "y", +1, (0.35, 0.24), 1.5, "painting_2")
@@ -884,8 +886,12 @@ HEADER = """<!--
     <material name="view_8" texture="view_8" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
     <texture name="view_9" type="2d" file="view_9.png"/>
     <material name="view_9" texture="view_9" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
-    <material name="rug_red" texture="rug_red"/>
-    <material name="rug_blue" texture="rug_blue"/>
+    <texture name="tx_rug_red" type="2d" file="rug_red_woven.png"/>
+    <texture name="tx_rug_blue" type="2d" file="rug_blue_woven.png"/>
+    <material name="rug_red" texture="tx_rug_red" specular="0" shininess="0"/>
+    <material name="rug_blue" texture="tx_rug_blue" specular="0" shininess="0"/>
+    <material name="rug_red_edge" rgba="0.32 0.08 0.07 1" specular="0"/>
+    <material name="rug_blue_edge" rgba="0.08 0.12 0.24 1" specular="0"/>
     <material name="painting_1" texture="painting_1" emission="0.1"/>
     <material name="painting_2" texture="painting_2" emission="0.1"/>
     <material name="whiteboard" texture="whiteboard" emission="0.15" specular="0.5"/>

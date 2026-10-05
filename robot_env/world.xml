@@ -124,8 +124,12 @@
     <material name="view_8" texture="view_8" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
     <texture name="view_9" type="2d" file="view_9.png"/>
     <material name="view_9" texture="view_9" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
-    <material name="rug_red" texture="rug_red"/>
-    <material name="rug_blue" texture="rug_blue"/>
+    <texture name="tx_rug_red" type="2d" file="rug_red_woven.png"/>
+    <texture name="tx_rug_blue" type="2d" file="rug_blue_woven.png"/>
+    <material name="rug_red" texture="tx_rug_red" specular="0" shininess="0"/>
+    <material name="rug_blue" texture="tx_rug_blue" specular="0" shininess="0"/>
+    <material name="rug_red_edge" rgba="0.32 0.08 0.07 1" specular="0"/>
+    <material name="rug_blue_edge" rgba="0.08 0.12 0.24 1" specular="0"/>
     <material name="painting_1" texture="painting_1" emission="0.1"/>
     <material name="painting_2" texture="painting_2" emission="0.1"/>
     <material name="whiteboard" texture="whiteboard" emission="0.15" specular="0.5"/>
@@ -1034,8 +1038,10 @@
     <geom type="box" pos="-0.3000 -1.4300 0.4400" size="0.1900 0.1600 0.0020" material="seam" class="visual"/>
 
     <!-- Decor on the furnished floor (visual only): rugs, wall art, whiteboard, TV -->
-    <geom type="box" pos="1.3000 -3.5500 0.0025" size="0.8500 0.6000 0.0015" material="rug_red" class="visual"/>
-    <geom type="box" pos="-3.8000 3.9500 0.0025" size="0.9500 0.6500 0.0015" material="rug_blue" class="visual"/>
+    <geom type="box" pos="1.3000 -3.5500 0.0026" size="0.8500 0.6000 0.0024" material="rug_red_edge" class="visual"/>
+    <geom type="box" pos="1.3000 -3.5500 0.0052" size="0.8460 0.5960 0.0001" material="rug_red" class="visual"/>
+    <geom type="box" pos="-3.8000 3.9500 0.0026" size="0.9500 0.6500 0.0024" material="rug_blue_edge" class="visual"/>
+    <geom type="box" pos="-3.8000 3.9500 0.0052" size="0.9460 0.6460 0.0001" material="rug_blue" class="visual"/>
     <geom type="box" pos="-0.5000 -0.6880 1.5000" size="0.4300 0.0120 0.3000" material="window_frame" class="visual"/>
     <geom type="box" pos="-0.5000 -0.6740 1.5000" size="0.4000 0.0020 0.2700" material="painting_1" class="visual"/>
     <geom type="box" pos="0.9000 0.6880 1.5000" size="0.4300 0.0120 0.3000" material="window_frame" class="visual"/>
