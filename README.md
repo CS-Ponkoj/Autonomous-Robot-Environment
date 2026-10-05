@@ -9,26 +9,27 @@ automatic driver will use later.
 
 ![The robot drives itself to a goal past wandering cats](docs/demo.gif)
 
-*The baseline driver takes the robot from the office to the lab while three cats wander,
+*The baseline driver takes the robot from the office to the lab while four cats wander,
 sit, and walk around it: chase view, then the robot's own camera, then the top view at the
 goal. Full-quality video: [docs/demo.mp4](docs/demo.mp4). Recorded with
-`.venv\Scripts\python tools\make_media.py` (goal seed 1000, speed level 2, 3 cats, cat seed 16).
-The window starts with three cats; `--cats 0` turns them off.*
+`.venv\Scripts\python tools\make_media.py` (goal seed 1000, speed level 2, 4 cats, cat seed 16;
+every image here comes from that tool). The window starts with four cats; the **Options** button
+on the panels changes the number (0 to 4), and `--cats N` sets it at start.*
 
 | | |
 |---|---|
-| ![Three cats seen by the robot's camera](docs/cats_robot_camera.png) | ![A cat near the goal, from the robot's camera while it drives itself](docs/robot_camera_cat.png) |
-| Three cats (orange tabby, black sitting, grey) in the robot's camera view; the lidar map shows the cats it can detect as gaps in the scan. | The robot's camera while it drives itself: the goal marker and a cat beside it. |
-| ![A cat gives way in the lab doorway](docs/doorway.gif) | ![Three cats roaming the floor, top view time-lapse](docs/cats_roaming.gif) |
-| A cat resting in the lab doorway steps out of the robot's way, and the robot drives through (no push, no contact). | Time-lapse from above: three cats roam every room while the robot stays parked. |
+| ![Four cats seen by the robot's camera](docs/cats_robot_camera.png) | ![A cat near the goal, from the robot's camera while it drives itself](docs/robot_camera_cat.png) |
+| The four cats (brown tabby, ginger tabby, grey tabby, and black and white behind the brown one) down the corridor, in the robot's camera view; the lidar map shows the cats it can detect. | The robot's camera while it drives itself: the goal marker and a cat beside it. |
+| ![A cat gives way in the lab doorway](docs/doorway.gif) | ![Four cats roaming the floor, top view time-lapse](docs/cats_roaming.gif) |
+| A cat resting in the lab doorway steps out of the robot's way, and the robot drives through (no push, no contact). | Time-lapse from above: four cats roam every room while the robot stays parked. |
 | ![Goal reached, top view with the cats](docs/top_view_cats.png) | ![The office floor from above](docs/floor_top.png) |
 | Goal reached, top view: a tabby cat in the corridor and the black cat in the storage room. | The whole 10 x 10 m office floor: office, lab, corridor, storage, and reception. |
 | ![The robot close up](docs/robot_closeup.png) | ![Driving down the corridor](docs/corridor.png) |
 | The robot: lidar on top, front camera, two driven wheels, and ball casters. | Driving down the corridor (chase view). |
 | ![The lab from the robot camera](docs/lab_robot_camera.png) | ![The reception room](docs/reception.png) |
 | The lab, from the robot's camera. | Reception, with wood floor, rug, and furniture. |
-| ![Goal reached in manual driving](docs/screenshot_goal.png) | ![The lidar panel](docs/lidar_panel.png) |
-| Manual driving: every status line, the robot camera inset, and the lidar map. | The lidar panel: free space (shaded) and returns (green outline). |
+| ![Goal reached, full panels](docs/screenshot_goal.png) | ![The lidar panel](docs/lidar_panel.png) |
+| Goal reached, with the full panels (H): every status line, the Options button, the robot camera inset, and the lidar map. | The lidar panel: free space (shaded) and returns (green outline). |
 
 ![The four cat coats, three views, three lights](docs/cat_faces.png)
 
@@ -87,7 +88,7 @@ slower (fine for tests, too slow for the window).
 | `--seed N` | Which start and goal to use (default 1000). The same seed always gives the same task. |
 | `--view N` | Starting view: 0 chase, 1 top, 2 orbit, 3 robot camera (default 0). |
 | `--speed-level N` | Starting speed level (default 2). |
-| `--cats N` | Number of cats, 0 to 4 (default 3; 0 turns them off). |
+| `--cats N` | Number of cats at start, 0 to 4 (default 4; 0 turns them off). The Options button changes it while running. |
 | `--cat-seed S` | Seed for the cats' behavior (default 0), independent of the goal seed. |
 | `--screenshot PATH` | Save a screenshot to PATH when the window closes. |
 | `--frames N` | Close after N frames (for automated checks). |
@@ -170,6 +171,7 @@ the window means the robot is touching something.
 | N | Next goal (the next seed). |
 | T | Continue after a collision on or off (for testing). |
 | H | Panels: compact, full, none. |
+| Options button (or O) | Open or close the options beside the panels: click a number of cats (0 to 4) to restart with that many. Driving goes on while they are open; Esc closes them. |
 | F11 | Fullscreen on or off. |
 | F12 | Save a screenshot to `screenshots\`. |
 | Esc | Quit. |
@@ -262,12 +264,13 @@ continue; if a banner asks you to release a key, release it and press again.
 
 ### Cats (on in the window)
 
-The window starts with three cats (`--cats 4` for four, `--cats 0` for none). The Python API and
+The window starts with four cats; the Options button on the panels (or O) changes the number,
+0 to 4, and restarts with that many (`--cats N` sets it at start). The Python API and
 the Gymnasium environment start with none unless asked (`RobotSystem(cats=3)`,
 `RobotGoalEnv(cats=3)`), so training and the baseline runs stay comparable.
 
 ```powershell
-.venv\Scripts\python run_sim.py --cats 3 --cat-seed 16
+.venv\Scripts\python run_sim.py --cats 2 --cat-seed 16
 ```
 
 - **What they are:** a rigged, textured cat model ("Cat" by Vr-cvantorium, see Credits) with

@@ -6,8 +6,9 @@ floor, and still screenshots. Development-only (needs requirements-dev.txt).
     .venv\\Scripts\\python tools\\make_media.py            # writes everything under docs/
     .venv\\Scripts\\python tools\\make_media.py --gif-only # rebuilds docs/demo.gif from docs/demo.mp4
 
-Pinned: goal seed 1000, speed level 2, 3 cats with cat seed 16 (demo and time-lapse); the doorway
-scene uses one cat (cat seed 2) and the robot driven straight ahead by a key script.
+Pinned: goal seed 1000, speed level 2, 4 cats (the window's default) with cat seed 16 (demo,
+time-lapse, and scene stills); the doorway scene uses one cat (cat seed 2) and the robot driven
+straight ahead by a key script. Every image in the README comes from this tool.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from robot_env.baseline import BaselineDriver  # noqa: E402
 DOCS = Path(__file__).resolve().parent.parent / "docs"
 SEED = 1000
 LEVEL = 2  # 1-based speed level
-CATS, CAT_SEED = 3, 16  # pinned: three cats that cross the robot's route
+CATS, CAT_SEED = 4, 16  # pinned: the window's four cats
 # (seconds from start, view): chase with panels, the robot's own camera, chase again; the top
 # view is shown once the goal is reached
 VIEW_PLAN = ((0.0, 0), (6.0, 3), (10.0, 0))
@@ -111,7 +112,7 @@ def record_doorway() -> list[tuple[float, np.ndarray]]:
 
 
 def record_roaming() -> list[tuple[float, np.ndarray]]:
-    """Top view while the robot stays parked: three cats roam the whole floor."""
+    """Top view while the robot stays parked: four cats roam the whole floor."""
     app = _quiet(App(SEED, screenshot=None, frames=None, view=VIEWS.index("top"), cats=CATS, cat_seed=CAT_SEED))
     app.hud = "none"
     frames: list[tuple[float, np.ndarray]] = []
@@ -186,6 +187,79 @@ def write_stills(demo) -> None:
     faces.main()
 
 
+def _scene(robot, view: int, hud: str = "compact", frames: int = 150, setup=None, distance=None,
+           elevation=None, driver=None, until_goal: bool = False) -> np.ndarray:
+    """One still: the robot placed at `robot` (x, y, yaw) in the window, the given view and panels,
+    after `frames` frames (the camera settles, the cats move); `setup(app)` may place the cats."""
+    app = _quiet(App(SEED, screenshot=None, frames=None, view=view, driver=driver, speed_level=LEVEL - 1,
+                     cats=CATS, cat_seed=CAT_SEED))
+    try:
+        app.hud = hud
+        if robot is not None:
+            app.system.reset(*robot, app.episode.task.goal)
+        if setup is not None:
+            setup(app)
+        app.view.reset()
+        if distance is not None:
+            app.view.distance = distance
+        if elevation is not None:
+            app.view.elevation = elevation
+        image = None
+        for k in range(frames if not until_goal else 60 * 60):
+            app.handle_events()
+            app.simulate(1 / 60)
+            app._frame_dt = 1 / 60
+            app.draw()
+            app.clock.tick(60)  # the panel's frame rate reads the window's 60 per second
+            if until_goal and app.episode.status == "success":
+                for _ in range(45):  # the success banner and a settled camera
+                    app.simulate(1 / 60)
+                    app.draw()
+                    app.clock.tick(60)
+                break
+        image = _frame(app)
+    finally:
+        app._close_all()
+    return image
+
+
+def _cats_ahead(app) -> None:
+    """Four cats down the corridor in front of the robot (robot at its west end facing east),
+    sitting or standing 1 to 3 m away, all within its camera's view; each placed clear of walls,
+    furniture, and the others."""
+    from robot_env.cats import CAT_GAP, WALL_GAP
+    herd = app.system.cats
+    poses = ((-3.05, 0.22, 3.0, "sit"), (-2.55, -0.28, 2.7, "pause"), (-1.95, 0.32, -2.8, "sit"),
+             (-1.35, -0.12, 3.25, "pause"))
+    for i, (x, y, yaw, state) in enumerate(poses[:herd.n]):
+        herd.place(i, x, y, yaw, state=state)
+    for c in herd.cats:
+        wall, _, other = herd.gaps(c, c.x, c.y, c.yaw)
+        if wall < WALL_GAP or other < CAT_GAP:
+            raise RuntimeError(f"cat {c.index} placed too close (wall {wall:.3f} m, cat {other:.3f} m)")
+
+
+def write_scene_stills() -> None:
+    """The scene screenshots in the README (each composed in the window, with four cats)."""
+    shots = {
+        "corridor.png": dict(robot=(-3.6, 0.0, 0.0), view=0),
+        "reception.png": dict(robot=(1.0, -1.6, -0.75), view=0),
+        "lab_robot_camera.png": dict(robot=(0.9, 1.6, 0.55), view=VIEWS.index("robot camera")),
+        "robot_closeup.png": dict(robot=(-2.4, 2.6, 0.5), view=VIEWS.index("orbit"), hud="none", distance=0.7,
+                                  elevation=-25.0),
+        "floor_top.png": dict(robot=None, view=VIEWS.index("top"), hud="none"),
+        "cats_robot_camera.png": dict(robot=(-4.2, 0.0, 0.0), view=VIEWS.index("robot camera"), setup=_cats_ahead,
+                                      frames=60),
+    }
+    for name, shot in shots.items():
+        _still(_scene(**shot), name)
+    # goal reached with the full panels (H), driven by the baseline driver; and its lidar panel
+    goal = _scene(None, 0, hud="full", driver=BaselineDriver(C.SPEED_LEVELS[LEVEL - 1]), until_goal=True)
+    _still(goal, "screenshot_goal.png")
+    h, w = goal.shape[:2]
+    _still(goal[h - 16 - 220 - 44:h - 16 + 16, w - 16 - 220 - 30:w - 16 + 30], "lidar_panel.png")
+
+
 def gif_from_video() -> None:
     """Rebuild the GIF from the recorded MP4 (no window needed)."""
     import imageio.v2 as imageio
@@ -197,6 +271,8 @@ def gif_from_video() -> None:
 if __name__ == "__main__":
     if "--gif-only" in sys.argv[1:]:
         gif_from_video()
+    elif "--stills-only" in sys.argv[1:]:
+        write_scene_stills()
     else:
         demo = record()
         write_media(demo)
@@ -204,3 +280,4 @@ if __name__ == "__main__":
         write_gif(resample(record_doorway(), 10), DOCS / "doorway.gif", fps=10)
         roam = [f for _, f in record_roaming()]
         write_gif(roam, DOCS / "cats_roaming.gif", fps=12, width=560)
+        write_scene_stills()
