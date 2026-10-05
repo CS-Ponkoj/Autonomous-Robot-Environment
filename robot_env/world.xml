@@ -18,7 +18,7 @@
 
   <visual>
     <global offwidth="2560" offheight="1440"/>
-    <quality shadowsize="4096" offsamples="4"/>
+    <quality shadowsize="2048" offsamples="4"/>
     <headlight ambient="0.28 0.28 0.28" diffuse="0.03 0.03 0.03" specular="0.1 0.1 0.1"/>
     <!-- Clip planes are fractions of the model extent; znear keeps cameras from seeing
          through walls they are close to. -->
