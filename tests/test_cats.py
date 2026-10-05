@@ -1685,6 +1685,33 @@ def test_the_way_out_found_is_the_way_out_taken(monkeypatch):
     assert moved_old < 0.05  # the old guard: the way out refused at its first dip
 
 
+def test_a_way_out_from_just_inside_the_cushion_is_taken_too():
+    """Review finding (seed 13's pocket, 2 mm and 3 degrees off): a cat starting 4.5 to 5 mm beyond
+    the wall gap got a way out whose steps dip below a fixed MOVE_ROOM - ESCAPE_DIP, and the guard
+    refused it at once. The guard now holds each way out to the floor its own search kept."""
+    from robot_env import cats as K
+    from robot_env.config import PHYSICS_DT
+    s = RobotSystem(cats=1, cat_seed=13)
+    s.reset(-1.97, 2.28, 2.98, (4.0, 2.5))
+    herd = s.cats
+    herd.place(0, -1.5041, -4.8116, math.radians(-16.435), state="walk")
+    cat = herd.cats[0]
+    here = herd.gaps(cat, cat.x, cat.y, cat.yaw)[0] - WALL_GAP
+    assert K.MOVE_ROOM - K.ESCAPE_DIP <= here < K.MOVE_ROOM  # in the window
+    x0, y0 = cat.x, cat.y
+    cat.escape = herd._escape_search(cat)
+    steps = len(cat.escape)
+    assert steps > 0 and 0.0 <= cat.escape_floor < K.MOVE_ROOM - K.ESCAPE_DIP
+    cat.state_until = herd.time + K.ESCAPE_STEP * steps + 0.5
+    low = math.inf
+    for _ in range(round((K.ESCAPE_STEP * steps + 0.25) / PHYSICS_DT)):
+        s.advance(PHYSICS_DT)
+        low = min(low, herd.current_gaps()[0]["wall"])
+    assert math.hypot(cat.x - x0, cat.y - y0) >= 0.1
+    assert low >= WALL_GAP  # never across the limit
+    s.close()
+
+
 def test_a_dart_needs_room_along_its_whole_path():
     """Regression (roaming seed 1, 4 cats: a cat by the storage pallet darted back into the gap it
     had just worked its way out of, over and over, and stood 7 s): a dart's heading is scored by

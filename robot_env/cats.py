@@ -118,9 +118,9 @@ ESCAPE_EXPANSIONS = 600  # poses explored at most (the search runs only after a 
 # (m, rad) grid of the poses the search has reached: finer than a step (2 cm, 0.15 rad), so a step
 # never lands in the cell it left and is taken for a pose already reached
 ESCAPE_GRID = (0.01, 0.075)
-# m a way out may dip into MOVE_ROOM: each 2 cm step is checked at four poses, and backing off a wall
-# met at a slant first closes in on it by a fraction of a millimetre (still MOVE_ROOM less this beyond
-# every gap)
+# m a way out may come closer than where it starts (or MOVE_ROOM, if less): each 2 cm step is checked
+# at four poses, and backing off a wall met at a slant first closes in on it by a fraction of a
+# millimetre (never across a gap's limit); executed, it may run this much under the plan again
 ESCAPE_DIP = 0.0005
 DART_ROOM = 0.18  # m of clearance a dart's whole path needs (the widest body circle, 0.116 m, WALL_GAP and spare)
 GIVE_WAY_AFTER = 2.0  # s a cat that wants to move may get nowhere before it gives way
@@ -544,6 +544,7 @@ class Cat:
     rejected: dict = field(default_factory=dict)  # command -> until when the hard guard refused it
     held: int = 0  # samples rejected because the animated pose came too close (evaluation)
     escape: list = field(default_factory=list)  # worked-out steps out of a tight spot: (v, w, lat, end time)
+    escape_floor: float = 0.0  # m beyond the gaps those steps were planned to keep (the least)
     escaped: int = 0  # times the cat worked its way out of a tight spot (evaluation)
     sees_robot: bool = False  # the robot is in plain sight (refreshed every behaviour tick)
     still_from: tuple | None = None  # (time, x, y) since the cat, wanting to move, last gained GIVE_WAY_MOVE
@@ -1010,6 +1011,9 @@ class CatHerd:
 
         start = (cat.x, cat.y, cat.yaw)
         here = float(room(*(np.array([v]) for v in start))[0])
+        # as for any root move: MOVE_ROOM kept beyond every gap (inside it, never closer), less
+        # ESCAPE_DIP, never across a limit; a cat already inside one never comes closer
+        floor = max(min(here, MOVE_ROOM) - ESCAPE_DIP, 0.0) if here >= 0.0 else here - CLOSER_TOLERANCE
         gx, gyaw = ESCAPE_GRID
         key = lambda p: (round(p[0] / gx), round(p[1] / gx), round(p[2] / gyaw))  # noqa: E731
         seen = {key(start)}
@@ -1018,6 +1022,7 @@ class CatHerd:
         while heap and count < ESCAPE_EXPANSIONS:
             neg, _, (x, y, yaw), path = heapq.heappop(heap)
             if -neg >= ESCAPE_ROOM and math.hypot(x - start[0], y - start[1]) >= ESCAPE_DISTANCE:
+                cat.escape_floor = floor  # what the executed steps are held to (see _clear_move)
                 return [st + (self.time + ESCAPE_STEP if i == 0 else 0.0,) for i, st in enumerate(path)]
             if len(path) >= ESCAPE_DEPTH:
                 continue
@@ -1031,8 +1036,6 @@ class CatHerd:
                 xs.append(px), ys.append(py), ts.append(th)
                 ends.append((float(px[-1]), float(py[-1]), float(th[-1])))
             margins = room(np.concatenate(xs), np.concatenate(ys), np.concatenate(ts)).reshape(len(steps), len(fractions))
-            # as for any root move: MOVE_ROOM kept beyond every gap (inside it, never closer)
-            floor = min(here, MOVE_ROOM) - ESCAPE_DIP
             for (v, w, lat), end, m in zip(steps, ends, margins):
                 if m.min() < floor or key(end) in seen:
                     continue
@@ -1579,10 +1582,11 @@ class CatHerd:
     def _clear_move(self, cat: Cat, x: float, y: float, yaw: float, escaping: bool = False) -> bool:
         """The root move alone (the present body pose carried to the new root) keeps the whole
         cat clear over the sample. A quick first check: the animated pose is then proven over
-        the whole sample (pose_ok with sweep_from). A step of a worked-out way out may dip
-        ESCAPE_DIP into MOVE_ROOM, as the search that found it allowed."""
-        return self.pose_ok(cat, x, y, yaw, margin=MOVE_ROOM - (ESCAPE_DIP if escaping else 0.0),
-                            sweep_from=cat.next)
+        the whole sample (pose_ok with sweep_from). A step of a worked-out way out is held to the
+        floor the search kept, less ESCAPE_DIP for the executed path running under the plan, never
+        across a limit."""
+        margin = max(cat.escape_floor - ESCAPE_DIP, 0.0) if escaping else MOVE_ROOM
+        return self.pose_ok(cat, x, y, yaw, margin=margin, sweep_from=cat.next)
 
     def _current_sample(self, cat: Cat) -> Sample:
         """The interpolated pose now (root lerp, joint position lerp, rotation nlerp)."""
