@@ -1,0 +1,374 @@
+{
+ "converter": {
+  "tool": "tools/fetch_models.py",
+  "tool_sha256": "43cd52591229a8776d39e809b7e2d5e22b28edcfaee21e206a1c7af8e8a90ed6",
+  "procedural_tool": "tools/proc_furniture.py",
+  "procedural_tool_sha256": "d2117a637a65c66d669ca7271c9c6ab04de9a8b2c2561079b7dd1e547601bd68",
+  "python": "3.11.5",
+  "packages": {
+   "numpy": "2.4.6",
+   "pillow": "12.3.0",
+   "trimesh": "4.8.3",
+   "fast_simplification": "0.2.0",
+   "scipy": "1.17.1"
+  }
+ },
+ "models": [
+  {
+   "id": "metal_office_desk",
+   "name": "Metal Office Desk",
+   "authors": [
+    "Ulan Cabanilla"
+   ],
+   "license": "CC0 1.0",
+   "source": "https://polyhaven.com/a/metal_office_desk",
+   "file": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/metal_office_desk/metal_office_desk_1k.gltf",
+   "source_files_sha256": {
+    "metal_office_desk.bin": "65b558f41a75ad4822e31cc2a97eb34ed359199279a6bfbd650deb27cef78767",
+    "metal_office_desk_1k.gltf": "f07032a5ee89aacceebf10fd9fa192c22775ae81861cfb0bdb1594497179373c",
+    "textures/metal_office_desk_arm_1k.jpg": "752916dd9bf8a163dc7e0d3673900791ee6d558bbe23894263ac92b42387f51b",
+    "textures/metal_office_desk_diff_1k.jpg": "1f02e3e77e8f82a3600664c991bd45c1c187452d61e9ede4336c6f90f7fa3139",
+    "textures/metal_office_desk_nor_gl_1k.jpg": "f57eb004937e46392151b803e0cb1d88983958d01ad11d93df78a82cfcc6c407"
+   },
+   "scale": 1.0
+  },
+  {
+   "id": "steel_frame_shelves_01",
+   "name": "Steel Frame Shelves 01",
+   "authors": [
+    "James Ray Cock"
+   ],
+   "license": "CC0 1.0",
+   "source": "https://polyhaven.com/a/steel_frame_shelves_01",
+   "file": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/steel_frame_shelves_01/steel_frame_shelves_01_1k.gltf",
+   "source_files_sha256": {
+    "steel_frame_shelves_01.bin": "306d7e72d12a5d3047b8a189f8d0add51075eaf7f51f935286fda4e1c16dd066",
+    "steel_frame_shelves_01_1k.gltf": "4eff8994825d654e337f8dc425e959ed6add7f4773188c87ba64402d9edd9842",
+    "textures/steel_frame_shelves_01_arm_1k.jpg": "858629eeaa8f68ddb4fc1a813afe6ed988ded3d6d49184ec45a14611760f0bb3",
+    "textures/steel_frame_shelves_01_diff_1k.jpg": "85e205b334e15e05bec9b02be1258da6ab949ae908aa57e0bee6b94ba45b4415",
+    "textures/steel_frame_shelves_01_nor_gl_1k.jpg": "2a67ed7dd4f53c3e225396e6381992b768fe58b5261be703d540678e366e46ed"
+   },
+   "scale": 0.1
+  },
+  {
+   "id": "potted_plant_01",
+   "name": "Potted Plant 01",
+   "authors": [
+    "Rico Cilliers"
+   ],
+   "license": "CC0 1.0",
+   "source": "https://polyhaven.com/a/potted_plant_01",
+   "file": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/potted_plant_01/potted_plant_01_1k.gltf",
+   "source_files_sha256": {
+    "potted_plant_01.bin": "a8dd1f7ce75f50dc25bbedc20809da02ee4193815c155b883a329925fa5548f7",
+    "potted_plant_01_1k.gltf": "23b30294407684b02f14800d6685bd8938da5d2111e17753ac8dd3c37d8c88a0",
+    "textures/potted_plant_01_leaves_diff_1k.jpg": "b73891a0a606e139d0fcdd9e6fe503cd1210be3fc9c55fbd033941288231ccaa",
+    "textures/potted_plant_01_leaves_nor_gl_1k.jpg": "2faa756e0ee2b8341c752b283b93599157bf56f4083a9f61b825cdfa0c7138ff",
+    "textures/potted_plant_01_leaves_rough_1k.jpg": "765e3bd1bfdad39dd0d1cd755eafd1f9f1d46cbbb6013988cbfd1197de27a1f9",
+    "textures/potted_plant_01_pot_diff_1k.jpg": "51c9d80e8abe585bd3dbcebe7cba1d3ed1a22b137c7cb66baf0e462c08dca312",
+    "textures/potted_plant_01_pot_nor_gl_1k.jpg": "ec02e51751e0822d229d48bea1373b06e2675c3725ff04fd1f87ac516719e620",
+    "textures/potted_plant_01_pot_rough_1k.jpg": "1256199fe3a88a0534bcd4c8bf141cfa9a28b68fce3f286193d0713796fd8561"
+   },
+   "scale": 1.0
+  },
+  {
+   "id": "wall_clock",
+   "name": "Wall Clock",
+   "authors": [
+    "PierreB3D"
+   ],
+   "license": "CC0 1.0",
+   "source": "https://polyhaven.com/a/wall_clock",
+   "file": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/wall_clock/wall_clock_1k.gltf",
+   "source_files_sha256": {
+    "textures/wall_clock_arm_1k.jpg": "c78aabec7bb4af4fd6818be1099523e59bf12d88c872530b2260cdea08d81968",
+    "textures/wall_clock_diff_1k.jpg": "012bfc3ceecd5e35679fe5764e33b6d1b8a631ad4fc9f5b267af25ad10468672",
+    "textures/wall_clock_glass_arm_1k.jpg": "42804955958b3d0fdc1da8d4c4e8e909b04f659ae1b02911e148abe0741b8b84",
+    "textures/wall_clock_nor_gl_1k.jpg": "6138946e055828e92d5e0d8d50c75e3d2da0ea789dd6512b30f85f0e18435d00",
+    "wall_clock.bin": "61d9fe03e871508230160de546ef505f3f4405b1e82c167536945a483a8bb639",
+    "wall_clock_1k.gltf": "4e67385443e808bc709c054c1de5be1e83d4bf07eb0893884c301fec0bae8bc6"
+   },
+   "scale": 1.0
+  }
+ ],
+ "procedural": [
+  {
+   "id": "proc_filing_cabinet",
+   "source": "tools/proc_furniture.py"
+  },
+  {
+   "id": "proc_floor_lamp",
+   "source": "tools/proc_furniture.py"
+  },
+  {
+   "id": "proc_office_chair",
+   "source": "tools/proc_furniture.py"
+  },
+  {
+   "id": "proc_plant_stand",
+   "source": "tools/proc_furniture.py"
+  },
+  {
+   "id": "proc_shelf_books_11",
+   "source": "tools/proc_furniture.py"
+  },
+  {
+   "id": "proc_shelf_feet",
+   "source": "tools/proc_furniture.py"
+  },
+  {
+   "id": "proc_waste_bin",
+   "source": "tools/proc_furniture.py"
+  }
+ ],
+ "files": {
+  "metal_office_desk.json": {
+   "sha256": "c0a18d37fdbc16bafc65b8b8bcac4ca295a7cabdad0873257822e2da70e6edef",
+   "bytes": 1596
+  },
+  "metal_office_desk_0.msh": {
+   "sha256": "666c8487e4b56d3eeb3a4c501e0965ba8db9864505b59f69d8731d92f6214423",
+   "bytes": 277032
+  },
+  "metal_office_desk_0.png": {
+   "sha256": "73d05d70b309e505f555208dabcd6ad04d9789130fe179b0ba115a096a80a148",
+   "bytes": 286612
+  },
+  "potted_plant_01.json": {
+   "sha256": "0d892383610f78eb1869bf99f34cd4e24f67f59b7f88f35d163a22422230d4fe",
+   "bytes": 2309
+  },
+  "potted_plant_01_0.msh": {
+   "sha256": "4f1533ac50a75001745a8f35008ac28533de8900bbcdbc73208954546f769580",
+   "bytes": 1436304
+  },
+  "potted_plant_01_0.png": {
+   "sha256": "5f898e2c3eaafbfbf102c95cb3f69f1e9def7ddbb039ecebc0ff0bed1262832a",
+   "bytes": 276920
+  },
+  "potted_plant_01_1.msh": {
+   "sha256": "400d327a4014b980e424441e65bdb54e9131f59755f6331538ff26f5a853f91f",
+   "bytes": 2353228
+  },
+  "potted_plant_01_1.png": {
+   "sha256": "e5524c88ace71885ebcc87112a2e51b051eae8077ff69f461d52d807534ef958",
+   "bytes": 423595
+  },
+  "proc_filing_cabinet.json": {
+   "sha256": "15a11473fc0c905e4d9ff6cce2c8fd8d8cb6788d8d0c1e23c233113484ff4dee",
+   "bytes": 1605
+  },
+  "proc_filing_cabinet_0.msh": {
+   "sha256": "57e9aed8f0505baf3acd754ed5df3e6c892889567b00488a7945c60d735f81d6",
+   "bytes": 14544
+  },
+  "proc_filing_cabinet_1.msh": {
+   "sha256": "44bc104f78fccee57d73ae78109a3ad7a498f9ac92117e156ba32f167f7b5498",
+   "bytes": 3664
+  },
+  "proc_filing_cabinet_1.png": {
+   "sha256": "477ffba1b606f020c434b9e32435cd6da91e9619e8c3fadf783b99faa9de7485",
+   "bytes": 16678
+  },
+  "proc_filing_cabinet_2.msh": {
+   "sha256": "748565afe912ad42b517de870940c41df5404e798280e001d869a9949a0047d5",
+   "bytes": 1840
+  },
+  "proc_filing_cabinet_3.msh": {
+   "sha256": "8a240bb40260698d6b1d7df1b8f6f00247689617d7b106ef51866c09460aff2a",
+   "bytes": 928
+  },
+  "proc_filing_cabinet_3.png": {
+   "sha256": "54c308745c961ec13204e1ed35357adaaa05be8ea3e2cc105179191e33a2fb1b",
+   "bytes": 295616
+  },
+  "proc_filing_cabinet_4.msh": {
+   "sha256": "049c663b5b4149480f1e60ef4b1a14e93fb409650a2fb07d0d3ae232ea09fef9",
+   "bytes": 148624
+  },
+  "proc_filing_cabinet_4.png": {
+   "sha256": "0014e9cf3789541fbb1278ed5cf3b7226fcf77d7b23b35ba87029ebf4df8267c",
+   "bytes": 406868
+  },
+  "proc_floor_lamp.json": {
+   "sha256": "2a5bd25ff222c7746b0da1702b5bd1197597c73fa1a5919f379d5fe998fee276",
+   "bytes": 1282
+  },
+  "proc_floor_lamp_0.msh": {
+   "sha256": "40534fcf54794751c6de039ae10fbe163f6076f14510bba5cb0582d52dbf7bad",
+   "bytes": 8592
+  },
+  "proc_floor_lamp_1.msh": {
+   "sha256": "fb1d44e4abfd85eb5c9b1f46e14a8cd13ed79eacf545fb36b37991a57da37630",
+   "bytes": 2192
+  },
+  "proc_floor_lamp_2.msh": {
+   "sha256": "962e68c81fc6b8e06f59418e626e0b83c5c084c1729c3f6462428be596c6bd1a",
+   "bytes": 17168
+  },
+  "proc_floor_lamp_2.png": {
+   "sha256": "6f01791bce9871e0e703b2c584e20a56c63ce01e17494ba9455e7c0208a6defd",
+   "bytes": 470211
+  },
+  "proc_floor_lamp_3.msh": {
+   "sha256": "1a0ceae8180293223fc1ce613e7060e70c6c8b359caec3a72ad7610637f66680",
+   "bytes": 2832
+  },
+  "proc_floor_lamp_3.png": {
+   "sha256": "37c0618457464ae8a762ff0ae18ceb5469223b66f928240dc933017bc096193b",
+   "bytes": 336331
+  },
+  "proc_office_chair.json": {
+   "sha256": "a5dd607f911ceb0a33020a4925e91c00d0904fd9e78c40b49cd42937eae83f7e",
+   "bytes": 1637
+  },
+  "proc_office_chair_0.msh": {
+   "sha256": "89ef9eb715e9fa36864349ff508d2dd67a572c9335926c5e01620d288b69f79a",
+   "bytes": 10960
+  },
+  "proc_office_chair_1.msh": {
+   "sha256": "a2aff38f8cad78a9ca0c06a7a237ba930bff0360ae2796bc54da62be847843ca",
+   "bytes": 49552
+  },
+  "proc_office_chair_1.png": {
+   "sha256": "b0acacf4861218a2e0c3acc4593e11f44e9cb10f109621d52e0703a6d451aefe",
+   "bytes": 396109
+  },
+  "proc_office_chair_2.msh": {
+   "sha256": "cf4c76be2650d377f67981aeb43f80c85515b10035b4cc6686eab46502369c12",
+   "bytes": 21520
+  },
+  "proc_office_chair_3.msh": {
+   "sha256": "858670218133c2f07316f83342251ef4ca336de15928c1432839c296e70d719b",
+   "bytes": 83024
+  },
+  "proc_office_chair_3.png": {
+   "sha256": "0390799ef58d2f91c6b3afe641e2882cb9bc24b96d4a7b76c9cfe031390ab0d6",
+   "bytes": 148748
+  },
+  "proc_office_chair_4.msh": {
+   "sha256": "57f651accbcf57dc8c9239779111ddeb101c27e6e641a9dd14ed464a96261db1",
+   "bytes": 24784
+  },
+  "proc_office_chair_4.png": {
+   "sha256": "0a77ce8f1c6239817596672b6137512ddf015ecaca8a15fc6204d26f27664daf",
+   "bytes": 233131
+  },
+  "proc_plant_stand.json": {
+   "sha256": "e2fcbceef95944d08972f39a0075d7c61af3a935e87b2b5859a830238d40a2c1",
+   "bytes": 1040
+  },
+  "proc_plant_stand_0.msh": {
+   "sha256": "5e1bfe23f329cfd540dabdc7a91b5f249d9b7f837f8f30f19e2a9f32433e16cf",
+   "bytes": 1840
+  },
+  "proc_plant_stand_0.png": {
+   "sha256": "063c51d99ce70b34e3333f381356135483bb4de5e91fb087b1297f52ad482aa3",
+   "bytes": 2396341
+  },
+  "proc_plant_stand_1.msh": {
+   "sha256": "e519dc895e5dcab3905b22a91f215d5d34d00673ce5ea762de9f811ed81d8f7a",
+   "bytes": 3664
+  },
+  "proc_plant_stand_2.msh": {
+   "sha256": "c1dfc86d389f75a520e50052a510689f1d4bfe9cd936da9678c1c4bb239343cb",
+   "bytes": 928
+  },
+  "proc_plant_stand_2.png": {
+   "sha256": "54c308745c961ec13204e1ed35357adaaa05be8ea3e2cc105179191e33a2fb1b",
+   "bytes": 295616
+  },
+  "proc_shelf_books_11.json": {
+   "sha256": "020078ced4646fbc52f72cf5293f13960e13934b51df71d3cf66eb7bed973e0e",
+   "bytes": 864
+  },
+  "proc_shelf_books_11_0.msh": {
+   "sha256": "6dbdbd18643afae80d146f6c4217fe90e3ce471c2c81c063f2486a8fc56aee34",
+   "bytes": 39688
+  },
+  "proc_shelf_books_11_0.png": {
+   "sha256": "8237109f81e469e8f70c9f9a4d21142fac889c5b7abe92acf27166b641e87ced",
+   "bytes": 411624
+  },
+  "proc_shelf_books_11_1.msh": {
+   "sha256": "84e9722dced63827cc8b214cdd543ca98378d503d19f638237650e86167bfe11",
+   "bytes": 39688
+  },
+  "proc_shelf_books_11_1.png": {
+   "sha256": "67634101b12404524582c653afbd513202709333ee0f02d7bcf3c493a1aff25d",
+   "bytes": 371702
+  },
+  "proc_shelf_feet.json": {
+   "sha256": "df08922d1b620ebfceda796c2d0df6af1dec6a14e8588eac49ce32a9d4fcc8e1",
+   "bytes": 785
+  },
+  "proc_shelf_feet_0.msh": {
+   "sha256": "d6c53e67d9fd70d2e00cde416986b27a1a9fb8d243447131b77b368d4712cf63",
+   "bytes": 8720
+  },
+  "proc_shelf_feet_1.msh": {
+   "sha256": "ddbe43a0aeff4fae4e0094d4bdd6ca21fd7ae38abb54a4e595e79ad4f85b896d",
+   "bytes": 11536
+  },
+  "proc_shelf_feet_1.png": {
+   "sha256": "0390799ef58d2f91c6b3afe641e2882cb9bc24b96d4a7b76c9cfe031390ab0d6",
+   "bytes": 148748
+  },
+  "proc_waste_bin.json": {
+   "sha256": "b0b07829865b310669a4fa782da7b74eac836e4230cd7d3c77215b16c88a7c32",
+   "bytes": 1291
+  },
+  "proc_waste_bin_0.msh": {
+   "sha256": "5e382ed452b2cc1b8605725c417d5fc81252fcc8342c4d779b410b927ee4130c",
+   "bytes": 3600
+  },
+  "proc_waste_bin_0.png": {
+   "sha256": "0aa4844f5d0adfd70af583f84a2e6a7339ee86103d684811971b940b42fdbb2f",
+   "bytes": 327144
+  },
+  "proc_waste_bin_1.msh": {
+   "sha256": "e0806a85df2cb9a858ce9afc5263b37539fba6ad47247deb7a670b4c6e2a68f3",
+   "bytes": 17936
+  },
+  "proc_waste_bin_2.msh": {
+   "sha256": "224f217b416194a97f1d4936b5897358d82d416b504120f641a924038eeea620",
+   "bytes": 17680
+  },
+  "proc_waste_bin_3.msh": {
+   "sha256": "f25adc358e6294cb9a23b878fecc531b01dfacbcd6ab091e5f0fd837925a8966",
+   "bytes": 7120
+  },
+  "proc_waste_bin_3.png": {
+   "sha256": "54c308745c961ec13204e1ed35357adaaa05be8ea3e2cc105179191e33a2fb1b",
+   "bytes": 295616
+  },
+  "steel_frame_shelves_01.json": {
+   "sha256": "4928e4a0de7db31074f3c2f4caa0c68d5d2807e9786fc323cf6a06268bc1bfcc",
+   "bytes": 1664
+  },
+  "steel_frame_shelves_01_0.msh": {
+   "sha256": "b286f9d917aff6d87bc7e286af2fd604a10b80e27fd1cfd9767138c88a1fabaa",
+   "bytes": 168416
+  },
+  "steel_frame_shelves_01_0.png": {
+   "sha256": "c296458e4f7513c7968895dbe81d2385be6f39997376311171251c492500c4fa",
+   "bytes": 256780
+  },
+  "wall_clock.json": {
+   "sha256": "e345654b2b0a3417f02bf7bab86221f09bad2ad5e77526340359dfa2c4610bb6",
+   "bytes": 1932
+  },
+  "wall_clock_0.msh": {
+   "sha256": "389be0aab883bc4628aa4b23f5e04f995a72f8ba34be5b11a89ff2d83dedcb1b",
+   "bytes": 138024
+  },
+  "wall_clock_0.png": {
+   "sha256": "10cacacf8fc03a5906572eae2ff6277d8cb7f6b9f774b5621df526c0199faf32",
+   "bytes": 64833
+  },
+  "wall_clock_1.msh": {
+   "sha256": "b53841356ea7bf4d0779b08d2ca72f6cf7a656549e4780011f3c83b76fb109f8",
+   "bytes": 16368
+  }
+ }
+}

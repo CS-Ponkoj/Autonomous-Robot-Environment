@@ -1,0 +1,95 @@
+{
+ "id": "proc_filing_cabinet",
+ "name": "Filing cabinet (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.478,
+  0.632,
+  1.32
+ ],
+ "parts": [
+  {
+   "mesh": "proc_filing_cabinet_0.msh",
+   "material": "chrome",
+   "texture": null,
+   "rgba": [
+    0.72,
+    0.73,
+    0.75,
+    1.0
+   ],
+   "specular": 0.9,
+   "shininess": 0.9,
+   "reflectance": 0.15,
+   "faces": 224,
+   "vertices": 370
+  },
+  {
+   "mesh": "proc_filing_cabinet_1.msh",
+   "material": "label",
+   "texture": "proc_filing_cabinet_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.1,
+   "shininess": 0.1,
+   "reflectance": 0.0,
+   "faces": 48,
+   "vertices": 96
+  },
+  {
+   "mesh": "proc_filing_cabinet_2.msh",
+   "material": "shadow",
+   "texture": null,
+   "rgba": [
+    0.03,
+    0.03,
+    0.03,
+    1.0
+   ],
+   "specular": 0.0,
+   "shininess": 0.0,
+   "reflectance": 0.0,
+   "faces": 24,
+   "vertices": 48
+  },
+  {
+   "mesh": "proc_filing_cabinet_3.msh",
+   "material": "steel_dark",
+   "texture": "proc_filing_cabinet_3.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.5,
+   "reflectance": 0.02,
+   "faces": 12,
+   "vertices": 24
+  },
+  {
+   "mesh": "proc_filing_cabinet_4.msh",
+   "material": "steel_grey",
+   "texture": "proc_filing_cabinet_4.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.5,
+   "shininess": 0.35,
+   "reflectance": 0.02,
+   "faces": 4608,
+   "vertices": 2916
+  }
+ ],
+ "note": "members: body box, a handle box per drawer"
+}

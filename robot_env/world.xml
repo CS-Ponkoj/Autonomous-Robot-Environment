@@ -5,8 +5,9 @@
   reception, doorways with frames and doors fixed open, furniture) and a two-wheeled
   differential-drive robot. Units: meters, kilograms, seconds.
 
-  Geom groups: 0 solid (lidar sees it, collides), 2 visual only, 3 ceiling (robot
-  camera only), 4 hidden colliders of the robot.
+  Geom groups: 0 solid (lidar sees it, collides), 2 visual only (furniture meshes too),
+  3 ceiling (robot camera only), 4 hidden colliders: the robot's, and the solid members
+  of furniture drawn by a mesh (the lidar sees them and they collide).
 -->
 <mujoco model="office_floor">
   <compiler angle="degree"/>
@@ -162,6 +163,88 @@
     <material name="tread" rgba="0.09 0.09 0.09 1" specular="0.02"/>
     <material name="lidar_body" rgba="0.1 0.1 0.11 1" specular="0.5" shininess="0.7"/>
     <material name="camera_body" rgba="0.14 0.14 0.15 1" specular="0.4"/>
+    <texture name="metal_office_desk_t0" type="2d" file="metal_office_desk_0.png"/>
+    <material name="metal_office_desk_m0" texture="metal_office_desk_t0" specular="0.367" shininess="0.538" reflectance="0.0"/>
+    <mesh name="metal_office_desk_0" file="metal_office_desk_0.msh" inertia="shell"/>
+    <material name="proc_office_chair_m0" rgba="0.720 0.730 0.750 1.000" specular="0.9" shininess="0.9" reflectance="0.15"/>
+    <mesh name="proc_office_chair_0" file="proc_office_chair_0.msh" inertia="shell"/>
+    <texture name="proc_office_chair_t1" type="2d" file="proc_office_chair_1.png"/>
+    <material name="proc_office_chair_m1" texture="proc_office_chair_t1" specular="0.15" shininess="0.22" reflectance="0.0"/>
+    <mesh name="proc_office_chair_1" file="proc_office_chair_1.msh" inertia="shell"/>
+    <material name="proc_office_chair_m2" rgba="0.360 0.370 0.390 1.000" specular="0.15" shininess="0.22" reflectance="0.0"/>
+    <mesh name="proc_office_chair_2" file="proc_office_chair_2.msh" inertia="shell"/>
+    <texture name="proc_office_chair_t3" type="2d" file="proc_office_chair_3.png"/>
+    <material name="proc_office_chair_m3" texture="proc_office_chair_t3" specular="0.35" shininess="0.4" reflectance="0.0"/>
+    <mesh name="proc_office_chair_3" file="proc_office_chair_3.msh" inertia="shell"/>
+    <texture name="proc_office_chair_t4" type="2d" file="proc_office_chair_4.png"/>
+    <material name="proc_office_chair_m4" texture="proc_office_chair_t4" specular="0.3" shininess="0.3" reflectance="0.0"/>
+    <mesh name="proc_office_chair_4" file="proc_office_chair_4.msh" inertia="shell"/>
+    <material name="proc_shelf_feet_m0" rgba="0.720 0.730 0.750 1.000" specular="0.9" shininess="0.9" reflectance="0.15"/>
+    <mesh name="proc_shelf_feet_0" file="proc_shelf_feet_0.msh" inertia="shell"/>
+    <texture name="proc_shelf_feet_t1" type="2d" file="proc_shelf_feet_1.png"/>
+    <material name="proc_shelf_feet_m1" texture="proc_shelf_feet_t1" specular="0.35" shininess="0.4" reflectance="0.0"/>
+    <mesh name="proc_shelf_feet_1" file="proc_shelf_feet_1.msh" inertia="shell"/>
+    <texture name="steel_frame_shelves_01_t0" type="2d" file="steel_frame_shelves_01_0.png"/>
+    <material name="steel_frame_shelves_01_m0" texture="steel_frame_shelves_01_t0" specular="0.284" shininess="0.322" reflectance="0.0"/>
+    <mesh name="steel_frame_shelves_01_0" file="steel_frame_shelves_01_0.msh" inertia="shell"/>
+    <texture name="proc_shelf_books_11_t0" type="2d" file="proc_shelf_books_11_0.png"/>
+    <material name="proc_shelf_books_11_m0" texture="proc_shelf_books_11_t0" specular="0.12" shininess="0.15" reflectance="0.0"/>
+    <mesh name="proc_shelf_books_11_0" file="proc_shelf_books_11_0.msh" inertia="shell"/>
+    <texture name="proc_shelf_books_11_t1" type="2d" file="proc_shelf_books_11_1.png"/>
+    <material name="proc_shelf_books_11_m1" texture="proc_shelf_books_11_t1" specular="0.12" shininess="0.15" reflectance="0.0"/>
+    <mesh name="proc_shelf_books_11_1" file="proc_shelf_books_11_1.msh" inertia="shell"/>
+    <material name="proc_filing_cabinet_m0" rgba="0.720 0.730 0.750 1.000" specular="0.9" shininess="0.9" reflectance="0.15"/>
+    <mesh name="proc_filing_cabinet_0" file="proc_filing_cabinet_0.msh" inertia="shell"/>
+    <texture name="proc_filing_cabinet_t1" type="2d" file="proc_filing_cabinet_1.png"/>
+    <material name="proc_filing_cabinet_m1" texture="proc_filing_cabinet_t1" specular="0.1" shininess="0.1" reflectance="0.0"/>
+    <mesh name="proc_filing_cabinet_1" file="proc_filing_cabinet_1.msh" inertia="shell"/>
+    <material name="proc_filing_cabinet_m2" rgba="0.030 0.030 0.030 1.000" specular="0.0" shininess="0.0" reflectance="0.0"/>
+    <mesh name="proc_filing_cabinet_2" file="proc_filing_cabinet_2.msh" inertia="shell"/>
+    <texture name="proc_filing_cabinet_t3" type="2d" file="proc_filing_cabinet_3.png"/>
+    <material name="proc_filing_cabinet_m3" texture="proc_filing_cabinet_t3" specular="0.4" shininess="0.5" reflectance="0.02"/>
+    <mesh name="proc_filing_cabinet_3" file="proc_filing_cabinet_3.msh" inertia="shell"/>
+    <texture name="proc_filing_cabinet_t4" type="2d" file="proc_filing_cabinet_4.png"/>
+    <material name="proc_filing_cabinet_m4" texture="proc_filing_cabinet_t4" specular="0.5" shininess="0.35" reflectance="0.02"/>
+    <mesh name="proc_filing_cabinet_4" file="proc_filing_cabinet_4.msh" inertia="shell"/>
+    <texture name="proc_plant_stand_t0" type="2d" file="proc_plant_stand_0.png"/>
+    <material name="proc_plant_stand_m0" texture="proc_plant_stand_t0" specular="0.2" shininess="0.25" reflectance="0.0"/>
+    <mesh name="proc_plant_stand_0" file="proc_plant_stand_0.msh" inertia="shell"/>
+    <material name="proc_plant_stand_m1" rgba="0.030 0.030 0.030 1.000" specular="0.0" shininess="0.0" reflectance="0.0"/>
+    <mesh name="proc_plant_stand_1" file="proc_plant_stand_1.msh" inertia="shell"/>
+    <texture name="proc_plant_stand_t2" type="2d" file="proc_plant_stand_2.png"/>
+    <material name="proc_plant_stand_m2" texture="proc_plant_stand_t2" specular="0.4" shininess="0.5" reflectance="0.02"/>
+    <mesh name="proc_plant_stand_2" file="proc_plant_stand_2.msh" inertia="shell"/>
+    <texture name="potted_plant_01_t0" type="2d" file="potted_plant_01_0.png"/>
+    <material name="potted_plant_01_m0" texture="potted_plant_01_t0" specular="0.0" shininess="0.0" reflectance="0.0"/>
+    <mesh name="potted_plant_01_0" file="potted_plant_01_0.msh" inertia="shell"/>
+    <texture name="potted_plant_01_t1" type="2d" file="potted_plant_01_1.png"/>
+    <material name="potted_plant_01_m1" texture="potted_plant_01_t1" specular="0.0" shininess="0.0" reflectance="0.0"/>
+    <mesh name="potted_plant_01_1" file="potted_plant_01_1.msh" inertia="shell"/>
+    <texture name="wall_clock_t0" type="2d" file="wall_clock_0.png"/>
+    <material name="wall_clock_m0" texture="wall_clock_t0" specular="0.315" shininess="0.396" reflectance="0.0"/>
+    <mesh name="wall_clock_0" file="wall_clock_0.msh" inertia="shell"/>
+    <material name="wall_clock_m1" rgba="0.800 0.800 0.800 1.000" specular="0.474" shininess="0.899" reflectance="0.0"/>
+    <mesh name="wall_clock_1" file="wall_clock_1.msh" inertia="shell"/>
+    <texture name="proc_waste_bin_t0" type="2d" file="proc_waste_bin_0.png"/>
+    <material name="proc_waste_bin_m0" texture="proc_waste_bin_t0" specular="0.45" shininess="0.5" reflectance="0.02"/>
+    <mesh name="proc_waste_bin_0" file="proc_waste_bin_0.msh" inertia="shell"/>
+    <material name="proc_waste_bin_m1" rgba="0.720 0.730 0.750 1.000" specular="0.9" shininess="0.9" reflectance="0.15"/>
+    <mesh name="proc_waste_bin_1" file="proc_waste_bin_1.msh" inertia="shell"/>
+    <material name="proc_waste_bin_m2" rgba="0.035 0.035 0.040 1.000" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_waste_bin_2" file="proc_waste_bin_2.msh" inertia="shell"/>
+    <texture name="proc_waste_bin_t3" type="2d" file="proc_waste_bin_3.png"/>
+    <material name="proc_waste_bin_m3" texture="proc_waste_bin_t3" specular="0.4" shininess="0.5" reflectance="0.02"/>
+    <mesh name="proc_waste_bin_3" file="proc_waste_bin_3.msh" inertia="shell"/>
+    <material name="proc_floor_lamp_m0" rgba="0.720 0.560 0.300 1.000" specular="0.8" shininess="0.7" reflectance="0.1"/>
+    <mesh name="proc_floor_lamp_0" file="proc_floor_lamp_0.msh" inertia="shell"/>
+    <material name="proc_floor_lamp_m1" rgba="0.720 0.730 0.750 1.000" specular="0.9" shininess="0.9" reflectance="0.15"/>
+    <mesh name="proc_floor_lamp_1" file="proc_floor_lamp_1.msh" inertia="shell"/>
+    <texture name="proc_floor_lamp_t2" type="2d" file="proc_floor_lamp_2.png"/>
+    <material name="proc_floor_lamp_m2" texture="proc_floor_lamp_t2" specular="0.25" shininess="0.3" reflectance="0.0"/>
+    <mesh name="proc_floor_lamp_2" file="proc_floor_lamp_2.msh" inertia="shell"/>
+    <texture name="proc_floor_lamp_t3" type="2d" file="proc_floor_lamp_3.png"/>
+    <material name="proc_floor_lamp_m3" texture="proc_floor_lamp_t3" specular="0.05" shininess="0.05" reflectance="0.0"/>
+    <mesh name="proc_floor_lamp_3" file="proc_floor_lamp_3.msh" inertia="shell"/>
   </asset>
 
   <default>
@@ -513,223 +596,134 @@
     <geom name="sign_reception" type="box" pos="2.8000 -0.7040 1.6000" size="0.2500 0.0060 0.0625" euler="0 0 180" material="sign_reception" class="visual"/>
 
     <!-- Office furniture -->
-    <geom name="office_desk_top" type="box" pos="-3.8000 4.4500 0.7400" size="0.7000 0.3500 0.0200" material="desk_wood"/>
-    <geom name="office_desk_ped_l" type="box" pos="-4.3000 4.4500 0.3600" size="0.2000 0.3300 0.3600" material="desk_body"/>
-    <geom name="office_desk_ped_r" type="box" pos="-3.3000 4.4500 0.3600" size="0.2000 0.3300 0.3600" material="desk_body"/>
-    <geom name="office_desk_panel" type="box" pos="-3.8000 4.7700 0.4200" size="0.3000 0.0150 0.3000" material="desk_body"/>
-    <geom type="box" pos="-4.3000 4.1190 0.2400" size="0.1840 0.0010 0.0030" material="seam" class="visual"/>
-    <geom type="box" pos="-4.3000 4.1190 0.4800" size="0.1840 0.0010 0.0030" material="seam" class="visual"/>
-    <geom type="box" pos="-4.3000 4.1190 0.1740" size="0.0500 0.0040 0.0060" material="handle" class="visual"/>
-    <geom type="box" pos="-4.3000 4.1190 0.4140" size="0.0500 0.0040 0.0060" material="handle" class="visual"/>
-    <geom type="box" pos="-4.3000 4.1190 0.6540" size="0.0500 0.0040 0.0060" material="handle" class="visual"/>
-    <geom type="box" pos="-3.3000 4.1190 0.2400" size="0.1840 0.0010 0.0030" material="seam" class="visual"/>
-    <geom type="box" pos="-3.3000 4.1190 0.4800" size="0.1840 0.0010 0.0030" material="seam" class="visual"/>
-    <geom type="box" pos="-3.3000 4.1190 0.1740" size="0.0500 0.0040 0.0060" material="handle" class="visual"/>
-    <geom type="box" pos="-3.3000 4.1190 0.4140" size="0.0500 0.0040 0.0060" material="handle" class="visual"/>
-    <geom type="box" pos="-3.3000 4.1190 0.6540" size="0.0500 0.0040 0.0060" material="handle" class="visual"/>
-    <geom type="box" pos="-3.8000 4.6000 0.7650" size="0.0900 0.0700 0.0050" material="robot_dark" class="visual"/>
-    <geom type="box" pos="-3.8000 4.6200 0.8600" size="0.0200 0.0150 0.0900" material="robot_dark" class="visual"/>
-    <geom type="box" pos="-3.8000 4.6000 1.0200" size="0.3000 0.0120 0.1700" material="monitor" class="visual"/>
-    <geom type="box" pos="-3.8000 4.5880 1.0200" size="0.2850 0.0010 0.1550" material="screen" class="visual"/>
-    <geom type="box" pos="-3.8000 4.3000 0.7660" size="0.2100 0.0700 0.0060" material="robot_dark" class="visual"/>
-    <geom type="box" pos="-3.4200 4.3000 0.7660" size="0.0350 0.0500 0.0080" material="robot_dark" class="visual"/>
-    <geom name="office_chair_base" type="cylinder" pos="-3.8000 3.7200 0.0700" size="0.2400 0.0700" material="chair_base"/>
-    <geom type="cylinder" pos="-3.8000 3.7200 0.2800" size="0.0300 0.1400" material="metal" class="visual"/>
-    <geom name="office_chair_seat" type="box" pos="-3.8000 3.7200 0.4550" size="0.2400 0.2300 0.0350" material="fabric"/>
-    <geom class="visual" type="cylinder" pos="-3.800 3.950 0.455" size="0.035 0.24" zaxis="1 0 0" material="fabric"/>
-    <geom name="office_chair_back" type="box" pos="-3.8000 3.4700 0.7900" size="0.2200 0.0300 0.2200" material="fabric"/>
-    <geom type="box" pos="-3.8000 3.4850 0.5900" size="0.0250 0.0150 0.1100" material="metal" class="visual"/>
-    <geom type="box" pos="-4.0500 3.7200 0.6200" size="0.0200 0.1500 0.0150" material="chair_base" class="visual"/>
-    <geom type="box" pos="-4.0500 3.6700 0.5400" size="0.0120 0.0120 0.0700" material="chair_base" class="visual"/>
-    <geom type="box" pos="-3.5500 3.7200 0.6200" size="0.0200 0.1500 0.0150" material="chair_base" class="visual"/>
-    <geom type="box" pos="-3.5500 3.6700 0.5400" size="0.0120 0.0120 0.0700" material="chair_base" class="visual"/>
-    <geom name="office_bookshelf_plinth" type="box" pos="-4.7900 2.4000 0.0800" size="0.1700 0.6000 0.0800" material="metal_dark"/>
-    <geom name="office_bookshelf_post_sw" type="box" pos="-4.9450 1.8150 0.9000" size="0.0150 0.0150 0.9000" material="metal"/>
-    <geom name="office_bookshelf_post_nw" type="box" pos="-4.9450 2.9850 0.9000" size="0.0150 0.0150 0.9000" material="metal"/>
-    <geom name="office_bookshelf_post_se" type="box" pos="-4.6350 1.8150 0.9000" size="0.0150 0.0150 0.9000" material="metal"/>
-    <geom name="office_bookshelf_post_ne" type="box" pos="-4.6350 2.9850 0.9000" size="0.0150 0.0150 0.9000" material="metal"/>
-    <geom name="office_bookshelf_board_1" type="box" pos="-4.7900 2.4000 0.5500" size="0.1700 0.6000 0.0100" material="metal"/>
-    <geom name="office_bookshelf_board_2" type="box" pos="-4.7900 2.4000 0.9500" size="0.1700 0.6000 0.0100" material="metal"/>
-    <geom name="office_bookshelf_board_3" type="box" pos="-4.7900 2.4000 1.3500" size="0.1700 0.6000 0.0100" material="metal"/>
-    <geom name="office_bookshelf_board_4" type="box" pos="-4.7900 2.4000 1.7500" size="0.1700 0.6000 0.0100" material="metal"/>
-    <geom type="box" pos="-4.7900 1.8534 0.3179" size="0.1176 0.0134 0.1579" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 1.8896 0.3122" size="0.1046 0.0183 0.1522" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 1.9317 0.2884" size="0.1013 0.0175 0.1284" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 1.9733 0.3023" size="0.1202 0.0187 0.1423" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0175 0.2815" size="0.1195 0.0158 0.1215" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0504 0.3158" size="0.0992 0.0088 0.1558" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0730 0.3140" size="0.1134 0.0136 0.1540" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.1005 0.2780" size="0.0982 0.0115 0.1180" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.1307 0.2780" size="0.1306 0.0146 0.1180" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.1592 0.2773" size="0.1081 0.0108 0.1173" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.1921 0.3195" size="0.1115 0.0182 0.1595" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.2315 0.2918" size="0.0998 0.0191 0.1318" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.2697 0.3061" size="0.1049 0.0148 0.1461" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.2973 0.3100" size="0.1317 0.0120 0.1500" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3271 0.2961" size="0.0984 0.0165 0.1361" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3601 0.2831" size="0.1137 0.0147 0.1231" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3916 0.3210" size="0.1118 0.0126 0.1610" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.4266 0.2884" size="0.1261 0.0197 0.1284" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.4611 0.3045" size="0.1279 0.0127 0.1445" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.4840 0.2745" size="0.1135 0.0098 0.1145" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.5086 0.2783" size="0.1006 0.0116 0.1183" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.5347 0.3036" size="0.1109 0.0082 0.1436" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.5663 0.3152" size="0.1181 0.0138 0.1552" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.5981 0.3030" size="0.1060 0.0117 0.1430" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.6269 0.3066" size="0.1174 0.0155 0.1466" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.6665 0.2789" size="0.1128 0.0152 0.1189" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.6980 0.2926" size="0.1239 0.0111 0.1326" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7324 0.2823" size="0.1083 0.0152 0.1223" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7626 0.3033" size="0.1209 0.0138 0.1433" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7982 0.2748" size="0.1051 0.0190 0.1148" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.8323 0.2874" size="0.0996 0.0110 0.1274" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.8586 0.3163" size="0.1107 0.0096 0.1563" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.8910 0.2807" size="0.1185 0.0163 0.1207" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.9302 0.2888" size="0.1105 0.0137 0.1288" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 1.8496 0.6955" size="0.1005 0.0096 0.1355" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 1.8855 0.7074" size="0.1238 0.0188 0.1474" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 1.9240 0.7154" size="0.1295 0.0162 0.1554" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 1.9580 0.6747" size="0.1155 0.0084 0.1147" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 1.9783 0.6783" size="0.1005 0.0081 0.1183" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0150 0.6925" size="0.1235 0.0186 0.1325" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0517 0.6986" size="0.1169 0.0136 0.1386" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0807 0.6849" size="0.1148 0.0152 0.1249" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.1163 0.6862" size="0.1302 0.0154 0.1262" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.1451 0.6986" size="0.1194 0.0097 0.1386" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.1747 0.6895" size="0.1292 0.0133 0.1295" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.2031 0.7174" size="0.1262 0.0132 0.1574" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.2351 0.6805" size="0.1091 0.0150 0.1205" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.2724 0.6770" size="0.0994 0.0187 0.1170" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3087 0.7180" size="0.1145 0.0094 0.1580" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3361 0.7080" size="0.1215 0.0142 0.1480" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3638 0.7155" size="0.0991 0.0089 0.1555" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3908 0.7048" size="0.1104 0.0114 0.1448" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.4120 0.6752" size="0.1139 0.0096 0.1152" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.4337 0.7039" size="0.0996 0.0097 0.1439" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.4589 0.6915" size="0.1204 0.0144 0.1315" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.4906 0.6825" size="0.1146 0.0104 0.1225" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.5230 0.6848" size="0.0993 0.0144 0.1248" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.5621 0.7213" size="0.1155 0.0194 0.1613" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.6029 0.6781" size="0.1297 0.0175 0.1181" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.6352 0.7172" size="0.1199 0.0134 0.1572" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.6700 0.7129" size="0.1156 0.0158 0.1529" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7062 0.7083" size="0.1052 0.0158 0.1483" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7430 0.7204" size="0.1323 0.0188 0.1604" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7908 0.7081" size="0.1072 0.0192 0.1481" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.8224 0.7001" size="0.1134 0.0090 0.1401" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.8446 0.6770" size="0.1263 0.0083 0.1170" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.8667 0.6807" size="0.1256 0.0120 0.1207" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.9075 0.7062" size="0.1161 0.0188 0.1462" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 1.8533 1.1135" size="0.1176 0.0133 0.1535" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 1.8872 1.1006" size="0.1275 0.0143 0.1406" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 1.9277 1.1029" size="0.1285 0.0195 0.1429" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 1.9752 1.1012" size="0.1163 0.0196 0.1412" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0083 1.0919" size="0.0982 0.0094 0.1319" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0416 1.1121" size="0.1120 0.0142 0.1521" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0661 1.1182" size="0.1038 0.0091 0.1582" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0989 1.0868" size="0.1303 0.0195 0.1268" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.1354 1.1184" size="0.1295 0.0121 0.1584" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.1620 1.0754" size="0.1127 0.0093 0.1154" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.1899 1.0832" size="0.0988 0.0174 0.1232" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.2188 1.0856" size="0.1233 0.0114 0.1256" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.2480 1.0982" size="0.1023 0.0168 0.1382" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.2884 1.0751" size="0.1288 0.0164 0.1151" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3285 1.1150" size="0.1168 0.0154 0.1550" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3646 1.1031" size="0.1278 0.0144 0.1431" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3982 1.1169" size="0.1264 0.0169 0.1569" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.4398 1.1110" size="0.1048 0.0187 0.1510" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.4769 1.1085" size="0.1064 0.0096 0.1485" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.5036 1.0998" size="0.1309 0.0132 0.1398" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.5344 1.0786" size="0.1260 0.0155 0.1186" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.5757 1.0795" size="0.1319 0.0189 0.1195" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.6131 1.1136" size="0.1330 0.0121 0.1536" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.6383 1.1031" size="0.1247 0.0083 0.1431" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.6617 1.0822" size="0.1020 0.0103 0.1222" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7010 1.0769" size="0.1013 0.0191 0.1169" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7301 1.0943" size="0.1117 0.0092 0.1343" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7588 1.1073" size="0.0985 0.0152 0.1473" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7892 1.0933" size="0.1239 0.0134 0.1333" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.8179 1.0894" size="0.1257 0.0091 0.1294" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.8515 1.1039" size="0.1281 0.0165 0.1439" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.8839 1.0902" size="0.1185 0.0103 0.1302" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.9064 1.0816" size="0.1240 0.0094 0.1216" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.9291 1.0916" size="0.1169 0.0120 0.1316" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 1.8516 1.5162" size="0.1015 0.0116 0.1562" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 1.8750 1.4882" size="0.1316 0.0113 0.1282" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 1.9077 1.4925" size="0.1167 0.0148 0.1325" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 1.9454 1.5206" size="0.1247 0.0164 0.1606" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 1.9723 1.4951" size="0.1063 0.0093 0.1351" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 1.9924 1.4787" size="0.1111 0.0103 0.1187" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0176 1.4937" size="0.1169 0.0121 0.1337" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0553 1.5125" size="0.1203 0.0199 0.1525" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.0968 1.4924" size="0.1314 0.0160 0.1324" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.1363 1.4997" size="0.1279 0.0196 0.1397" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.1758 1.4990" size="0.1127 0.0193 0.1390" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.2127 1.4868" size="0.1149 0.0144 0.1268" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.2507 1.5107" size="0.0989 0.0170 0.1507" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.2779 1.4925" size="0.1244 0.0099 0.1325" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3039 1.5189" size="0.1326 0.0086 0.1589" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3312 1.4859" size="0.1232 0.0107 0.1259" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3515 1.5172" size="0.1264 0.0092 0.1572" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.3883 1.4795" size="0.1191 0.0178 0.1195" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.4196 1.4909" size="0.1281 0.0094 0.1309" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.4436 1.4956" size="0.1214 0.0133 0.1356" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.4795 1.5093" size="0.1107 0.0162 0.1493" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.5220 1.4794" size="0.1063 0.0168 0.1194" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.5622 1.4869" size="0.1106 0.0155 0.1269" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.5950 1.4854" size="0.1078 0.0103 0.1254" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.6261 1.5065" size="0.1049 0.0158 0.1465" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.6531 1.4758" size="0.0989 0.0111 0.1158" material="book_blue" class="visual"/>
-    <geom type="box" pos="-4.7900 2.6785 1.5061" size="0.1010 0.0089 0.1461" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7095 1.4908" size="0.1149 0.0198 0.1308" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7497 1.4775" size="0.1273 0.0169 0.1175" material="book_red" class="visual"/>
-    <geom type="box" pos="-4.7900 2.7890 1.5105" size="0.1273 0.0179 0.1505" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.8222 1.4915" size="0.1263 0.0111 0.1315" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.8511 1.5177" size="0.1241 0.0146 0.1577" material="book_cream" class="visual"/>
-    <geom type="box" pos="-4.7900 2.8872 1.4894" size="0.1142 0.0150 0.1294" material="book_dark" class="visual"/>
-    <geom type="box" pos="-4.7900 2.9178 1.5066" size="0.1150 0.0148 0.1466" material="book_green" class="visual"/>
-    <geom type="box" pos="-4.7900 2.9489 1.5173" size="0.1089 0.0081 0.1573" material="book_dark" class="visual"/>
-    <geom name="office_cabinet" type="box" pos="-0.4500 4.6200 0.6500" size="0.3000 0.3000 0.6500" material="metal"/>
-    <geom type="box" pos="-0.4500 4.3190 0.6500" size="0.0030 0.0010 0.5525" material="seam" class="visual"/>
-    <geom type="box" pos="-0.5400 4.3180 1.0075" size="0.0300 0.0020 0.0060" material="handle" class="visual"/>
-    <geom type="box" pos="-0.2400 4.3180 1.0075" size="0.0300 0.0020 0.0060" material="handle" class="visual"/>
-    <geom name="office_plant_pot" type="cylinder" pos="-0.4500 1.2500 0.2000" size="0.1800 0.2000" material="pot"/>
-    <geom type="cylinder" pos="-0.4500 1.2500 0.4020" size="0.1650 0.0040" material="soil" class="visual"/>
-    <geom type="cylinder" pos="-0.4206 1.2440 0.5000" size="0.0060 0.1000" material="stem" class="visual"/>
-    <geom type="cylinder" pos="-0.4440 1.2794 0.5000" size="0.0060 0.1000" material="stem" class="visual"/>
-    <geom type="cylinder" pos="-0.4756 1.2656 0.5000" size="0.0060 0.1000" material="stem" class="visual"/>
-    <geom type="cylinder" pos="-0.4745 1.2327 0.5000" size="0.0060 0.1000" material="stem" class="visual"/>
-    <geom type="cylinder" pos="-0.4457 1.2203 0.5000" size="0.0060 0.1000" material="stem" class="visual"/>
-    <geom class="visual" type="ellipsoid" pos="-0.311 1.271 0.511" size="0.102 0.033 0.005" euler="0 -27.7 8.4" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.360 1.286 0.517" size="0.130 0.042 0.005" euler="0 -12.4 21.8" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.414 1.325 0.473" size="0.127 0.041 0.005" euler="0 -44.9 64.3" material="leaves_light"/>
-    <geom class="visual" type="ellipsoid" pos="-0.508 1.357 0.473" size="0.115 0.037 0.005" euler="0 -21.5 118.7" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.556 1.364 0.499" size="0.131 0.042 0.005" euler="0 -15.4 133.0" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.600 1.278 0.506" size="0.107 0.034 0.005" euler="0 -29.3 169.3" material="leaves_light"/>
-    <geom class="visual" type="ellipsoid" pos="-0.514 1.204 0.473" size="0.102 0.033 0.005" euler="0 -40.3 215.6" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.464 1.170 0.548" size="0.128 0.041 0.005" euler="0 -41.3 260.0" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.399 1.143 0.528" size="0.114 0.036 0.005" euler="0 -14.3 295.5" material="leaves_light"/>
-    <geom class="visual" type="ellipsoid" pos="-0.378 1.214 0.544" size="0.110 0.035 0.005" euler="0 -41.1 333.4" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.348 1.275 0.611" size="0.109 0.035 0.005" euler="0 -36.8 373.9" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.397 1.295 0.637" size="0.115 0.037 0.005" euler="0 -36.7 400.2" material="leaves_light"/>
-    <geom class="visual" type="ellipsoid" pos="-0.449 1.365 0.640" size="0.120 0.039 0.005" euler="0 -9.8 449.5" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.524 1.347 0.594" size="0.107 0.034 0.005" euler="0 -8.0 487.4" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.544 1.260 0.628" size="0.095 0.030 0.005" euler="0 -12.7 534.0" material="leaves_light"/>
-    <geom class="visual" type="ellipsoid" pos="-0.591 1.237 0.642" size="0.124 0.040 0.005" euler="0 -15.1 545.3" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.528 1.122 0.657" size="0.139 0.045 0.005" euler="0 -16.2 598.8" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.423 1.134 0.651" size="0.109 0.035 0.005" euler="0 -19.2 643.0" material="leaves_light"/>
-    <geom class="visual" type="ellipsoid" pos="-0.380 1.120 0.593" size="0.130 0.042 0.005" euler="0 -4.4 658.5" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.343 1.230 0.647" size="0.103 0.033 0.005" euler="0 -3.8 709.6" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.361 1.300 0.704" size="0.107 0.034 0.005" euler="0 3.6 749.5" material="leaves_light"/>
-    <geom class="visual" type="ellipsoid" pos="-0.431 1.407 0.750" size="0.103 0.033 0.005" euler="0 -10.8 803.0" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.507 1.347 0.748" size="0.101 0.032 0.005" euler="0 5.0 840.7" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.575 1.313 0.761" size="0.111 0.036 0.005" euler="0 -15.0 873.2" material="leaves_light"/>
-    <geom class="visual" type="ellipsoid" pos="-0.595 1.245 0.715" size="0.104 0.033 0.005" euler="0 -12.7 901.8" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.494 1.208 0.745" size="0.091 0.029 0.005" euler="0 -27.4 943.2" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.484 1.130 0.758" size="0.103 0.033 0.005" euler="0 -14.5 974.2" material="leaves_light"/>
-    <geom class="visual" type="ellipsoid" pos="-0.410 1.099 0.762" size="0.095 0.030 0.005" euler="0 1.3 1004.8" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.408 1.203 0.726" size="0.133 0.043 0.005" euler="0 1.1 1031.9" material="leaves"/>
-    <geom class="visual" type="ellipsoid" pos="-0.378 1.255 0.733" size="0.115 0.037 0.005" euler="0 -5.3 1084.0" material="leaves_light"/>
+    <geom name="office_desk_metal_office_desk_0" class="visual" type="mesh" mesh="metal_office_desk_0" material="metal_office_desk_m0" pos="-3.8000 4.5050 0.0000" euler="0 0 0.0"/>
+    <geom name="office_desk_leg_0" type="box" pos="-4.5250 4.1610 0.0930" size="0.0250 0.0250 0.0930" material="desk_body" group="4"/>
+    <geom name="office_desk_leg_1" type="box" pos="-3.0750 4.1610 0.0930" size="0.0250 0.0250 0.0930" material="desk_body" group="4"/>
+    <geom name="office_desk_leg_2" type="box" pos="-4.5250 4.8560 0.0930" size="0.0250 0.0250 0.0930" material="desk_body" group="4"/>
+    <geom name="office_desk_leg_3" type="box" pos="-3.0750 4.8560 0.0930" size="0.0250 0.0250 0.0930" material="desk_body" group="4"/>
+    <geom name="office_desk_ped_l" type="box" pos="-4.5325 4.5100 0.4680" size="0.2525 0.4400 0.2820" material="desk_body" group="4"/>
+    <geom name="office_desk_ped_r" type="box" pos="-3.0675 4.5100 0.4680" size="0.2525 0.4400 0.2820" material="desk_body" group="4"/>
+    <geom name="office_desk_panel" type="box" pos="-3.8000 4.9400 0.4680" size="0.4800 0.0100 0.2820" material="desk_body" group="4"/>
+    <geom name="office_desk_top" type="box" pos="-3.8000 4.5200 0.7690" size="1.0000 0.4600 0.0190" material="desk_body" group="4"/>
+    <geom name="office_desk_handle_0" type="box" pos="-4.5175 4.0495 0.2935" size="0.0575 0.0185 0.0050" material="desk_body" group="4"/>
+    <geom name="office_desk_handle_1" type="box" pos="-4.5175 4.0495 0.4555" size="0.0575 0.0185 0.0050" material="desk_body" group="4"/>
+    <geom name="office_desk_handle_2" type="box" pos="-4.5175 4.0495 0.6185" size="0.0575 0.0185 0.0050" material="desk_body" group="4"/>
+    <geom name="office_desk_handle_3" type="box" pos="-3.0825 4.0495 0.2935" size="0.0575 0.0185 0.0050" material="desk_body" group="4"/>
+    <geom name="office_desk_handle_4" type="box" pos="-3.0825 4.0495 0.4585" size="0.0575 0.0185 0.0050" material="desk_body" group="4"/>
+    <geom name="office_desk_handle_5" type="box" pos="-3.0825 4.0495 0.6215" size="0.0575 0.0185 0.0050" material="desk_body" group="4"/>
+    <geom type="box" pos="-3.8000 4.6800 0.7930" size="0.0900 0.0700 0.0050" material="robot_dark" class="visual"/>
+    <geom type="box" pos="-3.8000 4.7000 0.8880" size="0.0200 0.0150 0.0900" material="robot_dark" class="visual"/>
+    <geom type="box" pos="-3.8000 4.6800 1.0480" size="0.3000 0.0120 0.1700" material="monitor" class="visual"/>
+    <geom type="box" pos="-3.8000 4.6680 1.0480" size="0.2850 0.0010 0.1550" material="screen" class="visual"/>
+    <geom type="box" pos="-3.8000 4.3800 0.7940" size="0.2100 0.0700 0.0060" material="robot_dark" class="visual"/>
+    <geom type="box" pos="-3.4200 4.3800 0.7960" size="0.0350 0.0500 0.0080" material="robot_dark" class="visual"/>
+    <geom name="office_chair_proc_office_chair_0" class="visual" type="mesh" mesh="proc_office_chair_0" material="proc_office_chair_m0" pos="-3.8000 3.6200 0.0000" euler="0 0 180.0"/>
+    <geom name="office_chair_proc_office_chair_1" class="visual" type="mesh" mesh="proc_office_chair_1" material="proc_office_chair_m1" pos="-3.8000 3.6200 0.0000" euler="0 0 180.0"/>
+    <geom name="office_chair_proc_office_chair_2" class="visual" type="mesh" mesh="proc_office_chair_2" material="proc_office_chair_m2" pos="-3.8000 3.6200 0.0000" euler="0 0 180.0"/>
+    <geom name="office_chair_proc_office_chair_3" class="visual" type="mesh" mesh="proc_office_chair_3" material="proc_office_chair_m3" pos="-3.8000 3.6200 0.0000" euler="0 0 180.0"/>
+    <geom name="office_chair_proc_office_chair_4" class="visual" type="mesh" mesh="proc_office_chair_4" material="proc_office_chair_m4" pos="-3.8000 3.6200 0.0000" euler="0 0 180.0"/>
+    <geom name="office_chair_leg_front_l" type="box" pos="-3.5950 3.8150 0.1975" size="0.0125 0.0125 0.1975" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_leg_back_l" type="box" pos="-3.5950 3.4250 0.4750" size="0.0125 0.0125 0.4750" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_glide_front_l" type="cylinder" pos="-3.5950 3.8150 0.0040" size="0.0145 0.0040" group="4" material="chair_base"/>
+    <geom name="office_chair_glide_back_l" type="cylinder" pos="-3.5950 3.4250 0.0040" size="0.0145 0.0040" group="4" material="chair_base"/>
+    <geom name="office_chair_arm_rail_l" type="box" pos="-3.5950 3.6200 0.6200" size="0.0100 0.1950 0.0100" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_arm_post_l" type="box" pos="-3.5950 3.7950 0.5100" size="0.0100 0.0100 0.1100" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_arm_pad_l" type="box" pos="-3.5950 3.6400 0.6450" size="0.0280 0.1300 0.0130" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_leg_front_r" type="box" pos="-4.0050 3.8150 0.1975" size="0.0125 0.0125 0.1975" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_leg_back_r" type="box" pos="-4.0050 3.4250 0.4750" size="0.0125 0.0125 0.4750" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_glide_front_r" type="cylinder" pos="-4.0050 3.8150 0.0040" size="0.0145 0.0040" group="4" material="chair_base"/>
+    <geom name="office_chair_glide_back_r" type="cylinder" pos="-4.0050 3.4250 0.0040" size="0.0145 0.0040" group="4" material="chair_base"/>
+    <geom name="office_chair_arm_rail_r" type="box" pos="-4.0050 3.6200 0.6200" size="0.0100 0.1950 0.0100" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_arm_post_r" type="box" pos="-4.0050 3.7950 0.5100" size="0.0100 0.0100 0.1100" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_arm_pad_r" type="box" pos="-4.0050 3.6400 0.6450" size="0.0280 0.1300 0.0130" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_pan" type="box" pos="-3.8000 3.6200 0.3850" size="0.2300 0.2200 0.0050" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_seat" type="box" pos="-3.8000 3.6200 0.4365" size="0.2380 0.2280 0.0435" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_back_low" type="box" pos="-3.8000 3.4372 0.6640" size="0.1910 0.0448 0.0860" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_chair_back_high" type="box" pos="-3.8000 3.4144 0.8360" size="0.1910 0.0453 0.0860" euler="0 0 180.0" material="chair_base" group="4"/>
+    <geom name="office_bookshelf_proc_shelf_feet_0" class="visual" type="mesh" mesh="proc_shelf_feet_0" material="proc_shelf_feet_m0" pos="-4.7400 2.4000 0.0000" euler="0 0 90.0"/>
+    <geom name="office_bookshelf_proc_shelf_feet_1" class="visual" type="mesh" mesh="proc_shelf_feet_1" material="proc_shelf_feet_m1" pos="-4.7400 2.4000 0.0000" euler="0 0 90.0"/>
+    <geom name="office_bookshelf_foot_0" type="cylinder" pos="-4.5040 1.8660 0.0165" size="0.0170 0.0165" group="4" material="metal"/>
+    <geom name="office_bookshelf_foot_1" type="cylinder" pos="-4.5040 2.9340 0.0165" size="0.0170 0.0165" group="4" material="metal"/>
+    <geom name="office_bookshelf_foot_2" type="cylinder" pos="-4.9760 1.8660 0.0165" size="0.0170 0.0165" group="4" material="metal"/>
+    <geom name="office_bookshelf_foot_3" type="cylinder" pos="-4.9760 2.9340 0.0165" size="0.0170 0.0165" group="4" material="metal"/>
+    <geom name="office_bookshelf_steel_frame_shelves_01_0" class="visual" type="mesh" mesh="steel_frame_shelves_01_0" material="steel_frame_shelves_01_m0" pos="-4.7400 2.4000 0.0330" euler="0 0 90.0"/>
+    <geom name="office_bookshelf_post_0" type="box" pos="-4.5040 1.8660 1.1030" size="0.0165 0.0165 1.0700" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_post_1" type="box" pos="-4.5040 2.9340 1.1030" size="0.0165 0.0165 1.0700" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_post_2" type="box" pos="-4.9760 1.8660 1.1030" size="0.0165 0.0165 1.0700" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_post_3" type="box" pos="-4.9760 2.9340 1.1030" size="0.0165 0.0165 1.0700" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_frame_0" type="box" pos="-4.7390 2.3985 0.1351" size="0.5475 0.2500 0.0123" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_board_0" type="box" pos="-4.7390 2.3985 0.1572" size="0.5175 0.2500 0.0096" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_frame_1" type="box" pos="-4.7390 2.3985 0.6404" size="0.5475 0.2500 0.0121" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_board_1" type="box" pos="-4.7390 2.3985 0.6626" size="0.5175 0.2500 0.0100" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_frame_2" type="box" pos="-4.7390 2.3985 1.1475" size="0.5475 0.2500 0.0125" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_board_2" type="box" pos="-4.7390 2.3985 1.1695" size="0.5175 0.2500 0.0095" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_frame_3" type="box" pos="-4.7390 2.3985 1.6542" size="0.5475 0.2500 0.0132" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_board_3" type="box" pos="-4.7390 2.3985 1.6763" size="0.5175 0.2500 0.0088" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_frame_4" type="box" pos="-4.7390 2.3985 2.1543" size="0.5475 0.2500 0.0095" euler="0 0 90.0" material="metal" group="4"/>
+    <geom name="office_bookshelf_proc_shelf_books_11_0" class="visual" type="mesh" mesh="proc_shelf_books_11_0" material="proc_shelf_books_11_m0" pos="-4.7400 2.4000 0.0330" euler="0 0 90.0"/>
+    <geom name="office_bookshelf_proc_shelf_books_11_1" class="visual" type="mesh" mesh="proc_shelf_books_11_1" material="proc_shelf_books_11_m1" pos="-4.7400 2.4000 0.0330" euler="0 0 90.0"/>
+    <geom name="office_cabinet_proc_filing_cabinet_0" class="visual" type="mesh" mesh="proc_filing_cabinet_0" material="proc_filing_cabinet_m0" pos="-0.4500 4.6740 0.0000" euler="0 0 0.0"/>
+    <geom name="office_cabinet_proc_filing_cabinet_1" class="visual" type="mesh" mesh="proc_filing_cabinet_1" material="proc_filing_cabinet_m1" pos="-0.4500 4.6740 0.0000" euler="0 0 0.0"/>
+    <geom name="office_cabinet_proc_filing_cabinet_2" class="visual" type="mesh" mesh="proc_filing_cabinet_2" material="proc_filing_cabinet_m2" pos="-0.4500 4.6740 0.0000" euler="0 0 0.0"/>
+    <geom name="office_cabinet_proc_filing_cabinet_3" class="visual" type="mesh" mesh="proc_filing_cabinet_3" material="proc_filing_cabinet_m3" pos="-0.4500 4.6740 0.0000" euler="0 0 0.0"/>
+    <geom name="office_cabinet_proc_filing_cabinet_4" class="visual" type="mesh" mesh="proc_filing_cabinet_4" material="proc_filing_cabinet_m4" pos="-0.4500 4.6740 0.0000" euler="0 0 0.0"/>
+    <geom name="office_cabinet_body" type="box" pos="-0.4500 4.6710 0.6600" size="0.2350 0.3070 0.6600" material="metal" group="4"/>
+    <geom name="office_cabinet_handle_0" type="box" pos="-0.4500 4.3550 0.2650" size="0.0600 0.0090 0.0080" material="metal" group="4"/>
+    <geom name="office_cabinet_handle_1" type="box" pos="-0.4500 4.3550 0.5750" size="0.0600 0.0090 0.0080" material="metal" group="4"/>
+    <geom name="office_cabinet_handle_2" type="box" pos="-0.4500 4.3550 0.8850" size="0.0600 0.0090 0.0080" material="metal" group="4"/>
+    <geom name="office_cabinet_handle_3" type="box" pos="-0.4500 4.3550 1.1950" size="0.0600 0.0090 0.0080" material="metal" group="4"/>
+    <geom name="office_plant_proc_plant_stand_0" class="visual" type="mesh" mesh="proc_plant_stand_0" material="proc_plant_stand_m0" pos="-0.4500 1.2500 0.0000" euler="0 0 0.0"/>
+    <geom name="office_plant_proc_plant_stand_1" class="visual" type="mesh" mesh="proc_plant_stand_1" material="proc_plant_stand_m1" pos="-0.4500 1.2500 0.0000" euler="0 0 0.0"/>
+    <geom name="office_plant_proc_plant_stand_2" class="visual" type="mesh" mesh="proc_plant_stand_2" material="proc_plant_stand_m2" pos="-0.4500 1.2500 0.0000" euler="0 0 0.0"/>
+    <geom name="office_plant_stand" type="box" pos="-0.4500 1.2500 0.1250" size="0.2200 0.2200 0.0950" material="desk_wood" group="4"/>
+    <geom name="office_plant_stand_top" type="box" pos="-0.4500 1.2500 0.2100" size="0.2300 0.2300 0.0100" material="desk_wood" group="4"/>
+    <geom name="office_plant_stand_plinth" type="box" pos="-0.4500 1.2500 0.0150" size="0.2050 0.2050 0.0150" material="desk_wood" group="4"/>
+    <geom name="office_plant_potted_plant_01_0" class="visual" type="mesh" mesh="potted_plant_01_0" material="potted_plant_01_m0" pos="-0.4948 1.2982 0.2200" euler="0 0 0.0"/>
+    <geom name="office_plant_potted_plant_01_1" class="visual" type="mesh" mesh="potted_plant_01_1" material="potted_plant_01_m1" pos="-0.4948 1.2982 0.2200" euler="0 0 0.0"/>
+    <geom name="office_plant_pot_0" type="cylinder" pos="-0.4500 1.2500 0.2325" size="0.1991 0.0125" group="4" material="pot"/>
+    <geom name="office_plant_pot_1" type="cylinder" pos="-0.4500 1.2500 0.2475" size="0.1935 0.0025" group="4" material="pot"/>
+    <geom name="office_plant_pot_2" type="cylinder" pos="-0.4500 1.2500 0.2538" size="0.1861 0.0037" group="4" material="pot"/>
+    <geom name="office_plant_pot_3" type="cylinder" pos="-0.4500 1.2500 0.2612" size="0.1775 0.0037" group="4" material="pot"/>
+    <geom name="office_plant_pot_4" type="cylinder" pos="-0.4500 1.2500 0.2687" size="0.1690 0.0037" group="4" material="pot"/>
+    <geom name="office_plant_pot_5" type="cylinder" pos="-0.4500 1.2500 0.2750" size="0.1617 0.0025" group="4" material="pot"/>
+    <geom name="office_plant_pot_6" type="cylinder" pos="-0.4500 1.2500 0.2800" size="0.1557 0.0025" group="4" material="pot"/>
+    <geom name="office_plant_pot_7" type="cylinder" pos="-0.4500 1.2500 0.2850" size="0.1506 0.0025" group="4" material="pot"/>
+    <geom name="office_plant_pot_8" type="cylinder" pos="-0.4500 1.2500 0.2900" size="0.1456 0.0025" group="4" material="pot"/>
+    <geom name="office_plant_pot_9" type="cylinder" pos="-0.4500 1.2500 0.2950" size="0.1395 0.0025" group="4" material="pot"/>
+    <geom name="office_plant_pot_10" type="cylinder" pos="-0.4500 1.2500 0.3000" size="0.1350 0.0025" group="4" material="pot"/>
+    <geom name="office_plant_pot_11" type="cylinder" pos="-0.4500 1.2500 0.3050" size="0.1289 0.0025" group="4" material="pot"/>
+    <geom name="office_plant_pot_12" type="cylinder" pos="-0.4500 1.2500 0.3087" size="0.1256 0.0013" group="4" material="pot"/>
+    <geom name="office_plant_pot_13" type="cylinder" pos="-0.4500 1.2500 0.3150" size="0.1233 0.0050" group="4" material="pot"/>
+    <geom name="office_plant_pot_14" type="cylinder" pos="-0.4500 1.2500 0.3237" size="0.1160 0.0037" group="4" material="pot"/>
+    <geom name="office_plant_pot_15" type="cylinder" pos="-0.4500 1.2500 0.3375" size="0.1156 0.0100" group="4" material="pot"/>
+    <geom name="office_plant_pot_16" type="cylinder" pos="-0.4500 1.2500 0.3525" size="0.1188 0.0050" group="4" material="pot"/>
+    <geom name="office_plant_pot_17" type="cylinder" pos="-0.4500 1.2500 0.3600" size="0.1290 0.0025" group="4" material="pot"/>
+    <geom name="office_plant_pot_18" type="cylinder" pos="-0.4500 1.2500 0.3688" size="0.1309 0.0063" group="4" material="pot"/>
+    <geom name="office_plant_pot_19" type="cylinder" pos="-0.4500 1.2500 0.3788" size="0.1358 0.0038" group="4" material="pot"/>
+    <geom name="office_plant_pot_20" type="cylinder" pos="-0.4500 1.2500 0.3862" size="0.1409 0.0038" group="4" material="pot"/>
+    <geom name="office_plant_pot_21" type="cylinder" pos="-0.4500 1.2500 0.3938" size="0.1456 0.0037" group="4" material="pot"/>
+    <geom name="office_plant_pot_22" type="cylinder" pos="-0.4500 1.2500 0.3987" size="0.1495 0.0013" group="4" material="pot"/>
+    <geom name="office_plant_pot_23" type="cylinder" pos="-0.4500 1.2500 0.4137" size="0.1586 0.0137" group="4" material="pot"/>
+    <geom name="office_plant_pot_24" type="cylinder" pos="-0.4500 1.2500 0.4350" size="0.1650 0.0075" group="4" material="pot"/>
+    <geom name="office_plant_pot_25" type="cylinder" pos="-0.4500 1.2500 0.4487" size="0.1699 0.0062" group="4" material="pot"/>
+    <geom name="office_plant_pot_26" type="cylinder" pos="-0.4500 1.2500 0.4625" size="0.1759 0.0075" group="4" material="pot"/>
+    <geom name="office_plant_pot_27" type="cylinder" pos="-0.4500 1.2500 0.4775" size="0.1813 0.0075" group="4" material="pot"/>
+    <geom name="office_plant_pot_28" type="cylinder" pos="-0.4500 1.2500 0.4950" size="0.1869 0.0100" group="4" material="pot"/>
+    <geom name="office_plant_pot_29" type="cylinder" pos="-0.4500 1.2500 0.5125" size="0.1915 0.0075" group="4" material="pot"/>
+    <geom name="office_plant_pot_30" type="cylinder" pos="-0.4500 1.2500 0.5287" size="0.1962 0.0088" group="4" material="pot"/>
+    <geom name="office_plant_pot_31" type="cylinder" pos="-0.4500 1.2500 0.5463" size="0.2015 0.0088" group="4" material="pot"/>
+    <geom name="office_plant_pot_32" type="cylinder" pos="-0.4500 1.2500 0.5663" size="0.2067 0.0112" group="4" material="pot"/>
+    <geom name="office_plant_pot_33" type="cylinder" pos="-0.4500 1.2500 0.5887" size="0.2115 0.0113" group="4" material="pot"/>
+    <geom name="office_plant_pot_34" type="cylinder" pos="-0.4500 1.2500 0.6162" size="0.2172 0.0162" group="4" material="pot"/>
+    <geom name="office_plant_pot_35" type="cylinder" pos="-0.4500 1.2500 0.6462" size="0.2218 0.0138" group="4" material="pot"/>
+    <geom name="office_plant_pot_36" type="cylinder" pos="-0.4500 1.2500 0.6713" size="0.2270 0.0113" group="4" material="pot"/>
+    <geom name="office_plant_pot_37" type="cylinder" pos="-0.4500 1.2500 0.6850" size="0.2326 0.0025" group="4" material="pot"/>
+    <geom name="office_plant_pot_38" type="cylinder" pos="-0.4500 1.2500 0.6963" size="0.2384 0.0087" group="4" material="pot"/>
+    <geom name="office_plant_pot_39" type="cylinder" pos="-0.4500 1.2500 0.7100" size="0.2345 0.0050" group="4" material="pot"/>
+    <geom name="office_plant_pot_40" type="cylinder" pos="-0.4500 1.2500 0.7225" size="0.2359 0.0075" group="4" material="pot"/>
+    <geom name="office_plant_pot_41" type="cylinder" pos="-0.4500 1.2500 0.7400" size="0.2393 0.0100" group="4" material="pot"/>
+    <geom class="visual" type="mesh" mesh="wall_clock_0" material="wall_clock_m0" pos="-2.7000 4.9760 1.7000" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="wall_clock_1" material="wall_clock_m1" pos="-2.7000 4.9760 1.7000" euler="0 0 0.0"/>
 
     <!-- Lab furniture -->
     <geom name="lab_bench_north" type="box" pos="2.6000 4.5500 0.4500" size="1.2000 0.4000 0.4500" material="lab_white"/>
@@ -1031,10 +1025,21 @@
     <geom class="visual" type="ellipsoid" pos="-4.624 -0.403 0.738" size="0.106 0.034 0.005" euler="0 -4.2 1087.5" material="leaves_light"/>
 
     <!-- Everyday clutter (solid, at least 0.2 m tall so the lidar sees it) -->
-    <geom name="office_trash_bin" type="cylinder" pos="-2.8500 4.6600 0.1700" size="0.1300 0.1700" material="bin_dark"/>
-    <geom name="office_lamp" type="cylinder" pos="-4.7200 4.6600 0.1000" size="0.1600 0.1000" material="bin_dark"/>
-    <geom type="cylinder" pos="-4.7200 4.6600 0.8500" size="0.0150 0.6500" material="metal" class="visual"/>
-    <geom type="cylinder" pos="-4.7200 4.6600 1.5500" size="0.1600 0.1000" material="lamp_shade" class="visual"/>
+    <geom name="office_trash_bin_proc_waste_bin_0" class="visual" type="mesh" mesh="proc_waste_bin_0" material="proc_waste_bin_m0" pos="-2.6000 4.7500 0.0000" euler="0 0 0.0"/>
+    <geom name="office_trash_bin_proc_waste_bin_1" class="visual" type="mesh" mesh="proc_waste_bin_1" material="proc_waste_bin_m1" pos="-2.6000 4.7500 0.0000" euler="0 0 0.0"/>
+    <geom name="office_trash_bin_proc_waste_bin_2" class="visual" type="mesh" mesh="proc_waste_bin_2" material="proc_waste_bin_m2" pos="-2.6000 4.7500 0.0000" euler="0 0 0.0"/>
+    <geom name="office_trash_bin_proc_waste_bin_3" class="visual" type="mesh" mesh="proc_waste_bin_3" material="proc_waste_bin_m3" pos="-2.6000 4.7500 0.0000" euler="0 0 0.0"/>
+    <geom name="office_trash_bin_low" type="cylinder" pos="-2.6000 4.7500 0.0550" size="0.1320 0.0550" group="4" material="bin_dark"/>
+    <geom name="office_trash_bin_mid" type="cylinder" pos="-2.6000 4.7500 0.1650" size="0.1390 0.0550" group="4" material="bin_dark"/>
+    <geom name="office_trash_bin_top" type="cylinder" pos="-2.6000 4.7500 0.2860" size="0.1510 0.0660" group="4" material="bin_dark"/>
+    <geom name="office_lamp_proc_floor_lamp_0" class="visual" type="mesh" mesh="proc_floor_lamp_0" material="proc_floor_lamp_m0" pos="-4.7800 3.8500 0.0000" euler="0 0 0.0"/>
+    <geom name="office_lamp_proc_floor_lamp_1" class="visual" type="mesh" mesh="proc_floor_lamp_1" material="proc_floor_lamp_m1" pos="-4.7800 3.8500 0.0000" euler="0 0 0.0"/>
+    <geom name="office_lamp_proc_floor_lamp_2" class="visual" type="mesh" mesh="proc_floor_lamp_2" material="proc_floor_lamp_m2" pos="-4.7800 3.8500 0.0000" euler="0 0 0.0"/>
+    <geom name="office_lamp_proc_floor_lamp_3" class="visual" type="mesh" mesh="proc_floor_lamp_3" material="proc_floor_lamp_m3" pos="-4.7800 3.8500 0.0000" euler="0 0 0.0"/>
+    <geom name="office_lamp_base" type="cylinder" pos="-4.7800 3.8500 0.0800" size="0.1300 0.0800" group="4" material="bin_dark"/>
+    <geom name="office_lamp_collar" type="cylinder" pos="-4.7800 3.8500 0.1760" size="0.0240 0.0160" group="4" material="bin_dark"/>
+    <geom name="office_lamp_pole" type="cylinder" pos="-4.7800 3.8500 0.8200" size="0.0120 0.6350" group="4" material="bin_dark"/>
+    <geom name="office_lamp_shade" type="cylinder" pos="-4.7800 3.8500 1.5500" size="0.2000 0.1000" group="4" material="bin_dark"/>
     <geom name="lab_trash_bin" type="cylinder" pos="0.4000 4.6200 0.1700" size="0.1300 0.1700" material="bin_dark"/>
     <geom name="lab_stool_1" type="cylinder" pos="3.3200 1.8300 0.2500" size="0.1700 0.2500" material="bin_dark"/>
     <geom name="lab_stool_2" type="cylinder" pos="3.7200 1.8300 0.2500" size="0.1700 0.2500" material="bin_dark"/>

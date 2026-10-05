@@ -1,0 +1,60 @@
+{
+ "id": "metal_office_desk",
+ "name": "Metal Office Desk",
+ "authors": [
+  "Ulan Cabanilla"
+ ],
+ "license": "CC0 1.0",
+ "source": "https://polyhaven.com/a/metal_office_desk",
+ "file": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/metal_office_desk/metal_office_desk_1k.gltf",
+ "source_files_sha256": {
+  "metal_office_desk.bin": "65b558f41a75ad4822e31cc2a97eb34ed359199279a6bfbd650deb27cef78767",
+  "metal_office_desk_1k.gltf": "f07032a5ee89aacceebf10fd9fa192c22775ae81861cfb0bdb1594497179373c",
+  "textures/metal_office_desk_arm_1k.jpg": "752916dd9bf8a163dc7e0d3673900791ee6d558bbe23894263ac92b42387f51b",
+  "textures/metal_office_desk_diff_1k.jpg": "1f02e3e77e8f82a3600664c991bd45c1c187452d61e9ede4336c6f90f7fa3139",
+  "textures/metal_office_desk_nor_gl_1k.jpg": "f57eb004937e46392151b803e0cb1d88983958d01ad11d93df78a82cfcc6c407"
+ },
+ "listed_dimensions_mm": [
+  2000.0003576278687,
+  947.2135305404663,
+  787.5000089406967
+ ],
+ "scale": 1.0,
+ "size_m": [
+  2.0,
+  0.9472,
+  0.7875
+ ],
+ "parts": [
+  {
+   "mesh": "metal_office_desk_0.msh",
+   "material": "metal_office_desk",
+   "texture": "metal_office_desk_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.367,
+   "shininess": 0.538,
+   "reflectance": 0.0,
+   "faces": 6898,
+   "vertices": 6070,
+   "winding": {
+    "shared_edges": 10229,
+    "inconsistent": 0
+   }
+  }
+ ],
+ "checks": {
+  "source_faces": 6898,
+  "faces": 6898,
+  "face_cap": 8000,
+  "zero_area_faces_removed": 0,
+  "max_vertex_distance_m": 0.0,
+  "bounds_change_m": 0.0,
+  "coverage_max_m": 0.00576,
+  "coverage_p999_m": 0.00248
+ }
+}

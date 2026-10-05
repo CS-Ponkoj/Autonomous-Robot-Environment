@@ -477,7 +477,7 @@ def test_camera_stays_continuous_while_changing_level_and_shift():
 # ----- chase camera line of sight near furniture -----
 
 CAMERA_POSES = {  # robot backed up to furniture or a wall: the chase camera's usual spot is taken
-    "chair": (-3.8, 3.2, -1.5708),
+    "chair": (-3.8, 3.12, -1.5708),  # backed up to the chair (its back 0.27 m behind the robot centre)
     "desk": (-3.3, 3.85, -1.5708),
     "shelf": (-4.25, -3.0, 0.0),
     "doorway": (-2.5, 0.75, -1.5708),

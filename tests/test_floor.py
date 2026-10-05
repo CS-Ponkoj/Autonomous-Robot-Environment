@@ -21,6 +21,18 @@ DOORS = [  # (name, center x, center y, axis of the wall)
 ]
 
 
+def _build_world():
+    """tools/build_world.py as a module, after generating the world (its furniture registry filled)."""
+    import importlib.util
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    spec = importlib.util.spec_from_file_location("build_world", root / "tools" / "build_world.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.text = module.generate()
+    return module
+
+
 @pytest.fixture(scope="module")
 def sim():
     s = RobotSim()
@@ -34,19 +46,69 @@ def room(sim):
 
 
 def test_visible_and_colliding_geometry_agree(sim):
-    """World geoms: everything that collides is visible as a solid (group 0), and every
-    solid-group geom collides. Visual detail (group 2) and the ceiling (3) never collide."""
+    """World geoms: everything that collides is visible as a solid (group 0) or is a hidden member
+    (group 4) of a furniture item drawn by a detailed mesh, and every solid-group geom collides.
+    Visual detail (group 2) and the ceiling (3) never collide."""
+    bw = _build_world()
+    members = {n for it in bw.furniture_items for n in it["members"]}
+    assert all(it["meshes"] and it["members"] for it in bw.furniture_items)
     m = sim.model
     for g in range(m.ngeom):
         if m.body_rootid[m.geom_bodyid[g]] == sim.robot_body:
             continue
         name = m.geom(g).name
         if m.geom_contype[g] != 0:
-            assert m.geom_group[g] == 0, name
+            assert m.geom_group[g] == 0 or (m.geom_group[g] == 4 and name in members), name
+        if m.geom_group[g] == 4:
+            assert name in members and m.geom_contype[g] != 0, name
         if m.geom_group[g] == 0:
             assert m.geom_contype[g] != 0, name
         if m.geom_group[g] in (2, 3):
             assert m.geom_contype[g] == 0 and m.geom_conaffinity[g] == 0, name
+    assert len(members) == len([g for g in range(m.ngeom) if m.geom(g).name in members])
+
+
+def test_furniture_meshes_are_visual_only_and_massless(sim):
+    """Every furniture mesh: group 2, collides with nothing, no mass, and declared with shell
+    inertia (thin parts have no volume); the members are what is solid."""
+    m = sim.model
+    meshes = [g for g in range(m.ngeom) if m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH
+              and m.body_rootid[m.geom_bodyid[g]] != sim.robot_body and not m.body(m.geom_bodyid[g]).name.startswith("cat")]
+    assert meshes
+    for g in meshes:
+        assert m.geom_group[g] == 2 and m.geom_contype[g] == 0 and m.geom_conaffinity[g] == 0
+        assert m.body_weldid[m.geom_bodyid[g]] == 0  # on the static world
+    bw = _build_world()
+    furniture_meshes = [line for line in bw.text.splitlines() if line.strip().startswith("<mesh ")]
+    assert furniture_meshes and all('inertia="shell"' in line for line in furniture_meshes)
+
+
+def test_viewer_camera_rays_see_furniture_members(sim):
+    """The view camera's clearance ray (ray_to_solid) meets a hidden member (the desk pedestal),
+    and still ignores the robot itself."""
+    ped = sim.model.geom("office_desk_ped_l")
+    x, y = sim.data.geom_xpos[ped.id][:2]
+    origin = np.array([x, y - 1.2, 0.4])
+    hit = sim.ray_to_solid(origin, np.array([0.0, 1.0, 0.0]))
+    front = y - ped.size[1]
+    assert hit == pytest.approx(front - origin[1], abs=0.01)
+    sim.reset(0.0, 0.0, 0.0, (2.0, 2.0))
+    hit = sim.ray_to_solid(np.array([-0.4, 0.0, 0.08]), np.array([1.0, 0.0, 0.0]))
+    assert hit < 0 or hit > 0.5  # straight through the robot at the origin: it is excluded
+
+
+def test_viewer_camera_clamp_meets_the_drawn_furniture_at_its_members(sim):
+    """The view camera's clamp (ray_to_view_blocker) sees what is drawn: the desk's mesh, which is
+    within 2 cm of the pedestal member the physics and the lidar use (so the camera neither enters
+    the drawn desk nor stops far in front of it)."""
+    ped = sim.model.geom("office_desk_ped_l")
+    x, y = sim.data.geom_xpos[ped.id][:2]
+    for dx in (-0.15, 0.0, 0.15):
+        origin = np.array([x + dx, y - 1.2, 0.4])
+        member = sim.ray_to_solid(origin, np.array([0.0, 1.0, 0.0]))
+        drawn = sim.ray_to_view_blocker(origin, np.array([0.0, 1.0, 0.0]))
+        assert member > 0 and drawn > 0
+        assert abs(drawn - member) <= 0.02, (dx, member, drawn)
 
 
 @pytest.mark.parametrize("name,x,y,axis", DOORS)
@@ -108,7 +170,7 @@ def test_map_ignores_overhead_parts_like_door_headers(room):
 @pytest.mark.parametrize("pose,deg,expected", [
     ((1.0, 2.5, 0.0), 0, 1.0),          # lab island bench west face at x = 2.0
     ((-2.5, 2.0, -math.pi / 2), 0, None),  # looking out through the office doorway: no wall right ahead
-    ((-0.45, 1.6, math.pi / 2), 0, 4.62 - 0.3 - 1.6),  # office cabinet front face (y = 4.32)
+    ((-0.45, 1.6, math.pi / 2), 0, 4.674 - 0.328 - 1.6),  # filing cabinet's lowest handle (y = 4.346)
 ])
 def test_lidar_sees_floor_geometry(pose, deg, expected):
     s = RobotSystem()
@@ -188,13 +250,9 @@ def test_robot_colliders_and_mass_are_unchanged_by_the_new_look():
 
 def test_world_xml_matches_its_generator():
     """world.xml is generated: it must equal what tools/build_world.py produces now."""
-    import importlib.util
     from pathlib import Path
     root = Path(__file__).resolve().parent.parent
-    spec = importlib.util.spec_from_file_location("build_world", root / "tools" / "build_world.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    assert (root / "robot_env" / "world.xml").read_text(encoding="utf-8") == module.generate()
+    assert (root / "robot_env" / "world.xml").read_text(encoding="utf-8") == _build_world().text
 
 
 def test_every_robot_part_stays_inside_the_physical_envelope():
@@ -273,3 +331,14 @@ def test_config_doors_match_the_generated_door_frames(sim):
     assert len(centres) == len(C.DOORS)
     for door in C.DOORS:
         assert min(math.hypot(door[0] - x, door[1] - y) for x, y in centres) < 1e-6, door
+
+
+def test_the_held_out_tasks_are_frozen_and_still_valid(room):
+    """Seeds 1000 to 1009 give exactly their frozen tasks (config.HELDOUT_TASKS), and each is still
+    a valid task in this world: free start and goal with their clearance, in different regions, a
+    path, and an estimated travel time within half the episode limit."""
+    for seed, ((sx, sy, yaw), (gx, gy)) in C.HELDOUT_TASKS.items():
+        t = room.sample_task(seed)
+        assert t.start == (sx, sy, yaw) and t.goal == (gx, gy), seed
+        assert t.estimated_travel_time() <= C.EPISODE_TIME_LIMIT / 2, seed
+    assert set(C.HELDOUT_TASKS) == set(C.HELDOUT_SEEDS)

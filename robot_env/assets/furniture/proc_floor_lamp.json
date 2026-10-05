@@ -1,0 +1,79 @@
+{
+ "id": "proc_floor_lamp",
+ "name": "Floor lamp (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.4,
+  0.4,
+  1.65
+ ],
+ "parts": [
+  {
+   "mesh": "proc_floor_lamp_0.msh",
+   "material": "brass",
+   "texture": null,
+   "rgba": [
+    0.72,
+    0.56,
+    0.3,
+    1.0
+   ],
+   "specular": 0.8,
+   "shininess": 0.7,
+   "reflectance": 0.1,
+   "faces": 192,
+   "vertices": 196
+  },
+  {
+   "mesh": "proc_floor_lamp_1.msh",
+   "material": "chrome",
+   "texture": null,
+   "rgba": [
+    0.72,
+    0.73,
+    0.75,
+    1.0
+   ],
+   "specular": 0.9,
+   "shininess": 0.9,
+   "reflectance": 0.15,
+   "faces": 48,
+   "vertices": 50
+  },
+  {
+   "mesh": "proc_floor_lamp_2.msh",
+   "material": "concrete",
+   "texture": "proc_floor_lamp_2.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.25,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 384,
+   "vertices": 392
+  },
+  {
+   "mesh": "proc_floor_lamp_3.msh",
+   "material": "shade",
+   "texture": "proc_floor_lamp_3.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.05,
+   "shininess": 0.05,
+   "reflectance": 0.0,
+   "faces": 64,
+   "vertices": 64
+  }
+ ],
+ "note": "members: base, collar, pole, shade"
+}

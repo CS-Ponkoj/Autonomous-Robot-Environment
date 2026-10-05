@@ -96,6 +96,23 @@ REWARD_INTERVENTION = -0.1  # once per continuous intervention event
 
 # Held-out goal seeds (fixed obstacle layout, so these are held-out goals)
 HELDOUT_SEEDS = tuple(range(1000, 1010))
+# The held-out tasks themselves, frozen: seed -> ((start x, y, yaw), (goal x, y)), exactly as
+# RoomMap.sample_task drew them in the world before the office was furnished (revision 9ba1e37;
+# the world was the same from 1789b77). Sampling is rejection sampling, so a furniture change
+# could otherwise re-draw some of them and silently change the evaluation set; RoomMap.sample_task
+# returns these for these seeds and checks they are still valid tasks in the current world.
+HELDOUT_TASKS = {
+    1000: ((-1.966089612223335, 2.2831339697243465, 2.9830288113203025), (1.3734388427585031, 3.5892677587361845)),
+    1001: ((-2.1054866881776273, 4.1069808661445535, 2.4456676346702695), (2.555169089225979, -3.5232826094209306)),
+    1002: ((3.8596630769843596, -1.368781184639567, -3.123839194612621), (-1.9523109558208036, -4.211362513926343)),
+    1003: ((-1.310514674887072, 0.1693768133844511, 0.5832241313342283), (3.880769213382914, -3.1862438585400517)),
+    1004: ((-2.031753825514747, 2.9248829534735696, -2.887087219091781), (1.2757521379645107, -2.5676221839310025)),
+    1005: ((1.0349775977552635, -0.05295767411052754, 1.063356772585264), (-0.7740605511970582, 3.4631467699145553)),
+    1006: ((1.573685493493346, -0.09948933710079544, 0.3199358468373763), (-0.9103363587469744, 3.485729774899081)),
+    1007: ((-3.858975562852028, 2.843823106601489, 1.9413443971231272), (2.847991851117346, -0.13611592399197647)),
+    1008: ((-2.9947252585084314, 2.8174567295590123, -0.6353958856114446), (4.348694467288865, 3.0984811950142603)),
+    1009: ((2.355713300867432, -0.10412983434553702, -3.0697582416171207), (-2.1394172851395608, -1.5970020373874054)),
+}
 
 # Format versions, recorded with data. Bump them whenever the format changes, so datasets
 # from different formats are never mixed.

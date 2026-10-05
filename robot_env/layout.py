@@ -172,8 +172,27 @@ class RoomMap:
             i = j
         return out
 
+    def frozen_task(self, seed: int) -> Task:
+        """A held-out task exactly as frozen (config.HELDOUT_TASKS), with its path in this world.
+        Raises ValueError if it is no longer a valid task here (start or goal not free or too
+        close to an obstacle, the same region, or no path)."""
+        (sx, sy, yaw), (gx, gy) = C.HELDOUT_TASKS[seed]
+        for x, y in ((sx, sy), (gx, gy)):
+            if not (self.free[self.cell(x, y)] and self.point_clearance(x, y) >= C.START_GOAL_MIN_CLEARANCE):
+                raise ValueError(f"held-out task {seed}: ({x:.3f}, {y:.3f}) is no longer a free start/goal")
+        if region_of(sx, sy) == region_of(gx, gy) or math.dist((sx, sy), (gx, gy)) < C.START_GOAL_MIN_SEPARATION:
+            raise ValueError(f"held-out task {seed}: start and goal no longer valid together")
+        path = self.find_path((sx, sy), (gx, gy))
+        if path is None:
+            raise ValueError(f"held-out task {seed}: no path any more")
+        length = float(sum(math.dist(a, b) for a, b in zip(path[:-1], path[1:])))
+        return Task(seed, (float(sx), float(sy), float(yaw)), (float(gx), float(gy)), tuple(path), length)
+
     def sample_task(self, seed: int, max_tries: int = 2000) -> Task:
-        """Seeded start and goal in free space, far enough apart, with a feasible path."""
+        """Seeded start and goal in free space, far enough apart, with a feasible path. The
+        held-out seeds give their frozen tasks (config.HELDOUT_TASKS), checked to be valid here."""
+        if seed in C.HELDOUT_TASKS:
+            return self.frozen_task(seed)
         rng = np.random.default_rng(seed)
         lim = C.FLOOR_HALF_SIZE - C.START_GOAL_MIN_CLEARANCE
 

@@ -1,0 +1,47 @@
+{
+ "id": "proc_shelf_feet",
+ "name": "Shelf levelling feet (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  1.102,
+  0.506,
+  0.033
+ ],
+ "parts": [
+  {
+   "mesh": "proc_shelf_feet_0.msh",
+   "material": "chrome",
+   "texture": null,
+   "rgba": [
+    0.72,
+    0.73,
+    0.75,
+    1.0
+   ],
+   "specular": 0.9,
+   "shininess": 0.9,
+   "reflectance": 0.15,
+   "faces": 192,
+   "vertices": 200
+  },
+  {
+   "mesh": "proc_shelf_feet_1.msh",
+   "material": "plastic",
+   "texture": "proc_shelf_feet_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.35,
+   "shininess": 0.4,
+   "reflectance": 0.0,
+   "faces": 256,
+   "vertices": 264
+  }
+ ],
+ "note": "members: four foot cylinders"
+}

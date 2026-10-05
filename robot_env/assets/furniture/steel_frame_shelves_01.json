@@ -1,0 +1,60 @@
+{
+ "id": "steel_frame_shelves_01",
+ "name": "Steel Frame Shelves 01",
+ "authors": [
+  "James Ray Cock"
+ ],
+ "license": "CC0 1.0",
+ "source": "https://polyhaven.com/a/steel_frame_shelves_01",
+ "file": "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/steel_frame_shelves_01/steel_frame_shelves_01_1k.gltf",
+ "source_files_sha256": {
+  "steel_frame_shelves_01.bin": "306d7e72d12a5d3047b8a189f8d0add51075eaf7f51f935286fda4e1c16dd066",
+  "steel_frame_shelves_01_1k.gltf": "4eff8994825d654e337f8dc425e959ed6add7f4773188c87ba64402d9edd9842",
+  "textures/steel_frame_shelves_01_arm_1k.jpg": "858629eeaa8f68ddb4fc1a813afe6ed988ded3d6d49184ec45a14611760f0bb3",
+  "textures/steel_frame_shelves_01_diff_1k.jpg": "85e205b334e15e05bec9b02be1258da6ab949ae908aa57e0bee6b94ba45b4415",
+  "textures/steel_frame_shelves_01_nor_gl_1k.jpg": "2a67ed7dd4f53c3e225396e6381992b768fe58b5261be703d540678e366e46ed"
+ },
+ "listed_dimensions_mm": [
+  1097.4148511886597,
+  502.1176338195801,
+  2140.5010361922905
+ ],
+ "scale": 0.1,
+ "size_m": [
+  1.0974,
+  0.5021,
+  2.1405
+ ],
+ "parts": [
+  {
+   "mesh": "steel_frame_shelves_01_0.msh",
+   "material": "steel_frame_shelves_01",
+   "texture": "steel_frame_shelves_01_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.284,
+   "shininess": 0.322,
+   "reflectance": 0.0,
+   "faces": 4348,
+   "vertices": 3632,
+   "winding": {
+    "shared_edges": 6378,
+    "inconsistent": 0
+   }
+  }
+ ],
+ "checks": {
+  "source_faces": 4348,
+  "faces": 4348,
+  "face_cap": 6000,
+  "zero_area_faces_removed": 0,
+  "max_vertex_distance_m": 0.0,
+  "bounds_change_m": 0.0,
+  "coverage_max_m": 0.00363,
+  "coverage_p999_m": 0.00225
+ }
+}

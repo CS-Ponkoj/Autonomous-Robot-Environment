@@ -7,13 +7,23 @@ mirrored in robot_env/config.py (ROOMS), which a test checks against this file.
 Everything that collides is a box or cylinder with the same visible shape.
 
 Geom groups: 0 solid (seen by lidar, collides), 2 visual only, 3 ceiling (visual
-only, shown in the robot camera, hidden in overview cameras), 4 hidden colliders.
+only, shown in the robot camera, hidden in overview cameras), 4 hidden colliders (the
+robot's, and the solid members of furniture shown as a detailed mesh).
+
+Furniture shown as a detailed mesh (robot_env/assets/furniture: CC0 models from Poly Haven
+converted by tools/fetch_models.py, and procedural meshes) is built with item(): the mesh is
+visual only, and simple boxes and cylinders fitted to it (its members, hidden) are what
+collides, what the lidar sees, and what the maps use. tools/furniture_check.py checks that the
+members and the mesh agree.
 """
 
+import json
 import math
+from contextlib import contextmanager
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent.parent / "robot_env" / "world.xml"
+FURNITURE = Path(__file__).resolve().parent.parent / "robot_env" / "assets" / "furniture"
 
 H = 5.0  # inner half size of the floor (walls' inner faces at +/-5 m)
 T = 0.1  # wall thickness
@@ -24,9 +34,71 @@ DOOR_HEAD = 2.1  # top of the doorway
 CORRIDOR = 0.7  # corridor half width (clear width 1.4 m)
 
 geoms: list[str] = []
+furniture_assets: list[str] = []  # <asset> entries (meshes, textures, materials) of the furniture meshes
+furniture_items: list[dict] = []  # every item(): its members and meshes (for tools/furniture_check.py)
+placed_models: list[dict] = []  # every model() placed, inside an item or not (owner: the item's name or None)
+_assets_done: set = set()
+_item: dict | None = None  # the item being built
+
+
+@contextmanager
+def item(name, support=0.0):
+    """A piece of furniture shown by detailed meshes (model()). The named boxes and cylinders made
+    inside are its solid members: hidden (group 4) but solid, seen by the lidar and the maps.
+    `support` is the height the meshes stand on (the floor, or a desk top)."""
+    global _item
+    _item = {"name": name, "support": support, "members": [], "meshes": []}
+    try:
+        yield _item
+    finally:
+        furniture_items.append(_item)
+        _item = None
+
+
+def model(model_id, pos, yaw=0.0):
+    """A detailed furniture mesh (visual only) at its real size: the model's base centre at pos,
+    turned yaw degrees about z."""
+    rec = json.loads((FURNITURE / f"{model_id}.json").read_text(encoding="utf-8"))
+    if model_id not in _assets_done:
+        _assets_done.add(model_id)
+        for k, part in enumerate(rec["parts"]):
+            if part["texture"]:
+                furniture_assets.append(f'    <texture name="{model_id}_t{k}" type="2d" file="{part["texture"]}"/>')
+                look = f'texture="{model_id}_t{k}"'
+            else:
+                look = 'rgba="' + " ".join(f"{c:.3f}" for c in part["rgba"]) + '"'
+            furniture_assets.append(f'    <material name="{model_id}_m{k}" {look} specular="{part["specular"]}" '
+                                    f'shininess="{part["shininess"]}" reflectance="{part["reflectance"]}"/>')
+            furniture_assets.append(f'    <mesh name="{model_id}_{k}" file="{part["mesh"]}" inertia="shell"/>')
+    for k in range(len(rec["parts"])):
+        name = f'name="{_item["name"]}_{model_id}_{k}" ' if _item is not None else ""
+        geoms.append(f'    <geom {name}class="visual" type="mesh" mesh="{model_id}_{k}" material="{model_id}_m{k}" '
+                     f'pos="{pos[0]:.4f} {pos[1]:.4f} {pos[2]:.4f}" euler="0 0 {yaw:.1f}"/>')
+    placed = {"model": model_id, "pos": [round(float(c), 4) for c in pos], "yaw": float(yaw)}
+    placed_models.append({**placed, "item": _item["name"] if _item is not None else None})
+    if _item is not None:
+        _item["meshes"].append(placed)
+
+
+def members(name, pos, yaw, parts, material="metal"):
+    """Solid members given in a model's own frame (as model() places it at pos, turned yaw):
+    ("box", suffix, (cx, cy, cz), (hx, hy, hz)[, own yaw degrees]) or
+    ("cyl", suffix, (cx, cy, cz), r, half_h)."""
+    c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    for part in parts:
+        kind, suffix, (mx, my, mz) = part[0], part[1], part[2]
+        wx, wy = pos[0] + c * mx - s * my, pos[1] + s * mx + c * my
+        if kind == "box":
+            turn = (yaw + (part[4] if len(part) > 4 else 0.0)) % 360
+            box(f"{name}_{suffix}", (wx, wy, pos[2] + mz), part[3], material, euler=round(turn, 4) if turn else None)
+        else:
+            cyl(f"{name}_{suffix}", (wx, wy, pos[2] + mz), part[3], part[4], material)
 
 
 def box(name, pos, half, material=None, rgba=None, cls=None, euler=None, group=None):
+    if _item is not None and cls is None:
+        group = 4  # a member: solid, hidden behind the item's mesh
+        _item["members"].append(name)
     attrs = [f'name="{name}"' if name else "", 'type="box"',
              f'pos="{pos[0]:.4f} {pos[1]:.4f} {pos[2]:.4f}"',
              f'size="{half[0]:.4f} {half[1]:.4f} {half[2]:.4f}"']
@@ -46,6 +118,9 @@ def box(name, pos, half, material=None, rgba=None, cls=None, euler=None, group=N
 def cyl(name, pos, radius, half_h, material=None, rgba=None, cls=None):
     attrs = [f'name="{name}"' if name else "", 'type="cylinder"',
              f'pos="{pos[0]:.4f} {pos[1]:.4f} {pos[2]:.4f}"', f'size="{radius:.4f} {half_h:.4f}"']
+    if _item is not None and cls is None:
+        attrs.append('group="4"')  # a member: solid, hidden behind the item's mesh
+        _item["members"].append(name)
     if material:
         attrs.append(f'material="{material}"')
     if rgba:
@@ -138,20 +213,153 @@ def shelving_unit(name, center, half, height, levels, seed, items="cartons"):
             pos += 2 * w + (rnd.uniform(0.0, 0.01) if items == "books" else rnd.uniform(0.02, 0.08))
 
 
-def office_chair(name, x, y, facing):
-    """Tulip-base office chair: the solid base (0.14 m tall) is what the lidar sees;
-    seat and back are solid but above the robot; column and arms are visual."""
-    cyl(f"{name}_base", (x, y, 0.07), 0.24, 0.07, "chair_base")
-    cyl(None, (x, y, 0.28), 0.03, 0.14, "metal", cls="visual")
-    box(f"{name}_seat", (x, y, 0.455), (0.24, 0.23, 0.035), "fabric")
-    geoms.append(f'    <geom class="visual" type="cylinder" pos="{x:.3f} {y + facing * 0.23:.3f} 0.455" '
-                 f'size="0.035 0.24" zaxis="1 0 0" material="fabric"/>')
-    back_y = y - facing * 0.25
-    box(f"{name}_back", (x, back_y, 0.79), (0.22, 0.03, 0.22), "fabric")
-    box(None, (x, back_y + facing * 0.015, 0.59), (0.025, 0.015, 0.11), "metal", cls="visual")
-    for sx in (-1, 1):
-        box(None, (x + sx * 0.25, y, 0.62), (0.02, 0.15, 0.015), "chair_base", cls="visual")
-        box(None, (x + sx * 0.25, y - facing * 0.05, 0.54), (0.012, 0.012, 0.07), "chair_base", cls="visual")
+OFFICE_DESK_TOP = 0.788  # metal_office_desk: top surface height
+
+
+def office_desk(name, pos, yaw=0.0):
+    """Steel office desk (metal_office_desk, 2.0 x 0.95 m): two drawer pedestals on short legs,
+    a modesty panel at the back, and a 0.96 m kneehole open at the front (-y in its frame)."""
+    with item(name):
+        model("metal_office_desk", pos, yaw)
+        legs = [("box", f"leg_{i}", (sx * 0.725, sy, 0.093), (0.025, 0.025, 0.093))
+                for i, (sx, sy) in enumerate(((-1, -0.344), (1, -0.344), (-1, 0.351), (1, 0.351)))]
+        members(name, pos, yaw, legs + [
+            ("box", "ped_l", (-0.7325, 0.005, 0.468), (0.2525, 0.44, 0.282)),
+            ("box", "ped_r", (0.7325, 0.005, 0.468), (0.2525, 0.44, 0.282)),
+            ("box", "panel", (0.0, 0.435, 0.468), (0.48, 0.01, 0.282)),
+            ("box", "top", (0.0, 0.015, 0.769), (1.0, 0.46, 0.019)),
+        ] + [("box", f"handle_{i}", (sx * 0.7175, -0.4555, z), (0.0575, 0.0185, 0.005))  # drawer pulls
+             for i, (sx, z) in enumerate(((-1, 0.2935), (-1, 0.4555), (-1, 0.6185),
+                                          (1, 0.2935), (1, 0.4585), (1, 0.6215)))], "desk_body")
+
+
+def _turned(pos, yaw, local):
+    """A point given in a model's frame, in world coordinates (as model() places the model)."""
+    c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    return (pos[0] + c * local[0] - s * local[1], pos[1] + s * local[0] + c * local[1], pos[2] + local[2])
+
+
+SHELF_FEET = 0.033  # levelling feet: the bottom frame then spans 0.123 to 0.148 m, across the lidar plane
+
+
+def steel_shelf(name, pos, yaw=0.0, books_seed=None):
+    """Open steel-frame shelving with wooden boards (steel_frame_shelves_01, 1.10 x 0.50 x 2.14 m) on
+    four levelling feet (proc_shelf_feet): four corner posts; at each level a steel frame the full
+    width with a wooden board on it, set between the posts (the top level is the frame only)."""
+    with item(name):
+        model("proc_shelf_feet", pos, yaw)
+        members(name, pos, yaw, [("cyl", f"foot_{i}", (sx * 0.534, sy * 0.236, SHELF_FEET / 2), 0.017, SHELF_FEET / 2)
+                                 for i, (sx, sy) in enumerate(((-1, -1), (1, -1), (-1, 1), (1, 1)))], "metal")
+        pos = (pos[0], pos[1], pos[2] + SHELF_FEET)
+        model("steel_frame_shelves_01", pos, yaw)
+        posts = [("box", f"post_{i}", (sx * 0.534, sy * 0.236, 1.07), (0.0165, 0.0165, 1.07))
+                 for i, (sx, sy) in enumerate(((-1, -1), (1, -1), (-1, 1), (1, 1)))]
+        levels = ((0.0898, 0.1145, 0.1338), (0.5953, 0.6195, 0.6396), (1.1019, 1.127, 1.146),
+                  (1.608, 1.6345, 1.6522), (2.1118, 2.1308, None))  # measured: frame, board top
+        boards = []
+        for k, (z0, z1, z2) in enumerate(levels):
+            boards.append(("box", f"frame_{k}", (-0.0015, -0.001, (z0 + z1) / 2), (0.5475, 0.25, (z1 - z0) / 2)))
+            if z2 is not None:
+                boards.append(("box", f"board_{k}", (-0.0015, -0.001, (z1 + z2) / 2), (0.5175, 0.25, (z2 - z1) / 2)))
+        members(name, pos, yaw, posts + boards, "metal")
+        if books_seed is not None:
+            model(f"proc_shelf_books_{books_seed}", pos, yaw)  # tools/proc_furniture.py shelf_books()
+
+
+PLANT_STAND_TOP = 0.22  # proc_plant_stand: its top board's surface
+
+# potted_plant_01: the planter's centre in the model's frame, and stacked cylinders fitted to it by
+# tools/fit_round.py (potted_plant_01 0.53 0.0145): each band's largest radius, and within a band the
+# member is at most 1.45 cm from the planter's nearest surface (furniture_check: 2 cm). The leaves
+# start at 0.55 m, above any actor, and are visual only.
+PLANTER_CENTRE = (0.0448, -0.0482)
+PLANTER_BANDS = ((0.0, 0.025, 0.1991), (0.025, 0.03, 0.1935), (0.03, 0.0375, 0.1861), (0.0375,
+                 0.045, 0.1775), (0.045, 0.0525, 0.169), (0.0525, 0.0575, 0.1617), (0.0575, 0.0625,
+                 0.1557), (0.0625, 0.0675, 0.1506), (0.0675, 0.0725, 0.1456), (0.0725, 0.0775,
+                 0.1395), (0.0775, 0.0825, 0.135), (0.0825, 0.0875, 0.1289), (0.0875, 0.09, 0.1256),
+                 (0.09, 0.1, 0.1233), (0.1, 0.1075, 0.116), (0.1075, 0.1275, 0.1156), (0.1275,
+                 0.1375, 0.1188), (0.1375, 0.1425, 0.129), (0.1425, 0.155, 0.1309), (0.155, 0.1625,
+                 0.1358), (0.1625, 0.17, 0.1409), (0.17, 0.1775, 0.1456), (0.1775, 0.18, 0.1495),
+                 (0.18, 0.2075, 0.1586), (0.2075, 0.2225, 0.165), (0.2225, 0.235, 0.1699), (0.235,
+                 0.25, 0.1759), (0.25, 0.265, 0.1813), (0.265, 0.285, 0.1869), (0.285, 0.3, 0.1915),
+                 (0.3, 0.3175, 0.1962), (0.3175, 0.335, 0.2015), (0.335, 0.3575, 0.2067), (0.3575,
+                 0.38, 0.2115), (0.38, 0.4125, 0.2172), (0.4125, 0.44, 0.2218), (0.44, 0.4625,
+                 0.227), (0.4625, 0.4675, 0.2326), (0.4675, 0.485, 0.2384), (0.485, 0.495, 0.2345),
+                 (0.495, 0.51, 0.2359), (0.51, 0.53, 0.2393))
+
+
+def planter(name, xy, yaw=0.0):
+    """A tall terracotta planter with a leafy plant (potted_plant_01) on a solid oak plant stand
+    (proc_plant_stand), both centred on xy. The stand crosses the lidar plane and covers the
+    planter's flared foot, which is then above the robot."""
+    c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    px, py = PLANTER_CENTRE
+    z = PLANT_STAND_TOP
+    pos = (xy[0] - (c * px - s * py), xy[1] - (s * px + c * py), z)
+    with item(name):
+        model("proc_plant_stand", (xy[0], xy[1], 0.0), yaw)
+        members(name, (xy[0], xy[1], 0.0), yaw, [("box", "stand", (0, 0, 0.125), (0.22, 0.22, 0.095)),
+                                                 ("box", "stand_top", (0, 0, 0.21), (0.23, 0.23, 0.01)),
+                                                 ("box", "stand_plinth", (0, 0, 0.015), (0.205, 0.205, 0.015))],
+                "desk_wood")
+        model("potted_plant_01", pos, yaw)
+        members(name, pos, yaw, [("cyl", f"pot_{k}", (px, py, (z0 + z1) / 2), r, (z1 - z0) / 2)
+                                 for k, (z0, z1, r) in enumerate(PLANTER_BANDS)], "pot")
+
+
+def office_chair(name, pos, yaw=0.0):
+    """Four-legged office chair (procedural, tools/proc_furniture.py): legs from the floor to the
+    seat (they cross the lidar plane), back posts, seat pan and seat, the reclined back (two boxes,
+    each fitted to its half of the pad), armrests. yaw 0 faces -y."""
+    with item(name):
+        model("proc_office_chair", pos, yaw)
+        parts = []
+        for sd, side in ((-1, "l"), (1, "r")):
+            x = sd * 0.205
+            parts += [("box", f"leg_front_{side}", (x, -0.195, 0.1975), (0.0125, 0.0125, 0.1975)),
+                      ("box", f"leg_back_{side}", (x, 0.195, 0.475), (0.0125, 0.0125, 0.475)),
+                      ("cyl", f"glide_front_{side}", (x, -0.195, 0.004), 0.0145, 0.004),
+                      ("cyl", f"glide_back_{side}", (x, 0.195, 0.004), 0.0145, 0.004),
+                      ("box", f"arm_rail_{side}", (x, 0.0, 0.62), (0.01, 0.195, 0.01)),
+                      ("box", f"arm_post_{side}", (x, -0.175, 0.51), (0.01, 0.01, 0.11)),
+                      ("box", f"arm_pad_{side}", (x, -0.02, 0.645), (0.028, 0.13, 0.013))]
+        parts += [("box", "pan", (0, 0, 0.385), (0.23, 0.22, 0.005)),
+                  ("box", "seat", (0, 0, 0.4365), (0.238, 0.228, 0.0435)),
+                  ("box", "back_low", (0, 0.1828, 0.664), (0.191, 0.0448, 0.086)),
+                  ("box", "back_high", (0, 0.2056, 0.836), (0.191, 0.0453, 0.086))]
+        members(name, pos, yaw, parts, "chair_base")
+
+
+def filing_cabinet(name, pos, yaw=0.0):
+    """Four-drawer steel filing cabinet (procedural), 0.47 x 0.63 x 1.32 m, front -y at yaw 0."""
+    with item(name):
+        model("proc_filing_cabinet", pos, yaw)
+        parts = [("box", "body", (0, -0.003, 0.66), (0.235, 0.307, 0.66))]
+        dh = (1.29 - 0.05) / 4
+        for k in range(4):
+            zc = 0.05 + (k + 0.5) * dh + 0.06
+            parts.append(("box", f"handle_{k}", (0, -0.319, zc), (0.06, 0.009, 0.008)))
+        members(name, pos, yaw, parts, "metal")
+
+
+def waste_bin(name, pos):
+    """Round steel waste bin (procedural), 0.29 m at the rim, 0.34 m tall."""
+    with item(name):
+        model("proc_waste_bin", pos)
+        members(name, pos, 0.0, [("cyl", "low", (0, 0, 0.055), 0.132, 0.055),
+                                 ("cyl", "mid", (0, 0, 0.165), 0.139, 0.055),
+                                 ("cyl", "top", (0, 0, 0.286), 0.151, 0.066)], "bin_dark")
+
+
+def standing_lamp(name, pos):
+    """Floor lamp (procedural): cast concrete base 0.16 m tall (it crosses the lidar plane),
+    brass collar, pole, drum shade at 1.45 to 1.65 m."""
+    with item(name):
+        model("proc_floor_lamp", pos)
+        members(name, pos, 0.0, [("cyl", "base", (0, 0, 0.08), 0.13, 0.08),
+                                 ("cyl", "collar", (0, 0, 0.176), 0.024, 0.016),
+                                 ("cyl", "pole", (0, 0, 0.82), 0.012, 0.635),
+                                 ("cyl", "shade", (0, 0, 1.55), 0.2, 0.1)], "bin_dark")
 
 
 def sofa(name, center, width, facing_y, seats=2):
@@ -188,18 +396,6 @@ def plant(name, x, y, seed):
         mat = ("leaves", "leaves", "leaves_light")[k % 3]
         geoms.append(f'    <geom class="visual" type="ellipsoid" pos="{x + r * math.cos(a):.3f} {y + r * math.sin(a):.3f} {z:.3f}" '
                      f'size="{length:.3f} {length * 0.32:.3f} 0.005" euler="0 {-tilt:.1f} {math.degrees(a):.1f}" material="{mat}"/>')
-
-
-def drawer_front(center, half, face_y, drawers):
-    """Horizontal drawer seams and pull handles on a cabinet face (visual)."""
-    cx, cy, cz = center
-    hx, hy, hz = half
-    for k in range(1, drawers):
-        z = cz - hz + k * 2 * hz / drawers
-        box(None, (cx, face_y, z), (hx * 0.92, 0.001, 0.003), "seam", cls="visual")
-    for k in range(drawers):
-        z = cz - hz + (k + 0.5) * 2 * hz / drawers + hz / drawers * 0.45
-        box(None, (cx, face_y, z), (0.05, 0.004, 0.006), "handle", cls="visual")
 
 
 def comment(text):
@@ -513,23 +709,19 @@ def build_floor():
     label("sign_reception", (2.8, -CORRIDOR - 0.004, 1.6), "x", "sign_reception", facing=+1)
 
     comment("Office furniture")
-    box("office_desk_top", (-3.8, 4.45, 0.74), (0.7, 0.35, 0.02), "desk_wood")
-    box("office_desk_ped_l", (-4.3, 4.45, 0.36), (0.2, 0.33, 0.36), "desk_body")
-    box("office_desk_ped_r", (-3.3, 4.45, 0.36), (0.2, 0.33, 0.36), "desk_body")
-    box("office_desk_panel", (-3.8, 4.77, 0.42), (0.3, 0.015, 0.3), "desk_body")
-    drawer_front((-4.3, 4.45, 0.36), (0.2, 0.33, 0.36), 4.119, 3)
-    drawer_front((-3.3, 4.45, 0.36), (0.2, 0.33, 0.36), 4.119, 3)
-    box(None, (-3.8, 4.6, 0.765), (0.09, 0.07, 0.005), "robot_dark", cls="visual")  # monitor stand
-    box(None, (-3.8, 4.62, 0.86), (0.02, 0.015, 0.09), "robot_dark", cls="visual")
-    box(None, (-3.8, 4.6, 1.02), (0.3, 0.012, 0.17), "monitor", cls="visual")
-    box(None, (-3.8, 4.588, 1.02), (0.285, 0.001, 0.155), "screen", cls="visual")
-    box(None, (-3.8, 4.3, 0.766), (0.21, 0.07, 0.006), "robot_dark", cls="visual")  # keyboard
-    box(None, (-3.42, 4.3, 0.766), (0.035, 0.05, 0.008), "robot_dark", cls="visual")  # mouse
-    office_chair("office_chair", -3.8, 3.72, facing=+1)
-    shelving_unit("office_bookshelf", (-4.79, 2.4), (0.17, 0.6), 1.8, 4, seed=11, items="books")
-    box("office_cabinet", (-0.45, 4.62, 0.65), (0.3, 0.3, 0.65), "metal")
-    cabinet_seams((-0.45, 4.62, 0.65), (0.3, 0.3, 0.65), "y", -1, 2)
-    plant("office_plant", -0.45, 1.25, seed=21)
+    office_desk("office_desk", (-3.8, 4.505, 0.0))
+    top = OFFICE_DESK_TOP
+    box(None, (-3.8, 4.68, top + 0.005), (0.09, 0.07, 0.005), "robot_dark", cls="visual")  # monitor stand
+    box(None, (-3.8, 4.70, top + 0.10), (0.02, 0.015, 0.09), "robot_dark", cls="visual")
+    box(None, (-3.8, 4.68, top + 0.26), (0.3, 0.012, 0.17), "monitor", cls="visual")
+    box(None, (-3.8, 4.668, top + 0.26), (0.285, 0.001, 0.155), "screen", cls="visual")
+    box(None, (-3.8, 4.38, top + 0.006), (0.21, 0.07, 0.006), "robot_dark", cls="visual")  # keyboard
+    box(None, (-3.42, 4.38, top + 0.008), (0.035, 0.05, 0.008), "robot_dark", cls="visual")  # mouse
+    office_chair("office_chair", (-3.8, 3.62, 0.0), 180.0)  # tucked in at the kneehole (seat 0.21 m from the desk)
+    steel_shelf("office_bookshelf", (-4.74, 2.4, 0.0), 90.0, books_seed=11)
+    filing_cabinet("office_cabinet", (-0.45, 4.674, 0.0))
+    planter("office_plant", (-0.45, 1.25))
+    model("wall_clock", (-2.7, H - 0.024, 1.7))  # on the north wall between the windows (visual, high up)
 
     comment("Lab furniture")
     box("lab_bench_north", (2.6, 4.55, 0.45), (1.2, 0.4, 0.45), "lab_white")
@@ -569,8 +761,8 @@ def build_floor():
     box("corridor_water_cooler", (4.78, 0.4, 0.55), (0.17, 0.17, 0.55), "lab_white")
     plant("corridor_plant", -4.75, -0.42, seed=23)
     comment("Everyday clutter (solid, at least 0.2 m tall so the lidar sees it)")
-    cyl("office_trash_bin", (-2.85, 4.66, 0.17), 0.13, 0.17, "bin_dark")
-    floor_lamp("office_lamp", (-4.72, 4.66))
+    waste_bin("office_trash_bin", (-2.6, 4.75, 0.0))
+    standing_lamp("office_lamp", (-4.78, 3.85, 0.0))  # in the corner by the desk: 8 cm to the wall, 8 cm to the desk, closed to cats
     cyl("lab_trash_bin", (0.4, 4.62, 0.17), 0.13, 0.17, "bin_dark")
     cyl("lab_stool_1", (3.32, 1.83, 0.25), 0.17, 0.25, "bin_dark")
     cyl("lab_stool_2", (3.72, 1.83, 0.25), 0.17, 0.25, "bin_dark")
@@ -773,8 +965,9 @@ HEADER = """<!--
   reception, doorways with frames and doors fixed open, furniture) and a two-wheeled
   differential-drive robot. Units: meters, kilograms, seconds.
 
-  Geom groups: 0 solid (lidar sees it, collides), 2 visual only, 3 ceiling (robot
-  camera only), 4 hidden colliders of the robot.
+  Geom groups: 0 solid (lidar sees it, collides), 2 visual only (furniture meshes too),
+  3 ceiling (robot camera only), 4 hidden colliders: the robot's, and the solid members
+  of furniture drawn by a mesh (the lidar sees them and they collide).
 -->
 <mujoco model="office_floor">
   <compiler angle="degree"/>
@@ -968,8 +1161,13 @@ FOOTER = """
 def generate() -> str:
     """The full world.xml text (deterministic)."""
     geoms.clear()
+    furniture_assets.clear()
+    furniture_items.clear()
+    placed_models.clear()
+    _assets_done.clear()
     build_floor()
-    return HEADER + "\n".join(geoms) + "\n" + FOOTER
+    header = HEADER.replace("  </asset>", "\n".join(furniture_assets + ["  </asset>"]), 1)
+    return header + "\n".join(geoms) + "\n" + FOOTER
 
 
 def main() -> None:

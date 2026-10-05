@@ -1,0 +1,63 @@
+{
+ "id": "proc_plant_stand",
+ "name": "Plant stand (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.46,
+  0.46,
+  0.22
+ ],
+ "parts": [
+  {
+   "mesh": "proc_plant_stand_0.msh",
+   "material": "oak",
+   "texture": "proc_plant_stand_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.2,
+   "shininess": 0.25,
+   "reflectance": 0.0,
+   "faces": 24,
+   "vertices": 48
+  },
+  {
+   "mesh": "proc_plant_stand_1.msh",
+   "material": "shadow",
+   "texture": null,
+   "rgba": [
+    0.03,
+    0.03,
+    0.03,
+    1.0
+   ],
+   "specular": 0.0,
+   "shininess": 0.0,
+   "reflectance": 0.0,
+   "faces": 48,
+   "vertices": 96
+  },
+  {
+   "mesh": "proc_plant_stand_2.msh",
+   "material": "steel_dark",
+   "texture": "proc_plant_stand_2.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.5,
+   "reflectance": 0.02,
+   "faces": 12,
+   "vertices": 24
+  }
+ ],
+ "note": "members: body, top board, plinth"
+}

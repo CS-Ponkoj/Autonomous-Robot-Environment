@@ -7,3 +7,7 @@ pillow==12.3.0
 # from the source model.
 pygltflib==1.16.5
 scipy==1.17.1
+# Used by tools/fetch_models.py to convert the furniture models (the exact versions are in
+# robot_env/assets/furniture/MANIFEST.json, and conversion is byte-identical with them).
+trimesh==4.8.3
+fast-simplification==0.2.0

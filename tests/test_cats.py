@@ -1776,7 +1776,7 @@ def test_a_crowded_cat_finds_its_way_out_on_the_retry():
         s.advance(C.PHYSICS_DT * 20)
         _low_gaps(herd, low)
         if searches and not moved:
-            herd.place(0, -3.6, 3.3, 0.5, state="pause")  # the cat ahead goes: the office corner
+            herd.place(0, -4.0, 1.4, 0.5, state="pause")  # the cat ahead goes: the office's open south-west
             moved = True
     assert searches[0][1] == 0 and searches[1][1] > 0  # none at first, then a way out
     assert ESCAPE_RETRY - 0.03 <= searches[1][0] - searches[0][0] <= ESCAPE_RETRY + 0.05 < GIVE_WAY_AFTER
@@ -1785,24 +1785,53 @@ def test_a_crowded_cat_finds_its_way_out_on_the_retry():
     s.close()
 
 
+# The office corner of the regression below, as it was when it was found: the old desk's
+# pedestals and modesty panel, the old office chair's solid disc base, the floor lamp and the waste
+# bin (static solids, their original positions). Test-only geometry on the obstacle-free floor, so
+# the regression keeps guarding the cushion however the office is furnished.
+OLD_OFFICE_CORNER = """
+    <geom name="corner_desk_ped_l" type="box" pos="-4.3 4.45 0.36" size="0.2 0.33 0.36"/>
+    <geom name="corner_desk_ped_r" type="box" pos="-3.3 4.45 0.36" size="0.2 0.33 0.36"/>
+    <geom name="corner_desk_panel" type="box" pos="-3.8 4.77 0.42" size="0.3 0.015 0.3"/>
+    <geom name="corner_chair_base" type="cylinder" pos="-3.8 3.72 0.07" size="0.24 0.07"/>
+    <geom name="corner_lamp" type="cylinder" pos="-4.72 4.66 0.1" size="0.16 0.1"/>
+    <geom name="corner_bin" type="cylinder" pos="-2.85 4.66 0.17" size="0.13 0.17"/>
+"""
+
+
 def test_a_cat_in_a_corner_gets_out_using_its_cushion():
     """Regression (roaming seed 14): in the office corner, facing into it, every move comes a
     little closer to a wall, so inside the planner's cushion nothing was feasible and the cat stood
     for 79 s. A cat stuck like this may use the cushion (down to the room a root move keeps), so
-    it gets out, with every gap still kept."""
+    it gets out, with every gap still kept. Built in OLD_OFFICE_CORNER (test-only): from this pose
+    the cat once moved 0.000 m in 5 s without the cushion (STUCK_AFTER = 1e9) and 0.058 m with it
+    (start gap 0.0417 m, lowest 0.0334 m). Since the escape search keeps each worked-out way out
+    (42d62bd), it gets out of this corner without the cushion too (0.214 m), so only the run with
+    the cushion is checked: the cat leaves, and keeps every gap."""
     import math as _m
-    from robot_env.cats import CAT_GAP, ROBOT_GAP, WALL_GAP
-    s, herd, cat = _herd_one(-4.175, 3.938, _m.radians(26.4))
-    s.reset(4.0, -4.0, 0.0, (3.0, -3.0))  # the robot far away
-    herd.place(0, -4.175, 3.938, _m.radians(26.4), state="walk")
-    cat = herd.cats[0]
-    cat.state_until, cat.target_v, cat.target_yaw = herd.time + 30.0, 0.15, _m.radians(225.0)
-    start = (cat.x, cat.y)
-    low = [_m.inf] * 3
-    for _ in range(int(5.0 / 0.02)):
-        s.advance(0.02)
-        g = herd.current_gaps()[0]
-        low = [min(low[0], g["wall"]), min(low[1], g["robot"]), min(low[2], g["cat"])]
-    assert _m.hypot(cat.x - start[0], cat.y - start[1]) > 0.05
+    from robot_env.cats import CAT_GAP, ROBOT_GAP, WALL_GAP, CatHerd, cat_world
+    from robot_env.sim import RobotSim
+
+    def corner_run():
+        """(how far the cat got in 5 s, the lowest wall, robot and cat gaps)."""
+        sim = RobotSim(include_obstacles=False, extra_world_xml=OLD_OFFICE_CORNER, extra=cat_world(1))
+        s = RobotSystem(sim=sim)
+        s.cats = CatHerd(sim, 1, 2)
+        herd = s.cats
+        s.reset(4.0, -4.0, 0.0, (3.0, -3.0))  # the robot far away
+        herd.place(0, -4.175, 3.938, _m.radians(26.4), state="walk")
+        cat = herd.cats[0]
+        cat.state_until, cat.target_v, cat.target_yaw = herd.time + 30.0, 0.15, _m.radians(225.0)
+        start = (cat.x, cat.y)
+        low = [_m.inf] * 3
+        for _ in range(int(5.0 / 0.02)):
+            s.advance(0.02)
+            g = herd.current_gaps()[0]
+            low = [min(low[0], g["wall"]), min(low[1], g["robot"]), min(low[2], g["cat"])]
+        moved = _m.hypot(cat.x - start[0], cat.y - start[1])
+        s.close()
+        return moved, low
+
+    moved, low = corner_run()
+    assert moved > 0.05
     assert low[0] >= WALL_GAP - 0.001 and low[1] >= ROBOT_GAP - 0.001 and low[2] >= CAT_GAP - 0.001
-    s.close()

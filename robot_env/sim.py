@@ -20,9 +20,10 @@ from .lighting import Lights
 WORLD_XML = Path(__file__).with_name("world.xml")
 ASSETS = Path(__file__).with_name("assets")
 _OBSTACLES_BLOCK = re.compile(r"<!-- OBSTACLES.*?/OBSTACLES -->", re.S)
-_RAY_GROUPS = np.array([1, 1, 0, 0, 1, 1], dtype=np.uint8)  # skip visual (2) and ceiling (3)
-_WORLD_SOLID_GROUP = np.array([1, 0, 0, 0, 0, 0], dtype=np.uint8)  # world solids only (tires are group 1)
-_VIEW_GROUP = np.array([1, 0, 1, 0, 0, 1], dtype=np.uint8)  # what blocks the viewer: solids, visual detail, cats
+_RAY_GROUPS = np.array([1, 1, 0, 0, 1, 1], dtype=np.uint8)  # skip visual (2) and ceiling (3); furniture members are 4
+_WORLD_SOLID_GROUP = np.array([1, 0, 0, 0, 1, 0], dtype=np.uint8)  # world solids and furniture members (tires are group 1)
+_VIEW_GROUP = np.array([1, 0, 1, 0, 0, 1], dtype=np.uint8)  # what blocks the viewer: what is drawn (solids, visual
+# detail and furniture meshes, cats), not the hidden furniture members (within 2 cm of their meshes)
 _SIGHT_GROUP = np.array([1, 0, 0, 0, 1, 0], dtype=np.uint8)  # what blocks a cat's view: walls and furniture
 CAMERA_SHADOW_LIGHTS = 3  # room lights casting shadows in the robot camera's image (as in the window)
 CAMERA_LOOK = 1.5  # m ahead of the robot: where its camera looks, for choosing the lights
@@ -66,6 +67,16 @@ def load_world_xml(include_obstacles: bool = True, extra_world_xml: str = "", ex
     return xml
 
 
+def load_assets() -> dict[str, bytes]:
+    """The world's textures (with the CC0 photo textures in robot_env/assets/textures), and the
+    furniture's meshes and textures (robot_env/assets/furniture)."""
+    assets = {p.name: p.read_bytes() for p in ASSETS.glob("*.png")}
+    assets.update({p.name: p.read_bytes() for p in sorted((ASSETS / "textures").glob("*.png"))})
+    assets.update({p.name: p.read_bytes() for p in sorted((ASSETS / "furniture").glob("*"))
+                   if p.suffix in (".msh", ".png")})
+    return assets
+
+
 def yaw_from_quat(q: np.ndarray) -> float:
     w, x, y, z = q
     return math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
@@ -73,8 +84,7 @@ def yaw_from_quat(q: np.ndarray) -> float:
 
 class RobotSim:
     def __init__(self, include_obstacles: bool = True, extra_world_xml: str = "", extra: WorldExtra | None = None):
-        assets = {p.name: p.read_bytes() for p in ASSETS.glob("*.png")}
-        assets.update({p.name: p.read_bytes() for p in sorted((ASSETS / "textures").glob("*.png"))})  # CC0 photo textures
+        assets = load_assets()
         if extra is not None:
             assets.update(extra.files)
         xml = load_world_xml(include_obstacles, extra_world_xml, extra)

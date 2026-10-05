@@ -1,0 +1,95 @@
+{
+ "id": "proc_office_chair",
+ "name": "Office chair (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.48,
+  0.4809,
+  0.95
+ ],
+ "parts": [
+  {
+   "mesh": "proc_office_chair_0.msh",
+   "material": "chrome",
+   "texture": null,
+   "rgba": [
+    0.72,
+    0.73,
+    0.75,
+    1.0
+   ],
+   "specular": 0.9,
+   "shininess": 0.9,
+   "reflectance": 0.15,
+   "faces": 144,
+   "vertices": 288
+  },
+  {
+   "mesh": "proc_office_chair_1.msh",
+   "material": "fabric",
+   "texture": "proc_office_chair_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.15,
+   "shininess": 0.22,
+   "reflectance": 0.0,
+   "faces": 1536,
+   "vertices": 972
+  },
+  {
+   "mesh": "proc_office_chair_2.msh",
+   "material": "piping",
+   "texture": null,
+   "rgba": [
+    0.36,
+    0.37,
+    0.39,
+    1.0
+   ],
+   "specular": 0.15,
+   "shininess": 0.22,
+   "reflectance": 0.0,
+   "faces": 768,
+   "vertices": 384
+  },
+  {
+   "mesh": "proc_office_chair_3.msh",
+   "material": "plastic",
+   "texture": "proc_office_chair_3.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.35,
+   "shininess": 0.4,
+   "reflectance": 0.0,
+   "faces": 2496,
+   "vertices": 1658
+  },
+  {
+   "mesh": "proc_office_chair_4.msh",
+   "material": "shell",
+   "texture": "proc_office_chair_4.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 768,
+   "vertices": 486
+  }
+ ],
+ "note": "members: four legs, two back posts, glides, seat pan, seat, back, arm rails, arm posts, pads"
+}

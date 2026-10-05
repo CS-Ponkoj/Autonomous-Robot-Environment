@@ -2,3 +2,6 @@
 * text=auto
 *.sh text eol=lf
 *.png binary
+# The furniture folder: MANIFEST.json records each file's exact bytes, so text there stays LF.
+robot_env/assets/furniture/*.json text eol=lf
+*.msh binary

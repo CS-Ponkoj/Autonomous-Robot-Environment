@@ -1,0 +1,47 @@
+{
+ "id": "proc_shelf_books_11",
+ "name": "Books for a steel shelf (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  1.0011,
+  0.2549,
+  1.3006
+ ],
+ "parts": [
+  {
+   "mesh": "proc_shelf_books_11_0.msh",
+   "material": "book_cloth",
+   "texture": "proc_shelf_books_11_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.12,
+   "shininess": 0.15,
+   "reflectance": 0.0,
+   "faces": 522,
+   "vertices": 1044
+  },
+  {
+   "mesh": "proc_shelf_books_11_1.msh",
+   "material": "book_cover",
+   "texture": "proc_shelf_books_11_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.12,
+   "shininess": 0.15,
+   "reflectance": 0.0,
+   "faces": 522,
+   "vertices": 1044
+  }
+ ],
+ "note": "visual only, on the shelf boards above the gate height"
+}
