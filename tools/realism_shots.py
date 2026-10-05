@@ -44,10 +44,10 @@ SHOTS = {
 
 
 def light_eye(m, lights: Lights, eye: np.ndarray, at: np.ndarray) -> None:
-    """The lights drawn from this eye looking at `at`, and shadows from the two drawn room lights
-    nearest where it looks."""
+    """The lights drawn from this eye looking at `at`, every drawn room light casting its shadow
+    (offline, so no light shines through a wall)."""
     lights.choose(eye[0], eye[1], look=(at[0], at[1]))
-    lights.shadows(at[0], at[1], 2)
+    lights.shadows(at[0], at[1], lights.budget())
 
 
 def render(label: str) -> Path:

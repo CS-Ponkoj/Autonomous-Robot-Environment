@@ -14,10 +14,12 @@ import math
 import mujoco
 import numpy as np
 
+from . import config as C
 from .layout import region_of
 
 GL_LIGHTS = 8  # the most the classic renderer draws, the headlight included
 ROOM_FITTINGS = 2  # a room's nearest fittings drawn before the next room's
+DOOR_AHEAD = 4.0  # m: a room whose doorway is ahead of the eye this near gets its nearest fitting
 FADE = 0.3  # s for a light to fade out, or in, when the window's choice changes (no popping)
 # the top view shows the whole floor: a fixed set, one light per room
 TOP_LIGHTS = ("light_office", "light_lab", "light_storage", "light_reception", "light_corridor_w2")
@@ -68,11 +70,30 @@ class Lights:
         own, other = room(here, True), (room(seen, True) if seen != here else [])
         order = list(np.flatnonzero(self.directional))
         windows = room(here, False) + (room(seen, False) if seen != here else [])
-        # each room's two nearest fittings first (a corridor has four), then the rest, then windows
-        for k in own[:ROOM_FITTINGS] + other[:ROOM_FITTINGS] + own + other + windows + near:
+        through = [room(r, True)[0] for r in self._rooms_through_doors(x, y, lx, ly, here) if room(r, True)]
+        # each room's two nearest fittings first (a corridor has four), one of each room seen
+        # through a doorway ahead, the room looked into, then the rest, then windows
+        for k in own[:ROOM_FITTINGS] + through + other[:ROOM_FITTINGS] + own + other + windows + near:
             if k not in order:
                 order.append(k)
         return order[:self.budget()]
+
+    @staticmethod
+    def _rooms_through_doors(x, y, lx, ly, here) -> list:
+        """The rooms on the far side of the doorways ahead of an eye at (x, y) looking toward
+        (lx, ly), within DOOR_AHEAD, nearest first."""
+        fx, fy = lx - x, ly - y
+        if math.hypot(fx, fy) < 1e-6:
+            return []
+        found = []
+        for dx, dy in sorted(C.DOORS, key=lambda dd: math.hypot(dd[0] - x, dd[1] - y)):
+            if (dx - x) * fx + (dy - y) * fy <= 0 or math.hypot(dx - x, dy - y) > DOOR_AHEAD:
+                continue
+            for ox, oy in ((0.0, 0.3), (0.0, -0.3), (0.3, 0.0), (-0.3, 0.0)):
+                r = region_of(dx + ox, dy + oy)
+                if r is not None and r != here and r not in found:
+                    found.append(r)
+        return found
 
     def _apply(self, weight: np.ndarray) -> None:
         self.model.light_active[:] = weight > 0
@@ -104,10 +125,12 @@ class Lights:
         self._apply(self.weight)
 
     def shadows(self, x: float, y: float, n: int) -> None:
-        """Shadows from the n lights nearest (x, y) among those drawn that may cast them (each
-        shadow-casting light re-draws the whole scene, about 1 ms)."""
+        """Shadows from n of the drawn lights that may cast them: those of the room (x, y) is in
+        first, then the nearest (each shadow-casting light re-draws the whole scene, about 1 ms)."""
+        here = region_of(x, y)
         d = np.hypot(self.model.light_pos[:, 0] - x, self.model.light_pos[:, 1] - y)
-        pick = [k for k in np.argsort(d) if self.shadowing[k] and self.model.light_active[k]][:n]
+        order = sorted(range(self.model.nlight), key=lambda k: (here is None or self.region[k] != here, d[k]))
+        pick = [k for k in order if self.shadowing[k] and self.model.light_active[k]][:n]
         self.model.light_castshadow[:] = 0
         self.model.light_castshadow[pick] = 1
 

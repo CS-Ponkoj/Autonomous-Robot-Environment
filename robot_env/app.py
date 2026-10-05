@@ -32,7 +32,7 @@ from .types import Command, Driver
 WINDOW = (1280, 720)  # initial window size; the window can be resized
 FPS = 60
 MAX_FRAME_DT = 0.05
-SHADOW_LIGHTS = 2  # room lights casting shadows in the chase, orbit, and robot-camera views
+SHADOW_LIGHTS = 3  # room lights casting shadows in the chase, orbit, and robot-camera views
 # The top view shows the whole floor: a fixed set (no light switching as the robot moves), one
 # light per room; the corridor is lit but casts no shadows there (each shadow light re-draws the
 # whole scene, about 1 ms)

@@ -24,7 +24,7 @@ _RAY_GROUPS = np.array([1, 1, 0, 0, 1, 1], dtype=np.uint8)  # skip visual (2) an
 _WORLD_SOLID_GROUP = np.array([1, 0, 0, 0, 0, 0], dtype=np.uint8)  # world solids only (tires are group 1)
 _VIEW_GROUP = np.array([1, 0, 1, 0, 0, 1], dtype=np.uint8)  # what blocks the viewer: solids, visual detail, cats
 _SIGHT_GROUP = np.array([1, 0, 0, 0, 1, 0], dtype=np.uint8)  # what blocks a cat's view: walls and furniture
-CAMERA_SHADOW_LIGHTS = 2  # room lights casting shadows in the robot camera's image (as in the window)
+CAMERA_SHADOW_LIGHTS = 3  # room lights casting shadows in the robot camera's image (as in the window)
 CAMERA_LOOK = 1.5  # m ahead of the robot: where its camera looks, for choosing the lights
 _SPAWN_HEIGHT = 0.0505
 

@@ -132,3 +132,23 @@ def test_the_robot_camera_lights_the_room_ahead_of_it():
     sim.render_camera((60, 80))
     assert _fittings(sim, "office") <= set(np.flatnonzero(sim.model.light_active))
     sim.close()
+
+
+def test_a_corridor_view_lights_the_rooms_through_the_doorways_ahead():
+    """Looking along the corridor, each room whose doorway is ahead within DOOR_AHEAD gets its
+    nearest fitting, so the floors seen through the doors are not dark."""
+    sim = RobotSim()
+    sim.lights.choose(-4.0, 0.0, look=(4.0, 0.0))
+    on = set(np.flatnonzero(sim.model.light_active))
+    for room in ("office", "storage"):  # doorways at x -2.5 and -3.0, ahead and within 4 m
+        assert _fittings(sim, room) & on
+
+
+def test_shadows_come_from_the_room_looked_at_first():
+    """From the corridor looking into the office, the office's fittings cast the shadows even when
+    a corridor fitting is nearer the point looked at."""
+    sim = RobotSim()
+    look = (-2.5, 1.2)  # just inside the office door: a corridor fitting is nearer than the office's
+    sim.lights.choose(-2.5, -0.3, look=look)
+    sim.lights.shadows(*look, 2)
+    assert set(np.flatnonzero(sim.model.light_castshadow)) <= _fittings(sim, "office")
