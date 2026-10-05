@@ -54,10 +54,10 @@
     <texture name="whiteboard" type="2d" file="whiteboard.png"/>
     <texture name="tv_screen" type="2d" file="tv_screen.png"/>
     <!-- floors and walls at their real-world scales (texrepeat: repeats per metre) -->
-    <material name="wood_floor" texture="tx_laminate" texrepeat="0.588 0.588" texuniform="true" specular="0.3" shininess="0.3" reflectance="0.08"/>
+    <material name="wood_floor" texture="tx_laminate" texrepeat="0.588 0.588" texuniform="true" emission="0.17" specular="0.3" shininess="0.3" reflectance="0.08"/>
     <material name="tile" texture="tx_porcelain" texrepeat="0.5 0.5" texuniform="true" specular="0.5" shininess="0.4" reflectance="0.22"/>
-    <material name="tile_dark" texture="tx_concrete" texrepeat="0.25 0.25" texuniform="true" specular="0.2" shininess="0.2" reflectance="0.05"/>
-    <material name="carpet" texture="tx_carpet" texrepeat="1 1" texuniform="true" specular="0" shininess="0"/>
+    <material name="tile_dark" texture="tx_concrete" texrepeat="0.25 0.25" texuniform="true" emission="0.17" specular="0.2" shininess="0.2" reflectance="0.05"/>
+    <material name="carpet" texture="tx_carpet" texrepeat="1 1" texuniform="true" emission="0.17" specular="0" shininess="0"/>
     <material name="plaster" texture="tx_plaster" texrepeat="0.3125 0.3125" texuniform="true" rgba="0.97 0.95 0.91 1" emission="0.26" specular="0.1" shininess="0.1"/>
     <material name="ceiling" texture="tx_ceiling" texrepeat="0.278 0.278" texuniform="true" rgba="0.97 0.96 0.94 1" emission="0.45"/>
     <material name="light_panel" rgba="1 0.98 0.92 1" emission="0.36"/>
@@ -128,8 +128,8 @@
     <material name="view_9" texture="view_9" texuniform="false" emission="0.55" specular="0.3" shininess="0.9"/>
     <texture name="tx_rug_red" type="2d" file="rug_red_woven.png"/>
     <texture name="tx_rug_blue" type="2d" file="rug_blue_woven.png"/>
-    <material name="rug_red" texture="tx_rug_red" specular="0" shininess="0"/>
-    <material name="rug_blue" texture="tx_rug_blue" specular="0" shininess="0"/>
+    <material name="rug_red" texture="tx_rug_red" emission="0.17" specular="0" shininess="0"/>
+    <material name="rug_blue" texture="tx_rug_blue" emission="0.17" specular="0" shininess="0"/>
     <material name="rug_red_edge" rgba="0.17 0.04 0.035 1" specular="0"/>
     <material name="rug_blue_edge" rgba="0.04 0.06 0.13 1" specular="0"/>
     <material name="painting_1" texture="painting_1" emission="0.1"/>
