@@ -27,9 +27,10 @@ from fetch_textures import AGENT, API, OUT, _get, _json, _png, cache_dir  # noqa
 
 PANORAMA = "buikslotermeerplein"
 VIEW_DISTANCE = 1.5  # m from the window a person stands (sets each window's field of view)
-EXPOSURE = 1.3  # the crops are brightened by this: daylight outside outshines the room
+EXPOSURE = 1.4  # the crops are brightened by this: daylight outside outshines the room
 WIDTH = 640  # px of each crop (height from the window's shape)
-KNEE, ROLL = 0.66, 0.26  # highlight roll-off: linear up to KNEE, then easing toward KNEE + ROLL
+KNEE, ROLL = 0.72, 0.24
+SATURATION = 0.85  # the photo's colour a little calmer (its grass reads neon in the room's light)  # highlight roll-off: linear up to KNEE, then easing toward KNEE + ROLL
 # Panorama azimuth (degrees) seen looking north (+y); east (+x) is 90 degrees clockwise from it.
 NORTH = 300.0
 
@@ -57,7 +58,8 @@ def crop(pano: np.ndarray, heading: float, along: float, w: float, h: float) -> 
     v = (0.5 - lat / math.pi) * ph
     channels = [map_coordinates(pano[..., c], [v, u], order=1, mode="wrap") for c in range(3)]
     img = np.stack(channels, axis=2) / 255.0
-    img = img * EXPOSURE
+    grey = img @ np.array([0.2126, 0.7152, 0.0722])
+    img = (grey[..., None] + SATURATION * (img - grey[..., None])) * EXPOSURE
     # highlights roll off smoothly to KNEE + ROLL (the room's light adds to the glass's own glow)
     over = np.maximum(img - KNEE, 0.0)
     return np.where(img > KNEE, KNEE + ROLL * (1.0 - np.exp(-over / ROLL)), img)

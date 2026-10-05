@@ -40,13 +40,16 @@ LIGHT = np.array([0.0, 0.35, 1.0]) / np.linalg.norm([0.0, 0.35, 1.0])  # from ab
 # (mean, contrast) to turn the colour to grey of that mean, its variation scaled by contrast
 # (the material's colour then tints it), or None to keep the source colour.
 TEXTURES: dict[str, dict] = {
-    "painted_plaster_wall": dict(source="polyhaven", size=1024, neutral=(0.95, 0.45)),
+    "painted_plaster_wall": dict(source="polyhaven", size=1024, neutral=(0.95, 0.8)),
     "laminate_floor_02": dict(source="polyhaven", size=1024, neutral=None),
     "white_oak_veneer": dict(source="polyhaven", size=1024, neutral=None),
     "OfficeCeiling001": dict(source="ambientcg", size=1024, repeat_m=1.2, neutral=None),
-    "Carpet012": dict(source="ambientcg", size=1024, repeat_m=1.0, neutral=None, gain=1.55),
-    "Tiles040": dict(source="ambientcg", size=1024, repeat_m=1.2, neutral=None),
-    "Concrete031": dict(source="ambientcg", size=1024, repeat_m=2.5, neutral=None),
+    # carpet: laid as 0.5 m carpet tiles, quarter-turned, brighter and calmer than the source
+    "Carpet012": dict(source="ambientcg", size=1024, repeat_m=1.0, neutral=None, gain=4.6, variation=0.6,
+                      quarter_tiles=True),
+    # porcelain: a 4 x 4 block of 0.5 m tiles from the 2K source (2 mm per texel), 2 m repeat
+    "Tiles040": dict(source="ambientcg", res="2K", size=1024, repeat_m=2.0, crop=0.5, neutral=None),
+    "Concrete031": dict(source="ambientcg", res="2K", size=1024, repeat_m=4.0, neutral=None),
 }
 
 
@@ -66,12 +69,12 @@ def _json(url: str) -> dict:
     return json.loads(_get(url))
 
 
-def download_ambientcg(tex_id: str) -> tuple[dict, dict]:
-    """The colour, ambient occlusion, and OpenGL normal maps from ambientCG's 1K JPG zip, cached
-    (the zip's SHA-256 is recorded; ambientCG publishes no checksum)."""
+def download_ambientcg(tex_id: str, res: str = "1K") -> tuple[dict, dict]:
+    """The colour, ambient occlusion, and OpenGL normal maps from ambientCG's JPG zip (res: 1K or
+    2K), cached (the zip's SHA-256 is recorded; ambientCG publishes no checksum)."""
     import zipfile
-    url = f"https://ambientcg.com/get?file={tex_id}_1K-JPG.zip"
-    target = cache_dir() / tex_id / f"{tex_id}_1K-JPG.zip"
+    url = f"https://ambientcg.com/get?file={tex_id}_{res}-JPG.zip"
+    target = cache_dir() / tex_id / f"{tex_id}_{res}-JPG.zip"
     if not target.exists():
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(_get(url))
@@ -108,10 +111,19 @@ def download(tex_id: str, res: str = "2k") -> dict:
     return out, info
 
 
-def prepare(maps: dict, size: int, neutral=None, gain: float = 1.0) -> Image.Image:
+def prepare(maps: dict, size: int, neutral=None, gain: float = 1.0, crop: float = 1.0,
+            variation: float = 1.0, quarter_tiles: bool = False) -> Image.Image:
     """Diffuse x occlusion x normal-map shading, resized (LANCZOS) to size x size, sRGB; with
-    `neutral` (mean, contrast) turned grey first (see TEXTURES)."""
-    diff = np.asarray(Image.open(maps["Diffuse"][0]).convert("RGB"), dtype=np.float64) / 255.0
+    `neutral` (mean, contrast) turned grey first, `crop` (the top-left fraction of the source
+    kept: more texels per metre), `variation` (its light variation scaled around the mean), and
+    `quarter_tiles` (laid as four carpet tiles, each turned a quarter from its neighbour, the
+    seams between them a little darker), as TEXTURES gives them."""
+    def load(path, mode):
+        im = Image.open(path).convert(mode)
+        if crop < 1.0:
+            im = im.crop((0, 0, int(im.width * crop), int(im.height * crop)))
+        return np.asarray(im, dtype=np.float64) / 255.0
+    diff = load(maps["Diffuse"][0], "RGB")
     if neutral is not None:
         mean, contrast = neutral
         g = diff @ np.array([0.2126, 0.7152, 0.0722])
@@ -119,16 +131,29 @@ def prepare(maps: dict, size: int, neutral=None, gain: float = 1.0) -> Image.Ima
         diff = np.repeat(np.clip(g, 0.0, 1.0)[..., None], 3, axis=2)
     lin = diff ** 2.2 * gain  # work in linear light (gain: brighter than the source)
     if "AO" in maps:
-        ao = np.asarray(Image.open(maps["AO"][0]).convert("L"), dtype=np.float64) / 255.0
+        ao = load(maps["AO"][0], "L")
         lin *= (1.0 - AO_STRENGTH) + AO_STRENGTH * ao[..., None]
     if "nor_gl" in maps:
-        n = np.asarray(Image.open(maps["nor_gl"][0]).convert("RGB"), dtype=np.float64) / 255.0 * 2.0 - 1.0
+        n = load(maps["nor_gl"][0], "RGB") * 2.0 - 1.0
         n /= np.maximum(np.linalg.norm(n, axis=2, keepdims=True), 1e-6)
         shade = np.clip(n @ LIGHT, 0.0, 1.0) / LIGHT[2]  # 1 on a flat patch
         lin *= (1.0 - RELIEF) + RELIEF * np.clip(shade, 0.0, 1.6)[..., None]
+    if variation != 1.0:
+        mean = lin.mean(axis=(0, 1), keepdims=True)
+        lin = mean + (lin - mean) * variation
     rgb = np.clip(lin, 0.0, 1.0) ** (1 / 2.2)
     img = Image.fromarray((rgb * 255.0 + 0.5).astype(np.uint8), "RGB")
-    return img.resize((size, size), Image.LANCZOS)
+    if not quarter_tiles:
+        return img.resize((size, size), Image.LANCZOS)
+    half = size // 2
+    tile = np.asarray(img.resize((half, half), Image.LANCZOS), dtype=np.float64)
+    seam = np.ones((half, half, 1))
+    seam[:2], seam[-2:], seam[:, :2], seam[:, -2:] = 0.82, 0.82, 0.82, 0.82  # the joint between tiles
+    out = np.zeros((size, size, 3))
+    for i in range(2):
+        for j in range(2):
+            out[i * half:(i + 1) * half, j * half:(j + 1) * half] = np.rot90(tile, k=(i + 2 * j) % 4) * seam
+    return Image.fromarray(np.clip(out + 0.5, 0, 255).astype(np.uint8), "RGB")
 
 
 def _png(img: Image.Image) -> bytes:
@@ -144,7 +169,7 @@ def build(out: Path, wanted: list[str]) -> list[dict]:
     for tex_id in wanted:
         spec = TEXTURES[tex_id]
         if spec["source"] == "ambientcg":
-            maps, info = download_ambientcg(tex_id)
+            maps, info = download_ambientcg(tex_id, spec.get("res", "1K"))
             repeat = [spec["repeat_m"]] * 2
             page = f"https://ambientcg.com/view?id={tex_id}"
         else:
@@ -152,7 +177,8 @@ def build(out: Path, wanted: list[str]) -> list[dict]:
             dims = info.get("dimensions") or [None, None]
             repeat = [d / 1000.0 if d else None for d in dims[:2]]
             page = f"https://polyhaven.com/a/{tex_id}"
-        data = _png(prepare(maps, spec["size"], spec.get("neutral"), spec.get("gain", 1.0)))
+        data = _png(prepare(maps, spec["size"], spec.get("neutral"), spec.get("gain", 1.0), spec.get("crop", 1.0),
+                            spec.get("variation", 1.0), spec.get("quarter_tiles", False)))
         (out / f"{tex_id}.png").write_bytes(data)
         rec = {"id": tex_id, "file": f"{tex_id}.png", "size_px": spec["size"], "repeat_m": repeat,
                "neutral": spec.get("neutral"), "licence": "CC0 1.0", "source": page,

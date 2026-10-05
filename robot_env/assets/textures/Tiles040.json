@@ -3,8 +3,8 @@
  "file": "Tiles040.png",
  "size_px": 1024,
  "repeat_m": [
-  1.2,
-  1.2
+  2.0,
+  2.0
  ],
  "neutral": null,
  "licence": "CC0 1.0",
@@ -14,17 +14,17 @@
  ],
  "inputs": {
   "Diffuse": {
-   "url": "https://ambientcg.com/get?file=Tiles040_1K-JPG.zip#Tiles040_1K-JPG_Color.jpg",
-   "sha256": "01b519c9a02661f266c7945e656b09900746eadae27970e6956832b3512a6bea"
+   "url": "https://ambientcg.com/get?file=Tiles040_2K-JPG.zip#Tiles040_2K-JPG_Color.jpg",
+   "sha256": "e3f383c750a78b2c878afd3b2d22d9f2743540b1dd473cc5a4df67a7e182a78b"
   },
   "nor_gl": {
-   "url": "https://ambientcg.com/get?file=Tiles040_1K-JPG.zip#Tiles040_1K-JPG_NormalGL.jpg",
-   "sha256": "5eb099cce9e6fec60c43d0ad3d80839b6710a312ffd84a0132fb70d14d5082c4"
+   "url": "https://ambientcg.com/get?file=Tiles040_2K-JPG.zip#Tiles040_2K-JPG_NormalGL.jpg",
+   "sha256": "49357b2eb961de0e0ac2f4a827493cf30ae1cc3ee2986a66770dd2bffe15b681"
   }
  },
  "ao_strength": 0.9,
  "relief": 0.35,
- "tool_sha256": "22e590c5dfb4dadddd64935e24364aa17fd9a1e59c1ca72d46328a22c98a6d22",
- "sha256": "72686c2ee6de35033c92002eb807863dca8e4b8d5a81bdb14dfb0d38a2fdfbcb",
- "bytes": 2170698
+ "tool_sha256": "68a748484c7978dbdaef2e6e3ee2c8bca62691706259cf7816e846b96e6a7d44",
+ "sha256": "bc6a00d901449dda3dec5405a2e9540e42d33d07e87fe685cb021ed363bf4c7f",
+ "bytes": 1900581
 }

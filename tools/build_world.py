@@ -296,6 +296,20 @@ def wall(name, axis, fixed, a, b, doors=(), skirt_sides=(-1, 1)):
             else:
                 box(None, (fa, c, DOOR_HEAD + 0.035), (0.0125, DOOR_GAP / 2 + 0.07, 0.035), "frame", cls="visual")
                 box(None, (fb, c, DOOR_HEAD + 0.006), (0.003, DOOR_GAP / 2, 0.006), "frame", cls="visual")
+        # visual: the door stop round the opening (a 12 mm bead on the jamb linings and head, mid
+        # wall) and the strike plate on the latch jamb (the leaves hinge on the low side)
+        for sgn in (-1, 1):
+            sc = c + sgn * (DOOR_GAP / 2 - JAMB - 0.006)
+            if axis == "x":
+                box(None, (sc, fixed, DOOR_HEAD / 2), (0.006, 0.0125, DOOR_HEAD / 2), "frame", cls="visual")
+            else:
+                box(None, (fixed, sc, DOOR_HEAD / 2), (0.0125, 0.006, DOOR_HEAD / 2), "frame", cls="visual")
+        if axis == "x":
+            box(None, (c, fixed, DOOR_HEAD - 0.006), (DOOR_GAP / 2 - JAMB, 0.0125, 0.006), "frame", cls="visual")
+            box(None, (c + DOOR_GAP / 2 - JAMB - 0.0015, fixed + 0.03, 1.0), (0.0015, 0.012, 0.06), "strike_plate", cls="visual")
+        else:
+            box(None, (fixed, c, DOOR_HEAD - 0.006), (0.0125, DOOR_GAP / 2 - JAMB, 0.006), "frame", cls="visual")
+            box(None, (fixed + 0.03, c + DOOR_GAP / 2 - JAMB - 0.0015, 1.0), (0.012, 0.0015, 0.06), "strike_plate", cls="visual")
         # visual: an aluminium threshold strip across the doorway floor (2 mm, flush enough to drive over)
         if axis == "x":
             box(None, (c, fixed, 0.0022), (DOOR_GAP / 2 - JAMB, T / 2 + 0.01, 0.001), "threshold", cls="visual")
@@ -319,24 +333,26 @@ def door_leaf(name, axis, fixed, center, into):
     w, t = 0.88, 0.02
     start = fixed + into * (T / 2 + 0.02)
     mid = start + into * w / 2
+    zc = 1.035  # the leaf stands 1 cm clear of the floor
     if axis == "x":
-        box(name, (hinge + t, mid, 1.03), (t, w / 2, 1.025), "door")
+        box(name, (hinge + t, mid, zc), (t, w / 2, 1.025), "door")
     else:
-        box(name, (mid, hinge + t, 1.03), (w / 2, t, 1.025), "door")
+        box(name, (mid, hinge + t, zc), (w / 2, t, 1.025), "door")
+    veneer = "door_b" if name in ("door_lab", "door_reception") else "door"  # not every leaf alike
     for side in (-1, 1):  # the veneer on both faces of the leaf
         if axis == "x":
-            skin((hinge + t + side * t, mid, 1.03), ("x", side), w / 2, 1.025, "door")
+            skin((hinge + t + side * t, mid, zc), ("x", side), w / 2, 1.025, veneer)
         else:
-            skin((mid, hinge + t + side * t, 1.03), ("y", side), w / 2, 1.025, "door")
+            skin((mid, hinge + t + side * t, zc), ("y", side), w / 2, 1.025, veneer)
     # Hinges on the hinge edge, lever handles on both faces near the free edge
     for z in (0.25, 1.0, 1.8):
         h_pos = (hinge + t, start + into * 0.012, z) if axis == "x" else (start + into * 0.012, hinge + t, z)
         cyl(None, h_pos, 0.008, 0.045, "handle", cls="visual")
     for side in (-1, 1):  # kick plates (stainless, the bottom 25 cm) on both faces
         if axis == "x":
-            skin((hinge + t + side * t, mid, 0.135), ("x", side), w / 2 - 0.02, 0.125, "kick_plate", out=0.0015)
+            skin((hinge + t + side * t, mid, 0.14), ("x", side), w / 2 - 0.02, 0.125, "kick_plate", out=0.0015)
         else:
-            skin((mid, hinge + t + side * t, 0.135), ("y", side), w / 2 - 0.02, 0.125, "kick_plate", out=0.0015)
+            skin((mid, hinge + t + side * t, 0.14), ("y", side), w / 2 - 0.02, 0.125, "kick_plate", out=0.0015)
     # an overhead closer on the push side near the hinge, its arm reaching the frame head
     cside = -into
     if axis == "x":
@@ -615,10 +631,10 @@ def room_lights():
                  'specular="0 0 0" castshadow="false"/>')
     for x, y, name, tint in FITTINGS:
         r, g, b = (float(v) for v in tint.split())
-        k = 0.36 if not name.startswith("light_corridor") else 0.28
+        k = 0.8 if not name.startswith("light_corridor") else 0.6
         geoms.append(f'    <light name="{name}" pos="{x} {y} {WH - 0.06:.2f}" dir="0 0 -1" directional="false" '
                      f'cutoff="85" exponent="1" diffuse="{k * r:.3f} {k * g:.3f} {k * b:.3f}" '
-                     f'ambient="0.06 0.06 0.06" specular="0.08 0.08 0.08" attenuation="1 0.05 0.02" castshadow="true"/>')
+                     f'ambient="0.06 0.06 0.06" specular="0.3 0.3 0.3" attenuation="1 0.08 0.03" castshadow="true"/>')
 
 
 def _wheel_visuals(side: int) -> str:
@@ -763,7 +779,7 @@ HEADER = """<!--
   <visual>
     <global offwidth="2560" offheight="1440"/>
     <quality shadowsize="4096" offsamples="4"/>
-    <headlight ambient="0.62 0.62 0.62" diffuse="0.03 0.03 0.03" specular="0 0 0"/>
+    <headlight ambient="0.55 0.55 0.55" diffuse="0.03 0.03 0.03" specular="0.1 0.1 0.1"/>
     <!-- Clip planes are fractions of the model extent; znear keeps cameras from seeing
          through walls they are close to. -->
     <map znear="0.0005" zfar="3" shadowclip="1" shadowscale="0.6"/>
@@ -798,20 +814,22 @@ HEADER = """<!--
     <texture name="tv_screen" type="2d" file="tv_screen.png"/>
     <!-- floors and walls at their real-world scales (texrepeat: repeats per metre) -->
     <material name="wood_floor" texture="tx_laminate" texrepeat="0.588 0.588" texuniform="true" specular="0.3" shininess="0.3" reflectance="0.08"/>
-    <material name="tile" texture="tx_porcelain" texrepeat="0.25 0.25" texuniform="true" specular="0.5" shininess="0.4" reflectance="0.14"/>
+    <material name="tile" texture="tx_porcelain" texrepeat="0.5 0.5" texuniform="true" specular="0.5" shininess="0.4" reflectance="0.22"/>
     <material name="tile_dark" texture="tx_concrete" texrepeat="0.25 0.25" texuniform="true" specular="0.2" shininess="0.2" reflectance="0.05"/>
     <material name="carpet" texture="tx_carpet" texrepeat="1 1" texuniform="true" specular="0" shininess="0"/>
     <material name="plaster" texture="tx_plaster" texrepeat="0.5 0.5" texuniform="true" rgba="0.97 0.95 0.91 1" specular="0.1" shininess="0.1"/>
     <material name="ceiling" texture="tx_ceiling" texrepeat="0.278 0.278" texuniform="true" rgba="0.97 0.96 0.94 1" emission="0.25"/>
     <material name="light_panel" rgba="1 0.98 0.92 1" emission="0.36"/>
     <material name="fitting_frame" rgba="0.95 0.95 0.94 1" emission="0.35" specular="0.3"/>
-    <material name="skirting" rgba="0.93 0.93 0.91 1" specular="0.5" shininess="0.5"/>
+    <material name="skirting" rgba="0.98 0.98 0.96 1" emission="0.05" specular="0.5" shininess="0.5"/>
     <material name="shadow_line" rgba="0.32 0.31 0.3 1" specular="0"/>
     <material name="threshold" rgba="0.72 0.73 0.74 1" specular="0.8" shininess="0.7"/>
-    <material name="kick_plate" rgba="0.74 0.75 0.77 1" specular="0.9" shininess="0.8" reflectance="0.05"/>
+    <material name="kick_plate" rgba="0.55 0.56 0.58 1" specular="0.9" shininess="0.8" reflectance="0.05"/>
     <material name="closer" rgba="0.62 0.63 0.65 1" specular="0.6" shininess="0.6"/>
-    <material name="frame" rgba="0.94 0.94 0.93 1" specular="0.3"/>
+    <material name="frame" rgba="0.98 0.98 0.97 1" emission="0.05" specular="0.4" shininess="0.4"/>
     <material name="door" texture="tx_veneer" texrepeat="1 1" texuniform="false" specular="0.25" shininess="0.3"/>
+    <material name="door_b" texture="tx_veneer" texrepeat="1.6 1" texuniform="false" specular="0.25" shininess="0.3"/>
+    <material name="strike_plate" rgba="0.7 0.71 0.73 1" specular="0.9" shininess="0.8"/>
     <material name="desk_wood" texture="door_wood" texrepeat="1 1" texuniform="true" specular="0.25"/>
     <material name="desk_body" rgba="0.55 0.56 0.58 1" specular="0.2"/>
     <material name="metal" rgba="0.62 0.64 0.67 1" specular="0.5" shininess="0.6"/>
@@ -847,25 +865,25 @@ HEADER = """<!--
     <material name="blind" rgba="0.9 0.88 0.82 1" emission="0.35" specular="0"/>
     <material name="blind_rail" rgba="0.82 0.82 0.8 1" specular="0.5"/>
     <texture name="view_0" type="2d" file="view_0.png"/>
-    <material name="view_0" texture="view_0" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <material name="view_0" texture="view_0" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
     <texture name="view_1" type="2d" file="view_1.png"/>
-    <material name="view_1" texture="view_1" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <material name="view_1" texture="view_1" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
     <texture name="view_2" type="2d" file="view_2.png"/>
-    <material name="view_2" texture="view_2" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <material name="view_2" texture="view_2" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
     <texture name="view_3" type="2d" file="view_3.png"/>
-    <material name="view_3" texture="view_3" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <material name="view_3" texture="view_3" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
     <texture name="view_4" type="2d" file="view_4.png"/>
-    <material name="view_4" texture="view_4" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <material name="view_4" texture="view_4" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
     <texture name="view_5" type="2d" file="view_5.png"/>
-    <material name="view_5" texture="view_5" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <material name="view_5" texture="view_5" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
     <texture name="view_6" type="2d" file="view_6.png"/>
-    <material name="view_6" texture="view_6" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <material name="view_6" texture="view_6" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
     <texture name="view_7" type="2d" file="view_7.png"/>
-    <material name="view_7" texture="view_7" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <material name="view_7" texture="view_7" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
     <texture name="view_8" type="2d" file="view_8.png"/>
-    <material name="view_8" texture="view_8" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <material name="view_8" texture="view_8" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
     <texture name="view_9" type="2d" file="view_9.png"/>
-    <material name="view_9" texture="view_9" texuniform="false" emission="0.42" specular="0.3" shininess="0.9"/>
+    <material name="view_9" texture="view_9" texuniform="false" emission="0.5" specular="0.3" shininess="0.9"/>
     <material name="rug_red" texture="rug_red"/>
     <material name="rug_blue" texture="rug_blue"/>
     <material name="painting_1" texture="painting_1" emission="0.1"/>

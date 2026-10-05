@@ -8,7 +8,7 @@
  ],
  "neutral": [
   0.95,
-  0.45
+  0.8
  ],
  "licence": "CC0 1.0",
  "source": "https://polyhaven.com/a/painted_plaster_wall",
@@ -31,7 +31,7 @@
  },
  "ao_strength": 0.9,
  "relief": 0.35,
- "tool_sha256": "dbe1d82ad565ad429dfea18c720c755f1b045f30602921d619ce3b98de05847b",
- "sha256": "f3d27b7e9a2cc5beb6122878fffb87647a4c162971932e339b48d370ae7707c0",
- "bytes": 687358
+ "tool_sha256": "68a748484c7978dbdaef2e6e3ee2c8bca62691706259cf7816e846b96e6a7d44",
+ "sha256": "30ef836cb675c4263322c6419a5017020e5490a11f9b9e8dc6a5a12d0992a506",
+ "bytes": 798791
 }

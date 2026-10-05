@@ -3,8 +3,8 @@
  "file": "Concrete031.png",
  "size_px": 1024,
  "repeat_m": [
-  2.5,
-  2.5
+  4.0,
+  4.0
  ],
  "neutral": null,
  "licence": "CC0 1.0",
@@ -14,21 +14,21 @@
  ],
  "inputs": {
   "Diffuse": {
-   "url": "https://ambientcg.com/get?file=Concrete031_1K-JPG.zip#Concrete031_1K-JPG_Color.jpg",
-   "sha256": "d374e274b7a000304e8530ad7171d534e7eb6b766c7a0038bfe8bd7e086d717e"
+   "url": "https://ambientcg.com/get?file=Concrete031_2K-JPG.zip#Concrete031_2K-JPG_Color.jpg",
+   "sha256": "520f3591c0b3255b92cfe4ff842be081315c297df3e400c5860ebdbae932dd51"
   },
   "AO": {
-   "url": "https://ambientcg.com/get?file=Concrete031_1K-JPG.zip#Concrete031_1K-JPG_AmbientOcclusion.jpg",
-   "sha256": "93a76cffb44f7a5a3cfa054dcd5ca9d204549eb5c2cb0d22d7426a49f02934cc"
+   "url": "https://ambientcg.com/get?file=Concrete031_2K-JPG.zip#Concrete031_2K-JPG_AmbientOcclusion.jpg",
+   "sha256": "1ae8468436166ad8bf46063ed074ce881d63672eae9db1e3ce00107035fd6b39"
   },
   "nor_gl": {
-   "url": "https://ambientcg.com/get?file=Concrete031_1K-JPG.zip#Concrete031_1K-JPG_NormalGL.jpg",
-   "sha256": "57f18cfd67763a767db13a4fb1eac4abb9a845477264e3ff301826868e6476f3"
+   "url": "https://ambientcg.com/get?file=Concrete031_2K-JPG.zip#Concrete031_2K-JPG_NormalGL.jpg",
+   "sha256": "b0b94816a388cf5a9b1765517c4aa6856ed5782cdb39ee4ceecc6957965029d2"
   }
  },
  "ao_strength": 0.9,
  "relief": 0.35,
- "tool_sha256": "22e590c5dfb4dadddd64935e24364aa17fd9a1e59c1ca72d46328a22c98a6d22",
- "sha256": "36315b8e85d35540c044b4237e9d79fdbe6ed0f75c1fd54cfd553b0ab551d34c",
- "bytes": 1455236
+ "tool_sha256": "68a748484c7978dbdaef2e6e3ee2c8bca62691706259cf7816e846b96e6a7d44",
+ "sha256": "5a7643a1edc091d7acc615eaa13fd1d789b35aab54187c85c1e46d4202c7cd99",
+ "bytes": 1408147
 }
