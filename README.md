@@ -327,16 +327,20 @@ the Gymnasium environment start with none unless asked (`RobotSystem(cats=3)`,
 
 | View | What you see |
 |---|---|
-| Chase | Behind the robot, following its heading smoothly. Near walls and furniture, the camera rises, glides closer, or swings to the side so it never enters anything and keeps the robot and the way ahead in view. It looks ahead for edges (door jambs, shelves) and starts gliding before it reaches them, and its speed is capped at 3.5 m/s (about 6 cm per frame at 60 frames per second). It keeps at least 0.4 m from the robot, rising over it in tight spots, and widens its view up to 70 degrees when close, so the robot and its surroundings stay in frame. If no clear angle exists, a note says so (press C for another view). |
+| Chase | Behind the robot, following its heading smoothly. Near walls and furniture the camera keeps your angle and moves in closer along it, so it never enters anything and keeps the robot and the way ahead in view; only when even 0.6 m is not clear does it look down more steeply or swing to the side. It looks ahead for edges (door jambs, shelves) and starts gliding before it reaches them, and its own movements are capped at 3.5 m/s (about 6 cm per frame at 60 frames per second). It keeps at least 0.4 m from the robot and widens its view up to 70 degrees when walls hold it close, so the robot and its surroundings stay in frame. If no clear angle exists, a note says so (press C for another view). |
 | Top | The whole floor from above, with the ceiling cut away. |
 | Orbit | Like chase, but it does not turn with the robot; rotate it with the left mouse button. |
 | Robot camera | The robot's own front camera (with the ceiling). |
 
-Left-drag rotates and the wheel zooms in the chase and orbit views: each notch changes the
+Left-drag rotates and tilts and the wheel zooms in the chase and orbit views, like the camera
+in a third-person game. A drag shows in the same frame, at any speed. Each notch changes the
 distance by 12 percent and the view gets there in about a tenth of a second, without
-overshooting, at any frame rate. The wheel always sets the distance you want; where walls keep
-the camera closer, "zoom limited by walls" appears and the camera returns to your distance
-(within about a second) once there is room. C cycles the views.
+overshooting, at any frame rate. Zooming out sets the distance you want; where walls keep the
+camera closer, "zoom limited by walls" appears and the camera returns to your distance (within
+about a second) once there is room. Zooming in always starts from where the camera is, so the
+first notch shows. Where walls or furniture right behind the robot leave no room at a shallow
+angle, the camera stays steeper and "tilt limited by walls" appears. R and N restore the
+default view. C cycles the views.
 
 ## 9. Tips and troubleshooting
 
