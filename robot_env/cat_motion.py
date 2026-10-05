@@ -30,7 +30,13 @@ LEGS = {
 TROT_OFFSET = {"LH": 0.0, "RF": 0.0, "LF": 0.5, "RH": 0.5}  # diagonal pairs
 WALK_DUTY, TROT_DUTY = 0.62, 0.45  # share of the cycle a paw is planted
 TROT_SPEED = 0.55  # m/s: faster than this the cat trots
-STEP_HEIGHT = 0.03  # m a swinging paw is lifted
+STEP_HEIGHT = 0.03  # m a swinging hind paw is lifted
+STEP_HEIGHT_FRONT = 0.04  # m a swinging front paw is lifted (cats lift the front paws higher)
+GAIT_FULL_SPEED = 0.25  # m/s from which the body's motion with the steps is at its full size
+PELVIS_ROLL = math.radians(4.0)  # the pelvis rolls down on the side of the swinging hind leg
+PELVIS_YAW = math.radians(5.0)  # and swings forward on that side (the shoulders counter it)
+PAW_CURL_FRONT = math.radians(35.0)  # wrist flexion of a swinging front paw at mid-swing
+PAW_CURL_HIND = math.radians(20.0)  # ankle flexion of a swinging hind paw at mid-swing
 MAX_REACH = 0.95  # share of a leg's length it may stretch before a planted paw must step
 HEAD_RATE = 2.5  # rad/s the head may turn
 SETTLE_DIST = 0.02  # m: standing, a paw further than this from its rest spot steps back to it
@@ -297,9 +303,22 @@ class CatAnimator:
         L = self._identity.copy()
         kernels.posture(L, self._spine_ids, bend, breathe, self.neck[0], self.head, self.head_yaw, self._tail_ids,
                         self._tail_rate, self.time, self._tail_phase, amp, self.tail_lift)
+        # walking, the body moves with the steps: the pelvis rolls down and swings forward on the
+        # side of the swinging hind leg, the spine carries the opposite turn up to the shoulders
+        # (a ripple along the back), and the neck takes it out again so the head stays steady
+        gait = min(speed / GAIT_FULL_SPEED, 1.0) * (1.0 - sit)
+        if gait > 0.0:
+            mid = duty + 0.5 * (1.0 - duty)  # the left hind leg's mid-swing, in its cycle
+            c = math.cos(2 * math.pi * (self.cycles - mid))
+            roll, swing = -PELVIS_ROLL * gait * c, -PELVIS_YAW * gait * c
+            L[self._hips] = rot_z(swing) @ rot_x(roll)
+            share = rot_z(-2.0 * swing / len(self.spine)) @ rot_x(-2.0 * roll / len(self.spine))
+            for jj in self.spine:
+                L[jj] = L[jj] @ share
+            L[self.neck[0]] = L[self.neck[0]] @ rot_z(swing) @ rot_x(roll)
         if sit > 0.0:
             pitch = self._sit_pitch * sit
-            L[self._hips] = rot_y(-pitch)  # nose up about the hips
+            L[self._hips] = rot_y(-pitch) @ L[self._hips]  # nose up about the hips
             L[self.neck[0]] = L[self.neck[0]] @ rot_y(0.5 * pitch)  # the head stays level
             L[self.head] = L[self.head] @ rot_y(0.5 * pitch)
             # the tail lowered (about y) and wrapped round about the vertical, so wrapping it never
@@ -314,8 +333,7 @@ class CatAnimator:
                 L[jj] = up.T @ rot_z(self._tail_side * curl * sit) @ up @ lowered
                 up = up @ lowered
         local: dict[int, np.ndarray] = {jj: L[jj] for jj in self._posture_ids}
-        if sit > 0.0:
-            local[self._hips] = L[self._hips]
+        local[self._hips] = L[self._hips]
         # legs (turning on the spot: paws step in diagonal pairs as soon as they drift a little)
         # turning or side-stepping on the spot: paws step in diagonal pairs
         pivot = speed <= 0.02 and (abs(w) > 0.15 or abs(lat) > 0.02)
@@ -359,7 +377,8 @@ class CatAnimator:
                 else:
                     e = smoothstep(leg.progress)
                 p = leg.swing_from + (leg.swing_to - leg.swing_from) * e
-                p[2] = leg.neutral[2] + STEP_HEIGHT * math.sin(math.pi * leg.progress)
+                lift_h = STEP_HEIGHT if leg.scapula is None else STEP_HEIGHT_FRONT  # front paws higher
+                p[2] = leg.neutral[2] + lift_h * math.sin(math.pi * leg.progress)
                 leg.world = p
                 if leg.progress >= 1.0:
                     leg.planted, leg.short = True, False
@@ -379,14 +398,25 @@ class CatAnimator:
         # the legs' own joints and everything below them, now that their rotations are known (the
         # rest of the skeleton does not depend on them): the full pose, as _fk(local) would give
         self.pose = self._fk_array(L, pos, rot)
-        if sit > 0.0:
-            # the hips' pitch tilts every paw: turn each back to level (front) or flat (hind)
+        again = False
+        if sit > 0.0 or gait > 0.0:
+            # the hips' pitch, roll, or swing tilts every paw: turn each back to level (front, and
+            # hind when standing) or flat (hind, sitting), so a planted paw stays exactly in place
             p_, r_ = self.pose
             for leg in self.legs.values():
                 want = foot[leg.name] if foot[leg.name] is not None else np.eye(3)
                 local[leg.paw] = L[leg.paw] = L[leg.paw] @ (r_[leg.paw].T @ want)
                 if foot[leg.name] is not None:  # the toes stay flat on the floor as the foot turns
                     local[leg.contact] = L[leg.contact] = want.T
+            again = True
+        # a swinging paw curls (the wrist or ankle flexes, toes down and back), most at mid-swing,
+        # level again as it lands
+        for leg in self.legs.values():
+            if not leg.planted:
+                c = (PAW_CURL_HIND if leg.scapula is None else PAW_CURL_FRONT) * math.sin(math.pi * leg.progress) ** 2
+                local[leg.paw] = L[leg.paw] = L[leg.paw] @ rot_y(c)
+                again = True
+        if again:
             self.pose = self._fk_array(L, pos, rot)
         return local, bob
 
