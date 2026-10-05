@@ -96,7 +96,7 @@ class Lights:
                 continue
             for ox, oy in ((0.0, 0.3), (0.0, -0.3), (0.3, 0.0), (-0.3, 0.0)):
                 room = region_of(dx + ox, dy + oy)
-                if room is not None and room != here and room not in [f for f, _ in found]:
+                if room is not None and room != here and room not in [known for known, _ in found]:
                     found.append((room, (dx, dy)))
         return found
 

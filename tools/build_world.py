@@ -832,8 +832,8 @@ HEADER = """<!--
     <material name="ceiling" texture="tx_ceiling" texrepeat="0.278 0.278" texuniform="true" rgba="0.97 0.96 0.94 1" emission="0.72"/>
     <material name="light_panel" rgba="1 0.98 0.92 1" emission="0.75"/>
     <material name="fitting_frame" rgba="0.95 0.95 0.94 1" emission="0.35" specular="0.3"/>
-    <material name="skirting" rgba="1 1 0.98 1" emission="0.36" specular="0.25" shininess="0.5"/>
-    <material name="skirting_bead" rgba="0.8 0.8 0.78 1" emission="0.3" specular="0.25" shininess="0.5"/>
+    <material name="skirting" rgba="1 1 0.98 1" emission="0.33" specular="0.25" shininess="0.5"/>
+    <material name="skirting_bead" rgba="0.8 0.8 0.78 1" emission="0.3" specular="0.12" shininess="0.5"/>
     <material name="shadow_line" rgba="0.32 0.31 0.3 1" specular="0"/>
     <material name="threshold" rgba="0.72 0.73 0.74 1" emission="0.26" specular="0.8" shininess="0.7"/>
     <material name="kick_plate" rgba="0.62 0.63 0.65 1" emission="0.32" specular="0.9" shininess="0.8"/>
@@ -874,7 +874,7 @@ HEADER = """<!--
     <material name="handle" rgba="0.7 0.71 0.73 1" emission="0.26" specular="0.8" shininess="0.7"/>
     <material name="glass" texture="outdoor_view" emission="0.95" specular="0.6" shininess="0.9"/>
     <material name="window_frame" rgba="0.98 0.98 0.97 1" emission="0.27" specular="0.12" shininess="0.4"/>
-    <material name="sill" rgba="0.86 0.86 0.85 1" emission="0.2" specular="0.08" shininess="0.45"/>
+    <material name="sill" rgba="0.8 0.8 0.79 1" emission="0.2" specular="0.08" shininess="0.45"/>
     <material name="blind" texture="tx_blind" texrepeat="14 14" texuniform="true" rgba="0.97 0.96 0.93 1" emission="0.56" specular="0"/>
     <material name="blind_rail" rgba="0.82 0.82 0.8 1" specular="0.5"/>
     <texture name="view_0" type="2d" file="view_0.png"/>
@@ -888,11 +888,11 @@ HEADER = """<!--
     <texture name="view_4" type="2d" file="view_4.png"/>
     <material name="view_4" texture="view_4" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
     <texture name="view_5" type="2d" file="view_5.png"/>
-    <material name="view_5" texture="view_5" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
+    <material name="view_5" texture="view_5" texuniform="false" emission="0.64" specular="0.3" shininess="0.9"/>
     <texture name="view_6" type="2d" file="view_6.png"/>
-    <material name="view_6" texture="view_6" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
+    <material name="view_6" texture="view_6" texuniform="false" emission="0.64" specular="0.3" shininess="0.9"/>
     <texture name="view_7" type="2d" file="view_7.png"/>
-    <material name="view_7" texture="view_7" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
+    <material name="view_7" texture="view_7" texuniform="false" emission="0.64" specular="0.3" shininess="0.9"/>
     <texture name="view_8" type="2d" file="view_8.png"/>
     <material name="view_8" texture="view_8" texuniform="false" emission="0.59" specular="0.3" shininess="0.9"/>
     <texture name="view_9" type="2d" file="view_9.png"/>
