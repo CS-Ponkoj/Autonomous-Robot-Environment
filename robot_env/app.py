@@ -325,6 +325,7 @@ class ViewCamera:
         # ray results for this frame (the look-at moves)
         self._clear_cache, self._beam_cache, self._sight_cache = {}, {}, {}
         user_az, user_el = self._user_az, self._user_el  # the user's drag since the last frame
+        drag_el = user_el  # its tilt direction (user_el becomes the tilt actually shown)
         self._user_az = self._user_el = 0.0
         heading = math.degrees(yaw) if view == "chase" else 0.0
         target_look = np.array([x, y, 0.1])
@@ -407,7 +408,10 @@ class ViewCamera:
         if snap:
             self._elev = target_elev  # first frame after a reset: start at a clear angle
         step = (target_elev - self._elev) * self._alpha(dt, self.ELEV_TAU)
-        self._elev += float(np.clip(step, -self.ELEV_RATE * max(dt, 0.0), self.ELEV_RATE * max(dt, 0.0)))
+        step = float(np.clip(step, -self.ELEV_RATE * max(dt, 0.0), self.ELEV_RATE * max(dt, 0.0)))
+        if step * drag_el < 0:
+            step = 0.0  # while the user tilts, the automatic tilt never moves the other way
+        self._elev += step
         if not snap and self.cam.distance > 0:
             # Swing and tilt only as fast as the distance can glide: if the new angle would cut the
             # camera short by more than one frame's glide, keep the old angle while it pulls in.
