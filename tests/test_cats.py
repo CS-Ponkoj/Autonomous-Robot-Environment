@@ -1634,6 +1634,25 @@ def test_the_way_out_search_does_not_lose_its_first_steps(monkeypatch):
     s.close()
 
 
+def test_the_way_out_may_dip_a_little_into_the_cushion(monkeypatch):
+    """Regression (roaming seed 13, 4 cats: a cat with its nose and front leg at the storage room's
+    south wall stood 109 s): every first step of the search closed in on the wall by a fraction of a
+    millimetre (backing off it ended 0.1 mm inside the old limit), so the search found nothing,
+    every half second. Allowed ESCAPE_DIP into MOVE_ROOM it finds the way out, every pose of it
+    still that much less than MOVE_ROOM beyond the wall gap."""
+    from robot_env import cats as K
+    s = RobotSystem(cats=1, cat_seed=13)
+    s.reset(-1.97, 2.28, 2.98, (4.0, 2.5))
+    herd = s.cats
+    herd.place(0, -1.5021, -4.8096, math.radians(-19.435), state="walk")
+    cat = herd.cats[0]
+    assert WALL_GAP <= herd.gaps(cat, cat.x, cat.y, cat.yaw)[0] < WALL_GAP + 0.01  # a tight spot
+    assert len(herd._escape_search(cat)) > 0
+    monkeypatch.setattr(K, "ESCAPE_DIP", 0.0001)  # the old limit: no way out
+    assert herd._escape_search(cat) == []
+    s.close()
+
+
 def test_a_dart_needs_room_along_its_whole_path():
     """Regression (roaming seed 1, 4 cats: a cat by the storage pallet darted back into the gap it
     had just worked its way out of, over and over, and stood 7 s): a dart's heading is scored by

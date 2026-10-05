@@ -118,6 +118,10 @@ ESCAPE_EXPANSIONS = 600  # poses explored at most (the search runs only after a 
 # (m, rad) grid of the poses the search has reached: finer than a step (2 cm, 0.15 rad), so a step
 # never lands in the cell it left and is taken for a pose already reached
 ESCAPE_GRID = (0.01, 0.075)
+# m a way out may dip into MOVE_ROOM: each 2 cm step is checked at four poses, and backing off a wall
+# met at a slant first closes in on it by a fraction of a millimetre (still MOVE_ROOM less this beyond
+# every gap)
+ESCAPE_DIP = 0.0005
 DART_ROOM = 0.18  # m of clearance a dart's whole path needs (the widest body circle, 0.116 m, WALL_GAP and spare)
 GIVE_WAY_AFTER = 2.0  # s a cat that wants to move may get nowhere before it gives way
 GIVE_WAY_MOVE = 0.05  # m of progress that counts as getting somewhere
@@ -1028,7 +1032,7 @@ class CatHerd:
                 ends.append((float(px[-1]), float(py[-1]), float(th[-1])))
             margins = room(np.concatenate(xs), np.concatenate(ys), np.concatenate(ts)).reshape(len(steps), len(fractions))
             # as for any root move: MOVE_ROOM kept beyond every gap (inside it, never closer)
-            floor = min(here, MOVE_ROOM) - CLOSER_TOLERANCE
+            floor = min(here, MOVE_ROOM) - ESCAPE_DIP
             for (v, w, lat), end, m in zip(steps, ends, margins):
                 if m.min() < floor or key(end) in seen:
                     continue
