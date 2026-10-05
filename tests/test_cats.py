@@ -481,39 +481,225 @@ def test_sit_and_dart_states_have_their_durations_and_are_logged(tmp_path):
     s.close()
 
 
+def _sit_system(x=2.0, y=0.0, yaw=0.0, cats=1, safety=None):
+    """Cat seed 7 (its tail wraps to its right), the robot parked far off in the storage room."""
+    s = RobotSystem(cats=cats, cat_seed=7, **({"safety": safety} if safety else {}))
+    s.reset(-4.0, -2.5, 0.0, (4.0, 2.5))
+    s.cats.place(0, x, y, yaw, state="pause")
+    return s, s.cats, s.cats.cats[0]
+
+
+def _low_gaps(herd, low):
+    for k, g in enumerate(herd.current_gaps()):
+        low[k] = [min(low[k][0], g["wall"]), min(low[k][1], g["robot"]), min(low[k][2], g["cat"])]
+
+
+def _gaps_kept(low):
+    return all(w >= WALL_GAP - 0.001 and r >= ROBOT_GAP - 0.001 and c >= CAT_GAP - 0.001 for w, r, c in low)
+
+
 def test_a_cat_sits_only_when_still_and_is_up_before_it_moves():
     """Sitting: a walking cat told to sit first stops (no sitting while it moves), then sits down
     with its paws planted where they are (none steps while sitting) and its root fixed; told to
-    flee, it gets up first (its root held until it is up), then moves, every gap kept."""
-    from robot_env.cat_motion import SIT_DOWN_TIME
-    from robot_env.cats import SIT_MOVE
-    s = RobotSystem(cats=1, cat_seed=7)
-    s.reset(-4.0, -2.5, 0.0, (4.0, 2.5))
-    herd, cat = s.cats, s.cats.cats[0]
+    flee, it gets up first: its root does not move until it is fully up (sit exactly 0), and every
+    gap holds at every physics step."""
+    s, herd, cat = _sit_system()
     herd.place(0, 2.0, 0.0, 0.0, v=0.25, state="walk")
     s.advance(0.5)
     herd._enter(cat, "sit")
+    low = [[math.inf] * 3]
     while abs(cat.v) >= 0.01:
         assert cat.animator.sit == 0.0  # not while it is still moving
-        s.advance(C.CONTROL_PERIOD)
-    while cat.animator.sit == 0.0:  # paws settling under the body
-        s.advance(C.CONTROL_PERIOD)
+        s.advance(C.PHYSICS_DT)
+        _low_gaps(herd, low)
+    while cat.animator.sit == 0.0:  # paws settling under the body, the sit-down being checked
+        assert herd.time < 3.0
+        s.advance(C.PHYSICS_DT)
+        _low_gaps(herd, low)
     x0, y0, yaw0 = cat.x, cat.y, cat.yaw
     paws = {n: leg.world.copy() for n, leg in cat.animator.legs.items()}
-    s.advance(SIT_DOWN_TIME + 0.2)
-    assert cat.animator.sit == 1.0 and cat.state == "sit"
+    while cat.animator.sit < 1.0:
+        assert herd.time < 5.0
+        s.advance(C.PHYSICS_DT)
+        _low_gaps(herd, low)
+    assert cat.state == "sit" and not cat.no_sit
     assert (cat.x, cat.y, cat.yaw) == (x0, y0, yaw0)
     for n, leg in cat.animator.legs.items():
-        assert leg.planted and np.allclose(leg.world, paws[n])
+        assert leg.planted and np.array_equal(leg.world, paws[n])
     herd._enter(cat, "flee")
     cat.target_v = 0.35
-    while cat.animator.sit > SIT_MOVE:
-        assert (cat.x, cat.y) == (x0, y0)  # getting up: not moving yet
-        s.advance(C.CONTROL_PERIOD)
+    while (cat.x, cat.y, cat.yaw) == (x0, y0, yaw0):
+        assert herd.time < 10.0
+        sit_before = cat.animator.sit
+        s.advance(C.PHYSICS_DT)
+        _low_gaps(herd, low)
+    assert sit_before == 0.0 and cat.animator.sit == 0.0  # the first root move: fully up before it
     s.advance(1.5)
     assert math.hypot(cat.x - x0, cat.y - y0) > 0.1  # then off
-    g = herd.current_gaps()[0]
-    assert g["wall"] >= WALL_GAP - 0.001 and s.cat_contacts == 0
+    assert _gaps_kept(low) and s.cat_contacts == 0
+    s.close()
+
+
+def _posture_state(an):
+    """Every value an animator update changes, as plain data (for exact comparison)."""
+    out = {k: v for k, v in vars(an).items() if isinstance(v, (int, float))}
+    out["legs"] = [(leg.planted, leg.world.tolist(), leg.swing_from.tolist(), leg.swing_to.tolist(), leg.progress,
+                    leg.duration, leg.lifted_cycle, leg.short, leg.short_start) for leg in an.legs.values()]
+    out["pose"] = [a.tolist() for a in an.pose]
+    return out
+
+
+def test_restoring_a_rejected_update_is_exact_mid_sit():
+    """A rejected sample is undone exactly: snapshot, several updates (getting up, moving, a paw
+    lifting), restore gives back every changing value, the pose and the body shift included, bit
+    for bit."""
+    from robot_env.cat_motion import CatAnimator
+    from robot_env.cat_rig import load_rig
+    an = CatAnimator(load_rig(), 3)
+    an.reset(0.0, 0.0, 0.0)
+    an.sit_target = 1.0
+    for _ in range(30):  # part way down
+        an.update(ANIM_PERIOD, 0.0, 0.0, 0.0, 0.0, 0.0)
+    assert 0.0 < an.sit < 1.0
+    before = _posture_state(an)
+    snap = an.snapshot()
+    an.sit_target = 0.0
+    for _ in range(7):
+        an.update(ANIM_PERIOD, 0.01, 0.0, 0.3, 0.0, 0.5)
+    assert _posture_state(an) != before
+    an.restore(snap)
+    an.sit_target = 1.0
+    assert _posture_state(an) == before
+
+
+def test_reset_and_place_leave_no_sitting_behind():
+    """A seated cat reset in place, or placed walking elsewhere, is standing at once and does not
+    sit again by itself (the sit target and the body shift are cleared)."""
+    from robot_env.cat_motion import CatAnimator
+    from robot_env.cat_rig import load_rig
+    an = CatAnimator(load_rig(), 3)
+    an.reset(0.0, 0.0, 0.0)
+    an.sit_target = 1.0
+    for _ in range(150):
+        an.update(ANIM_PERIOD, 0.0, 0.0, 0.0, 0.0, 0.0)
+    assert an.sit == 1.0 and an.shift > 0.0
+    an.reset(0.0, 0.0, 0.0)
+    assert an.sit == an.sit_target == an.shift == 0.0
+    an.update(ANIM_PERIOD, 0.0, 0.0, 0.0, 0.0, 0.0)
+    assert an.sit == 0.0 and an.shift == 0.0
+    s, herd, cat = _sit_system()
+    herd._enter(cat, "sit")
+    s.advance(2.5)
+    assert cat.animator.sit == 1.0
+    herd.place(0, 2.5, 0.0, 0.0, v=0.2, state="walk")
+    assert cat.animator.sit == cat.animator.sit_target == cat.animator.shift == 0.0
+    s.advance(1.0)
+    assert cat.animator.sit == 0.0 and math.hypot(cat.x - 2.5, cat.y) > 0.1
+    s.close()
+
+
+def test_a_cat_does_not_sit_where_the_sit_down_does_not_fit():
+    """By the corridor's south wall, facing east, the tail would wrap round into the wall: the
+    check of the whole sit-down refuses it before any of it starts, so the cat stays standing
+    (no partial pose); facing west there, it wraps away from the wall and the cat sits, a few
+    millimetres outside the wall gap, every gap holding at every physics step."""
+    s, herd, cat = _sit_system(-2.0, -0.50, 0.0)
+    herd._enter(cat, "sit")
+    low = [[math.inf] * 3]
+    for _ in range(int(2.0 / C.PHYSICS_DT)):
+        s.advance(C.PHYSICS_DT)
+        _low_gaps(herd, low)
+        assert cat.animator.sit == 0.0
+    assert cat.no_sit and cat.state == "sit" and _gaps_kept(low)
+    s.close()
+    s, herd, cat = _sit_system(-2.0, -0.52, math.pi)
+    herd._enter(cat, "sit")
+    low = [[math.inf] * 3]
+    for _ in range(int(3.0 / C.PHYSICS_DT)):
+        s.advance(C.PHYSICS_DT)
+        _low_gaps(herd, low)
+    assert cat.animator.sit == 1.0 and not cat.no_sit
+    assert _gaps_kept(low) and low[0][0] < WALL_GAP + 0.02  # close to the wall, never inside its gap
+    s.close()
+
+
+def test_two_cats_sit_down_side_by_side_keeping_their_gap():
+    """Two cats a little over the cat gap apart both sit down; their gap holds at every step."""
+    s, herd, cat = _sit_system(2.0, 0.0, 0.0, cats=2)
+    herd.place(1, 2.0, 0.24, math.pi, state="pause")
+    low = [[math.inf] * 3, [math.inf] * 3]
+    _low_gaps(herd, low)
+    assert CAT_GAP <= low[0][2] < CAT_GAP + 0.03
+    herd._enter(cat, "sit")
+    herd._enter(herd.cats[1], "sit")
+    for _ in range(int(3.0 / C.PHYSICS_DT)):
+        s.advance(C.PHYSICS_DT)
+        _low_gaps(herd, low)
+    assert all(c.animator.sit == 1.0 or c.no_sit for c in herd.cats)
+    assert _gaps_kept(low) and s.cat_contacts == 0
+    s.close()
+
+
+def test_a_sample_refused_while_sitting_down_stands_the_cat_up(monkeypatch):
+    """A sitting-down pose refused part way (fault injection: the first one past sit 0.3): the
+    cat does not go on into that pose; it stands back up with its root fixed and stays standing
+    for the rest of this state."""
+    s, herd, cat = _sit_system()
+    herd._enter(cat, "sit")
+    real, refused = herd.pose_ok, []
+
+    def pose_ok(c, *a, **k):
+        if c is cat and not refused and cat.animator.sit > 0.3 and k.get("pose") is not None:
+            refused.append(cat.animator.sit)
+            return False
+        return real(c, *a, **k)
+    monkeypatch.setattr(herd, "pose_ok", pose_ok)
+    x0, y0, yaw0 = cat.x, cat.y, cat.yaw
+    peak = 0.0
+    for _ in range(int(3.0 / C.PHYSICS_DT)):
+        s.advance(C.PHYSICS_DT)
+        peak = max(peak, cat.next is not None and cat.animator.sit)
+        assert (cat.x, cat.y, cat.yaw) == (x0, y0, yaw0)
+    assert refused and cat.no_sit and cat.animator.sit == 0.0 and cat.animator.sit_target == 0.0
+    assert peak <= refused[0] + 1e-9  # never further down than the refused pose
+    s.close()
+
+
+def test_a_seated_cat_touched_by_the_robot_freezes_then_gets_up_before_moving():
+    """The robot (clearance filter off: fault injection) drives into a seated cat: the cat
+    freezes in its seated pose while touched; once the robot backs off, it is up before its root
+    moves."""
+    from robot_env.safety import SafetyLayer
+    s = RobotSystem(cats=1, cat_seed=7, safety=SafetyLayer(clearance_enabled=False))
+    s.reset(-2.2, 0.0, 0.0, (4.0, 2.5))
+    herd, cat = s.cats, s.cats.cats[0]
+    herd.place(0, -1.0, 0.0, math.pi / 2, state="sit")
+    s.advance(2.5)
+    assert cat.animator.sit == 1.0
+    while not s.cat_contacts:
+        s.drive(0.3, 0.0)
+        s.advance(C.CONTROL_PERIOD)
+        assert s.time < 10.0
+    assert cat.frozen
+    held, x0, y0 = cat.animator.sit, cat.x, cat.y
+    for _ in range(25):
+        s.drive(0.0, 0.0)
+        s.advance(C.CONTROL_PERIOD)
+        if cat.frozen:
+            assert cat.animator.sit == held
+    while cat.frozen:
+        s.drive(-0.2, 0.0)
+        s.advance(C.CONTROL_PERIOD)
+        assert s.time < 20.0
+    for _ in range(300):
+        s.drive(-0.2, 0.0)
+        before = cat.animator.sit
+        s.advance(C.CONTROL_PERIOD)
+        if (cat.x, cat.y) != (x0, y0):
+            assert before == 0.0  # up before it moved
+            break
+    else:
+        raise AssertionError("the cat never moved off")
     s.close()
 
 
@@ -1038,19 +1224,24 @@ def test_a_paw_landing_short_never_goes_below_the_floor(monkeypatch, which, outs
 
 
 @pytest.mark.slow
-def test_a_crowded_cat_finds_its_way_out_on_the_retry(monkeypatch):
-    """Regression (roaming seed 4): three cats crowd by the office door; the way-out search of
-    the one in the middle finds nothing (t = 224.62 s) and finds one ESCAPE_RETRY later, once
-    the cat ahead has moved on, instead of GIVE_WAY_AFTER later; no contact, every gap kept.
-    Replayed as recorded, before cats sat down (sitting changes the trajectory): sitting off."""
-    from robot_env.cat_motion import CatAnimator
+def test_a_crowded_cat_finds_its_way_out_on_the_retry():
+    """Regression (roaming seed 4, rebuilt from placed cats): a cat by the office door, boxed in
+    by two resting cats and the wall, has been getting nowhere; its way-out search finds nothing.
+    The cat ahead then goes (placed away), and the next search, ESCAPE_RETRY later (not
+    GIVE_WAY_AFTER later), finds a way; the cat gets out, with no contact and every gap kept."""
     from robot_env.cats import ESCAPE_RETRY, GIVE_WAY_AFTER
-    from robot_env.layout import RoomMap
-    monkeypatch.setattr(CatAnimator, "sit_target", property(lambda self: 0.0, lambda self, value: None), raising=False)
     s = RobotSystem(cats=3, cat_seed=4)
-    task = RoomMap(s.sim.model).sample_task(1000)
-    s.reset(*task.start, task.goal)
+    s.reset(-1.0, -2.0, 0.0, (4.0, -3.0))
     herd = s.cats
+    x, y, yaw = -2.7509, 1.4187, 1.7506  # the boxed-in cat, where the recorded run had it
+    herd.place(1, x, y, yaw, state="travel")
+    herd.place(0, x + 0.42 * math.cos(math.radians(60)), y + 0.42 * math.sin(math.radians(60)),
+               math.radians(150), state="pause")
+    herd.place(2, x + 0.42 * math.cos(math.radians(330)), y + 0.42 * math.sin(math.radians(330)),
+               math.radians(60), state="pause")
+    cat = herd.cats[1]
+    cat.route = [(-1.2, 1.9), (-0.2, 3.3), (1.2, 3.3), (1.5, 2.1)]
+    cat.still_from = (herd.time - GIVE_WAY_AFTER - 0.01, x, y)  # getting nowhere for a while
     searches = []
     real = herd._escape_search
 
@@ -1060,17 +1251,19 @@ def test_a_crowded_cat_finds_its_way_out_on_the_retry(monkeypatch):
             searches.append((herd.time, len(out)))
         return out
     herd._escape_search = search
-    s.advance(224.0)
-    searches.clear()
-    low = [math.inf] * 3
-    while herd.time < 227.0:
+    low = [[math.inf] * 3 for _ in range(3)]
+    _low_gaps(herd, low)
+    t0, moved = herd.time, False
+    while herd.time < t0 + 3.0:
         s.advance(C.PHYSICS_DT * 20)
-        for g in herd.current_gaps():
-            low = [min(low[0], g["wall"]), min(low[1], g["robot"]), min(low[2], g["cat"])]
+        _low_gaps(herd, low)
+        if searches and not moved:
+            herd.place(0, -3.6, 3.3, 0.5, state="pause")  # the cat ahead goes: the office corner
+            moved = True
     assert searches[0][1] == 0 and searches[1][1] > 0  # none at first, then a way out
     assert ESCAPE_RETRY - 0.03 <= searches[1][0] - searches[0][0] <= ESCAPE_RETRY + 0.05 < GIVE_WAY_AFTER
-    assert s.cat_contacts == 0
-    assert low[0] >= WALL_GAP - 0.001 and low[1] >= ROBOT_GAP - 0.001 and low[2] >= CAT_GAP - 0.001
+    assert math.hypot(cat.x - x, cat.y - y) > 0.1  # it got out
+    assert s.cat_contacts == 0 and _gaps_kept(low)
     s.close()
 
 

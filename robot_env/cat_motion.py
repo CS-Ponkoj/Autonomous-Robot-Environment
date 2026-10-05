@@ -187,13 +187,18 @@ class CatAnimator:
         return np.array([c * dx + s * dy, -s * dx + c * dy, p[2]])
 
     def snapshot(self) -> tuple:
-        """Everything update() changes, to undo a rejected step."""
+        """Everything update() changes, to undo a rejected step (the pose arrays by reference:
+        update() replaces them, never changes them in place)."""
         legs = tuple((leg.planted, leg.world.copy(), leg.swing_from.copy(), leg.swing_to.copy(), leg.progress,
                       leg.duration, leg.lifted_cycle, leg.short, leg.short_start) for leg in self.legs.values())
-        return legs, self.cycles, self.time, self.head_yaw, self.tail_amp, self.bend, self.tail_lift, self.sit
+        return (legs, self.cycles, self.time, self.head_yaw, self.tail_amp, self.bend, self.tail_lift, self.sit,
+                self.shift, getattr(self, "pose", None))
 
     def restore(self, snap: tuple) -> None:
-        legs, self.cycles, self.time, self.head_yaw, self.tail_amp, self.bend, self.tail_lift, self.sit = snap
+        (legs, self.cycles, self.time, self.head_yaw, self.tail_amp, self.bend, self.tail_lift, self.sit,
+         self.shift, pose) = snap
+        if pose is not None:
+            self.pose = pose
         for leg, (planted, world, frm, to, progress, duration, lifted, short, start) in zip(self.legs.values(), legs):
             leg.planted, leg.progress, leg.duration, leg.lifted_cycle = planted, progress, duration, lifted
             leg.short, leg.short_start = short, start
@@ -223,7 +228,7 @@ class CatAnimator:
             leg.planted, leg.progress, leg.lifted_cycle, leg.short, leg.short_start = True, 0.0, -1, False, 0.0
             leg.world = self._to_world(leg.neutral, x, y, yaw)
         self.cycles, self.head_yaw, self.bend, self.tail_amp, self.tail_lift = 0.0, 0.0, 0.0, 0.0, 0.0
-        self.sit = 0.0
+        self.sit = self.sit_target = self.shift = 0.0
         self._started = True
 
     # ----- per update -----

@@ -22,6 +22,7 @@ yet), so cats are a realism and experiment feature, not safety evidence.
 
 from __future__ import annotations
 
+import copy
 import functools
 import math
 from dataclasses import dataclass, field
@@ -71,7 +72,8 @@ ROUTE_ROBOT_ROOM = 0.25  # m beyond the robot gap that routes keep from the robo
 ARRIVE = 0.3  # m from the destination counts as arrived
 STALL_TIME = 4.0  # s without 0.15 m of progress: a travelling cat picks a new route
 RESTING = ("sit", "pause")
-SIT_MOVE = 0.05  # sitting posture weight below which a cat getting up may move again
+SIT_CHECK_TIME = 2.5  # s: the longest a sit-down (paws shuffling under the body, then sitting) may take
+SIT_CHECK_CHUNK = 6  # sit-down poses checked per 10 ms sample (about 2 ms of work)
 PATROL_MEMORY = 120.0  # s: a room never visited counts as last seen this long ago
 PATROL_BASE = 10.0  # s added to every room's weight, so a recent room is still possible
 # Local planner: every PLAN_PERIOD each moving cat scores candidate motions over PLAN_HORIZON
@@ -505,6 +507,7 @@ class Cat:
     plan_at: float = 0.0  # next planning time
     idle_since: float | None = None  # the planner found no way forward since then
     no_sit: bool = False  # sitting down here did not fit (stays standing until its next state)
+    sit_probe: list | None = None  # a sit-down being checked: [animator copy, last pose, poses done, paws]
     rejected: dict = field(default_factory=dict)  # command -> until when the hard guard refused it
     held: int = 0  # samples rejected because the animated pose came too close (evaluation)
     escape: list = field(default_factory=list)  # worked-out steps out of a tight spot: (v, w, lat, end time)
@@ -746,7 +749,7 @@ class CatHerd:
     def _enter(self, cat: Cat, state: str) -> None:
         r = self.rng
         cat.state = state
-        cat.no_sit = False
+        cat.no_sit, cat.sit_probe = False, None
         duration = {"walk": r.uniform(3.0, 8.0), "pause": r.uniform(1.0, 4.0), "sit": r.uniform(3.0, 8.0),
                     "dart": r.uniform(0.4, 0.8), "flee": 3.0, "travel": 60.0, "yield": 8.0}[state]
         if state != "sit":  # a sitting cat gets up first (the state's own time starts once it is up)
@@ -1240,8 +1243,9 @@ class CatHerd:
         cat.x, cat.y, cat.yaw, cat.v, cat.w = float(x), float(y), float(yaw), float(v), 0.0
         cat.target_v, cat.target_yaw = float(v), float(yaw)
         cat.plan_at = self.time  # plans at once from here
+        cat.sit_probe = None
         if state is not None:
-            cat.state, cat.state_until, cat.no_sit = state, math.inf, False
+            cat.state, cat.state_until, cat.no_sit, cat.sit_probe = state, math.inf, False, None
         cat.animator.reset(cat.x, cat.y, cat.yaw)
         local, bob = cat.animator.update(ANIM_PERIOD, cat.x, cat.y, cat.yaw, cat.v, 0.0)
         pos, rot = cat.animator._fk(local)
@@ -1271,15 +1275,19 @@ class CatHerd:
         cat.blocked = False
         dt = ANIM_PERIOD / ROOT_SUBSTEPS
         x, y, yaw, v, w = cat.x, cat.y, cat.yaw, cat.v, cat.w
-        # Sitting: the cat sits down only once it is still with every paw planted, and stays
-        # put (no plan, no command) until it has stood up again (any new state, a flight or
-        # giving way included, first gets it up: at most SIT_UP_TIME)
+        # Sitting: the cat sits down only once it is still with every paw planted, and only if the
+        # whole sit-down fits here; it stays put (no plan, no command) until it is fully up again
+        # (any new state, a flight or giving way included, first gets it up: at most SIT_UP_TIME)
         an = cat.animator
         if cat.state != "sit" or cat.no_sit:
             an.sit_target = 0.0
         elif an.sit_target == 0.0 and abs(cat.v) < 0.01 and abs(cat.w) < 0.05 and                 all(leg.planted for leg in an.legs.values()):
-            an.sit_target = 1.0
-        resting = cat.state in RESTING or an.sit > SIT_MOVE
+            verdict = self._sit_check(cat)
+            if verdict is not None:
+                cat.sit_probe = None
+                an.sit_target = 1.0 if verdict else 0.0
+                cat.no_sit = not verdict  # if it does not fit, it stays standing until its next state
+        resting = cat.state in RESTING or an.sit > 0.0
         if not resting and self.time >= cat.plan_at - 1e-9:
             self._plan(cat)
             cat.plan_at = self.time + PLAN_PERIOD
@@ -1385,6 +1393,43 @@ class CatHerd:
         cat.next = self._finish(new)
         self._load_blend(cat)
 
+    def _sit_check(self, cat: Cat) -> bool | None:
+        """Whether the whole sit-down from here fits: every 10 ms pose (paws shuffling under the
+        body, then sitting; the root fixed) keeps the wall gap over each move, as pose_ok's sweep
+        measures it. Worked out on a copy of the animator, SIT_CHECK_CHUNK poses per call so no
+        frame stalls: None while still checking (begun again if a paw moves meanwhile). The robot
+        and the other cats move, so each sample is still checked as it comes (a cat that cannot
+        go on stands up)."""
+        an = cat.animator
+        paws = np.array([leg.world for leg in an.legs.values()])
+        if cat.sit_probe is None or not np.array_equal(cat.sit_probe[3], paws):
+            probe = copy.copy(an)
+            probe.legs = {name: copy.copy(leg) for name, leg in an.legs.items()}
+            probe.restore(an.snapshot())  # its own copies of every changing value
+            probe.sit_target = 1.0
+            cat.sit_probe = [probe, cat.next, 0, paws]
+        probe, prev, done, _ = cat.sit_probe
+        for _ in range(SIT_CHECK_CHUNK):
+            s = self._animate(cat, 0.0, 0.0, None, an=probe)
+            inflate = self._half_chord(cat, self.circles(cat, s.x, s.y, s.yaw, s), self.circles(cat, pose=prev))
+            if self.gaps(cat, s.x, s.y, s.yaw, s, inflate, sweep=True)[0] < WALL_GAP:
+                return False
+            if probe.sit >= 1.0:
+                return True
+            prev, done = s, done + 1
+            if done >= round(SIT_CHECK_TIME / ANIM_PERIOD):
+                return False  # would not get down in time
+        cat.sit_probe[1], cat.sit_probe[2] = prev, done
+        return None
+
+    def _sit_fits(self, cat: Cat) -> bool:
+        """_sit_check to the end (tests and tools)."""
+        cat.sit_probe = None
+        while (verdict := self._sit_check(cat)) is None:
+            pass
+        cat.sit_probe = None
+        return verdict
+
     def _finish(self, s: Sample) -> Sample:
         """Fill a sample's world colliders (once per sample, not per physics step)."""
         k = len(self._col_a)
@@ -1403,12 +1448,13 @@ class CatHerd:
         self._still[i] = cat.frozen or a is b
 
     def _animate(self, cat: Cat, v: float, w: float, look, lat: float = 0.0, settle: bool = True,
-                 freeze: bool = False) -> Sample:
-        """One animation step at the cat's (new) root."""
-        _, bob = cat.animator.update(ANIM_PERIOD, cat.x, cat.y, cat.yaw, v, w, look, lat, settle, freeze)
-        pos, rot = cat.animator.pose  # the full pose of that update
+                 freeze: bool = False, an: CatAnimator | None = None) -> Sample:
+        """One animation step at the cat's (new) root (with `an`, of that animator instead)."""
+        an = cat.animator if an is None else an
+        _, bob = an.update(ANIM_PERIOD, cat.x, cat.y, cat.yaw, v, w, look, lat, settle, freeze)
+        pos, rot = an.pose  # the full pose of that update
         pos[:, 2] += bob
-        pos[:, 0] += cat.animator.shift  # sitting: the body moves forward
+        pos[:, 0] += an.shift  # sitting: the body moves forward
         return Sample(cat.x, cat.y, cat.yaw, pos, rot)
 
     def _clear_move(self, cat: Cat, x: float, y: float, yaw: float) -> bool:
