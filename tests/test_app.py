@@ -630,8 +630,8 @@ def test_zoom_follows_the_wheel_within_a_tenth_of_a_second(fps, notches):
 def test_rapid_notches_go_straight_to_the_final_zoom():
     """Ten quick notches aim at the final distance at once (no queue of ten animations) and the
     view never turns back on the way."""
-    start, target, shown = _zoom_response(60, 10, start=3.0)
-    assert target == pytest.approx(3.0 * 0.88 ** 10)
+    start, target, shown = _zoom_response(60, 10, start=2.5)  # inside the room (2.95 m): no rebase
+    assert target == pytest.approx(2.5 * 0.88 ** 10)
     steps = np.diff([start] + shown)
     assert (steps <= 1e-9).all()  # zooming in all the way, never back out
     assert shown[-1] == pytest.approx(target, abs=0.01)
@@ -663,6 +663,190 @@ def test_camera_recovers_its_distance_within_a_second_without_overshoot():
     assert max(dists) <= final + 0.02 and max(dists) <= view.distance + 1e-9  # no overshoot
     assert all(b >= a - 1e-6 for a, b in zip(dists, dists[1:]))  # a steady glide out, no wobble
     sim.close()
+
+
+# ----- third-person camera: the user's angle and zoom are the authority (spring-arm rules) -----
+OPEN_OFFICE = (-1.8, 2.6, 0.0)  # 2.95 m of room behind the robot
+SEED_1003_START = (-1.31, 0.17, 0.576)  # the corridor near the office door: walls hold the camera in
+
+
+def _wheel(view, y, times=1):
+    for _ in range(times):
+        view.handle_event(pygame.event.Event(pygame.MOUSEWHEEL, x=0, y=y, flipped=False))
+
+
+def _drag(view, dx, dy):
+    view.handle_event(pygame.event.Event(pygame.MOUSEMOTION, rel=(dx, dy), buttons=(1, 0, 0), pos=(640, 360)))
+
+
+def _settled_view(pose, mode=0, frames=60, goal=(4.0, 4.0)):
+    from robot_env.app import ViewCamera
+    from robot_env.sim import RobotSim
+    sim = RobotSim()
+    sim.reset(*pose, goal)
+    view = ViewCamera()
+    view.mode = mode
+    for _ in range(frames):
+        view.apply(sim, 1 / 60)
+    return sim, view
+
+
+@pytest.mark.parametrize("name", ["shelf", "wall", "chair"])
+def test_first_wheel_notch_in_moves_a_camera_the_walls_hold(name):
+    """Regression (owner: zoom not working): after scrolling out against walls, 7 to 13 notches in
+    did nothing. Zooming in now starts from what is shown, so the first notch moves the camera."""
+    sim, view = _settled_view(CAMERA_POSES[name])
+    _wheel(view, -1, 5)
+    for _ in range(60):
+        view.apply(sim, 1 / 60)
+    before = view.cam.distance
+    assert view.distance > before + 0.3  # the request is far beyond what the walls allow
+    _wheel(view, 1)
+    for _ in range(20):
+        view.apply(sim, 1 / 60)
+    assert view.cam.distance < before * 0.93, (before, view.cam.distance)
+    sim.close()
+
+
+def test_zoom_in_magnifies_the_robot():
+    """Regression: the lens widened as the user zoomed in, so five notches grew the robot by 17
+    percent instead of 90. A distance the user chose keeps the normal lens."""
+    import math
+    sim, view = _settled_view(OPEN_OFFICE)
+    size0 = 1 / (view.cam.distance * math.tan(math.radians(view.fovy) / 2))
+    _wheel(view, 1, 5)
+    for _ in range(60):
+        view.apply(sim, 1 / 60)
+    size1 = 1 / (view.cam.distance * math.tan(math.radians(view.fovy) / 2))
+    assert size1 / size0 >= 1.8 and view.fovy == pytest.approx(45.0, abs=0.1)
+    sim.close()
+
+
+def test_lens_widens_only_when_walls_hold_the_camera_close():
+    sim, view = _settled_view(CAMERA_POSES["wall"], frames=90)  # backed up to the corridor's end wall
+    assert view.cam.distance < 0.8 and view.fovy > 55.0
+    sim.close()
+
+
+@pytest.mark.parametrize("pose", [OPEN_OFFICE, SEED_1003_START])
+@pytest.mark.parametrize("mode", [0, 2])
+def test_zoom_out_never_pulls_the_camera_in_or_turns_it(pose, mode):
+    """Regression: a larger zoom request made the line-of-sight check fail at a distance the camera
+    never showed, so zooming out swung, tilted, and pulled the camera in (seed 1003 start:
+    1.11 m -> 0.92 m and a 20 degree swing)."""
+    sim, view = _settled_view(pose, mode)
+    d0, az0, el0 = view.cam.distance, view.cam.azimuth, view.cam.elevation
+    for _ in range(6):
+        _wheel(view, -1)
+        for _ in range(20):
+            cam = view.apply(sim, 1 / 60)
+            assert cam.distance >= d0 - 0.01, (d0, cam.distance)
+            assert abs(((cam.azimuth - az0) + 180) % 360 - 180) <= 1.0 and abs(cam.elevation - el0) <= 1.0
+    sim.close()
+
+
+@pytest.mark.parametrize("mode", [0, 2])
+def test_drag_turns_and_tilts_the_view_the_same_frame(mode):
+    """Regression: the camera's speed cap also slowed the user's drag (a 180 degree flick lagged
+    146 degrees at release and arrived 2.3 s later; tilting followed at 40 degrees/s)."""
+    sim, view = _settled_view(OPEN_OFFICE, mode)
+    for _ in range(15):  # a fast flick: 40 px per frame, 12 degrees
+        az0 = view.cam.azimuth
+        _drag(view, 40, 0)
+        cam = view.apply(sim, 1 / 60)
+        assert ((cam.azimuth - az0) + 180) % 360 - 180 == pytest.approx(-12.0, abs=0.01)
+    for _ in range(20):  # tilt up to the shallowest pitch
+        el0 = view.cam.elevation
+        _drag(view, 0, -10)
+        cam = view.apply(sim, 1 / 60)
+        assert cam.elevation == pytest.approx(min(el0 + 3.0, -3.0), abs=0.01)
+    cam = view.apply(sim, 1 / 60)
+    assert cam.elevation == pytest.approx(-3.0) and view._detour == (0.0, None)
+    sim.close()
+
+
+def test_a_tilt_up_with_room_for_min_view_is_kept_after_the_release():
+    """Regression (review): the automatic tilt-back margin (TILT_BACK) also judged the user's own
+    tilt, so in orbit next to the chair (about 0.7 to 1.1 m of room at every pitch) a tilt up to -3
+    sank back to -22."""
+    sim, view = _settled_view(CAMERA_POSES["chair"], mode=2)
+    view.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(640, 360)))
+    for _ in range(25):
+        _drag(view, 0, -10)
+        view.apply(sim, 1 / 60)
+    view.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(640, 360)))
+    for _ in range(90):
+        cam = view.apply(sim, 1 / 60)
+    assert view.elevation == -3.0 and cam.elevation == pytest.approx(-3.0, abs=1.0)
+    sim.close()
+
+
+@pytest.mark.parametrize("name", ["wall", "chair", "shelf"])
+def test_tilting_down_a_camera_the_walls_hold_steep_follows_the_user(name):
+    """Backed up to a wall the camera looks down steeper than asked; tilting down further leaves it
+    there until the user's pitch is the steeper one, then follows it, never past PITCH[0]."""
+    sim, view = _settled_view(CAMERA_POSES[name])
+    lo, hi = view.PITCH
+    steep = view.cam.elevation
+    assert steep < view.elevation - 10  # the walls really hold it steeper
+    for _ in range(25):
+        _drag(view, 0, 10)
+        cam = view.apply(sim, 1 / 60)
+        assert lo - 1e-9 <= cam.elevation <= hi and cam.elevation <= min(steep, view.elevation) + 1e-6
+    assert view.elevation == lo and cam.elevation == pytest.approx(lo)
+    sim.close()
+
+
+@pytest.mark.parametrize("offset", [(0.0, 0.0), (-0.1, 0.0), (-0.2, 0.0)])
+@pytest.mark.parametrize("mode", [0, 2])
+def test_the_goal_marker_never_blocks_the_view(offset, mode):
+    """Regression: with the goal's thin pole under or just behind the robot the camera collapsed to
+    2 cm, looking straight down (blocked)."""
+    x, y, yaw = OPEN_OFFICE
+    sim, view = _settled_view(OPEN_OFFICE, mode, goal=(x + offset[0], y + offset[1]))
+    assert view.cam.distance == pytest.approx(view.distance, abs=0.02) and not view.blocked
+    assert view.cam.elevation == pytest.approx(view.elevation) and view._detour == (0.0, None)
+    sim.close()
+
+
+def test_a_drag_that_starts_on_a_panel_does_not_turn_the_view():
+    from robot_env.app import ViewCamera
+    view = ViewCamera()
+    view.ignore_drag = True  # the window gave the press to the Options menu
+    view.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(50, 90)))
+    _drag(view, 40, 20)
+    assert (view.azimuth, view.elevation) == (view.AZIMUTH, view.ELEVATION)
+    view.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(50, 90)))
+    _drag(view, 40, 0)
+    assert view.azimuth == pytest.approx(view.AZIMUTH - 12.0)
+    view.ignore_drag = True  # a menu press, then the window loses focus before the release
+    view.handle_event(pygame.event.Event(pygame.WINDOWFOCUSLOST))
+    _drag(view, 40, 0)
+    assert view.azimuth == pytest.approx(view.AZIMUTH - 24.0)
+
+
+@pytest.mark.parametrize("mode", [1, 3])
+def test_the_mouse_never_changes_the_third_person_view_from_another_view(mode):
+    """Nudging the mouse in the top or robot-camera view must not leave the chase view turned."""
+    from robot_env.app import ViewCamera
+    view = ViewCamera()
+    view.mode = mode
+    _drag(view, 100, -50)
+    _wheel(view, -1)
+    assert (view.azimuth, view.elevation, view.distance) == (view.AZIMUTH, view.ELEVATION, view.DISTANCE)
+
+
+@pytest.mark.gui
+def test_restart_restores_the_default_view_and_clicks_use_drawing_coordinates():
+    app = App(1000, screenshot=None, frames=1)
+    app.view.azimuth, app.view.elevation, app.view.distance = 90.0, -60.0, 3.0
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_r, mod=0, unicode="r", scancode=0))
+    app.handle_events()
+    assert (app.view.azimuth, app.view.elevation, app.view.distance) == (0.0, -22.0, 1.6)
+    w, h = app.display.window_size
+    sw, sh = app.screen.get_size()
+    assert app._surface_pos((w, h)) == (sw, sh) and app._surface_pos((w // 2, h // 2)) == (sw * (w // 2) // w, sh * (h // 2) // h)
+    app.run()
 
 
 @pytest.mark.gui

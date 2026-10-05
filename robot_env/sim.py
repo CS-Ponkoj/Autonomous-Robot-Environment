@@ -89,6 +89,7 @@ class RobotSim:
         self._left_dof = m.joint("left_wheel_joint").dofadr[0]
         self._right_dof = m.joint("right_wheel_joint").dofadr[0]
         self._goal_mocap = m.body_mocapid[m.body("goal").id]
+        self._goal_geoms = frozenset(np.flatnonzero(m.geom_bodyid == m.body("goal").id).tolist())
         self._floor = m.geom("floor").id
         roots = m.body_rootid[m.geom_bodyid]
         self._robot_geom = roots == self.robot_body
@@ -248,9 +249,17 @@ class RobotSim:
 
     def ray_to_view_blocker(self, origin, direction) -> float:
         """Like ray_to_solid, but visual-only detail (chair arms, decor) also counts: anything
-        that would block the viewer's line of sight. Viewer camera only."""
-        return float(mujoco.mj_ray(self.model, self.data, np.asarray(origin, float), np.asarray(direction, float),
-                                   _VIEW_GROUP, 1, self.robot_body, self._ray_hit))
+        that would block the viewer's line of sight. Viewer camera only. The goal marker (a thin
+        pole and flag) never blocks the view: the ray continues past it."""
+        o, d = np.asarray(origin, float), np.asarray(direction, float)
+        travelled = 0.0
+        for _ in range(4):
+            hit = float(mujoco.mj_ray(self.model, self.data, o, d, _VIEW_GROUP, 1, self.robot_body, self._ray_hit))
+            if hit < 0 or int(self._ray_hit[0]) not in self._goal_geoms:
+                return hit if hit < 0 else travelled + hit
+            step = hit + 1e-3
+            o, travelled = o + d * step, travelled + step
+        return -1.0
 
     def rays_to_view_blocker(self, origin, directions: np.ndarray, cutoff: float = mujoco.mjMAXVAL) -> np.ndarray:
         """ray_to_view_blocker for many directions from one origin in a single call (-1: nothing
@@ -258,8 +267,12 @@ class RobotSim:
         n = len(directions)
         dist = np.empty(n)
         geom = np.empty(n, dtype=np.int32)
-        mujoco.mj_multiRay(self.model, self.data, np.asarray(origin, float), np.ascontiguousarray(directions, float).ravel(),
+        dirs = np.ascontiguousarray(directions, float)
+        mujoco.mj_multiRay(self.model, self.data, np.asarray(origin, float), dirs.ravel(),
                            _VIEW_GROUP, 1, self.robot_body, geom, dist, None, n, cutoff)
+        for i in np.flatnonzero(np.isin(geom, list(self._goal_geoms))):  # rare: re-cast past the goal marker
+            hit = self.ray_to_view_blocker(origin, dirs[i])
+            dist[i] = hit if 0 <= hit <= cutoff else -1.0
         return dist
 
     # ----- ground truth (evaluation only, never given to drivers) -----
