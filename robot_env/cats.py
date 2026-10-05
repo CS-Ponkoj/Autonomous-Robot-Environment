@@ -75,6 +75,9 @@ RESTING = ("sit", "pause")
 SIT_CHECK_TIME = 3.0  # s: the longest a sit-down and getting up (paws shuffling first) may take
 SIT_CHECK_CHUNK = 6  # sit-down poses checked per 10 ms sample (about 2 ms of work)
 SIT_ROOM = 0.05  # m beyond the robot and cat gaps a sit-down keeps from them where they are (they move)
+SIT_RISE = 0.01  # m: the robot moving this far while a sit-down is checked restarts the check; moving
+# SIT_ROOM - 2 SIT_RISE from where it was checked gets a seated cat up (while the check still covers it)
+ROBOT_RELIEF = 0.005  # m inside ROBOT_GAP before the robot counts as having driven in (not a creep)
 PATROL_MEMORY = 120.0  # s: a room never visited counts as last seen this long ago
 PATROL_BASE = 10.0  # s added to every room's weight, so a recent room is still possible
 # Local planner: every PLAN_PERIOD each moving cat scores candidate motions over PLAN_HORIZON
@@ -508,7 +511,8 @@ class Cat:
     plan_at: float = 0.0  # next planning time
     idle_since: float | None = None  # the planner found no way forward since then
     no_sit: bool = False  # sitting down here did not fit (stays standing until its next state)
-    sit_probe: list | None = None  # a sit-down being checked: [animator copy, last pose, poses done, paws]
+    sit_probe: list | None = None  # a sit-down being checked: [animator copy, last pose, poses done, paws, robot]
+    sit_robot: tuple | None = None  # where the robot was when this cat's sit-down was checked
     rejected: dict = field(default_factory=dict)  # command -> until when the hard guard refused it
     held: int = 0  # samples rejected because the animated pose came too close (evaluation)
     escape: list = field(default_factory=list)  # worked-out steps out of a tight spot: (v, w, lat, end time)
@@ -816,7 +820,8 @@ class CatHerd:
             for k in range(24):
                 a = 2 * math.pi * k / 24
                 gx, gy = cat.x + radius * math.cos(a), cat.y + radius * math.sin(a)
-                if self._static_clear(gx, gy) < NAV_CLEAR + 0.05 or                         (np.hypot(doors[:, 0] - gx, doors[:, 1] - gy) < CHOKE_RADIUS + 0.25).any():
+                if self._static_clear(gx, gy) < NAV_CLEAR + 0.05 or \
+                        (np.hypot(doors[:, 0] - gx, doors[:, 1] - gy) < CHOKE_RADIUS + 0.25).any():
                     continue
                 px = (gx - rx) * c + (gy - ry) * sn
                 py = -(gx - rx) * sn + (gy - ry) * c
@@ -999,12 +1004,26 @@ class CatHerd:
     def _robot_limit(self, cat: Cat, gap: float | None = None) -> float:
         """The robot gap the cat keeps: ROBOT_GAP, its own comfort distance; but once the robot has
         driven inside that (the robot's doing, not the cat's), only ROBOT_HARD, so the cat is free
-        to turn and get away rather than pinned by "never closer"."""
+        to turn and get away rather than pinned by "never closer"; and the same for a seated cat
+        getting up after the robot came near it. (A robot standing still may creep a little: it
+        has driven in only once the gap is ROBOT_RELIEF inside, since a cat never moves itself
+        inside ROBOT_GAP.)"""
+        if cat.animator.sit > 0.0 and cat.animator.sit_target == 0.0 and \
+                self._robot_moved(cat) > SIT_ROOM - 2 * SIT_RISE:
+            return ROBOT_HARD
         if gap is None:
             circ = self.circles(cat)
             rx, ry = self._robot()
             gap = float((np.hypot(circ[:, 0] - rx, circ[:, 1] - ry) - circ[:, 2] - C.CIRCUMSCRIBED_RADIUS).min())
-        return ROBOT_GAP if gap >= ROBOT_GAP else ROBOT_HARD
+        return ROBOT_GAP if gap >= ROBOT_GAP - ROBOT_RELIEF else ROBOT_HARD
+
+    def _robot_moved(self, cat: Cat) -> float:
+        """How far (m) the robot is from where it was when this cat's sit-down was checked (0 if
+        it has no checked sit-down)."""
+        if cat.sit_robot is None:
+            return 0.0
+        rx, ry = self._robot()
+        return math.hypot(rx - cat.sit_robot[0], ry - cat.sit_robot[1])
 
     def _plan_gaps(self, cat: Cat, X, Y, Th, times) -> np.ndarray:
         """Tightest gap (the smallest margin over walls, robot, and cats, in metres beyond each
@@ -1247,6 +1266,7 @@ class CatHerd:
         cat.sit_probe = None
         if state is not None:
             cat.state, cat.state_until, cat.no_sit, cat.sit_probe = state, math.inf, False, None
+        cat.sit_robot = None
         cat.animator.reset(cat.x, cat.y, cat.yaw)
         local, bob = cat.animator.update(ANIM_PERIOD, cat.x, cat.y, cat.yaw, cat.v, 0.0)
         pos, rot = cat.animator._fk(local)
@@ -1282,12 +1302,19 @@ class CatHerd:
         an = cat.animator
         if cat.state != "sit" or cat.no_sit:
             an.sit_target = 0.0
-        elif an.sit_target == 0.0 and abs(cat.v) < 0.01 and abs(cat.w) < 0.05 and                 all(leg.planted for leg in an.legs.values()):
+            cat.sit_probe = None
+        elif an.sit_target > 0.0 and self._robot_moved(cat) > SIT_ROOM - 2 * SIT_RISE:
+            an.sit_target, cat.no_sit = 0.0, True  # the robot has come near: up while there is room
+        elif an.sit_target == 0.0 and abs(cat.v) < 0.01 and abs(cat.w) < 0.05 and \
+                all(leg.planted for leg in an.legs.values()):
             verdict = self._sit_check(cat)
             if verdict is not None:
                 cat.sit_probe = None
                 an.sit_target = 1.0 if verdict else 0.0
                 cat.no_sit = not verdict  # if it does not fit, it stays standing until its next state
+        if an.sit == 0.0 and an.sit_target == 0.0:
+            cat.sit_robot = None
+        an.calm = cat.sit_probe is not None
         resting = cat.state in RESTING or an.sit > 0.0
         if not resting and self.time >= cat.plan_at - 1e-9:
             self._plan(cat)
@@ -1323,7 +1350,8 @@ class CatHerd:
         rx, ry = self._robot()
         look = None
         g = self.gaps(cat, x, y, yaw)
-        if cat.sees_robot and math.hypot(rx - x, ry - y) < 2.5 and g[1] > ROBOT_GAP + LOOK_ROOM:
+        if cat.sees_robot and math.hypot(rx - x, ry - y) < 2.5 and g[1] > ROBOT_GAP + LOOK_ROOM and \
+                not (cat.animator.calm or cat.animator.sit > 0.0 or cat.animator.sit_target > 0.0):
             look = (rx, ry)  # watches the robot (not when so close that turning its head would crowd it)
         snap = cat.animator.snapshot()
         lat = 0.0 if blocked_now else cl
@@ -1405,13 +1433,15 @@ class CatHerd:
         go on stands up)."""
         an = cat.animator
         paws = np.array([leg.world for leg in an.legs.values()])
-        if cat.sit_probe is None or not np.array_equal(cat.sit_probe[3], paws):
+        robot = self._robot()
+        if cat.sit_probe is None or not np.array_equal(cat.sit_probe[3], paws) or \
+                math.hypot(robot[0] - cat.sit_probe[4][0], robot[1] - cat.sit_probe[4][1]) > SIT_RISE:
             probe = copy.copy(an)
             probe.legs = {name: copy.copy(leg) for name, leg in an.legs.items()}
             probe.restore(an.snapshot())  # its own copies of every changing value
             probe.sit_target = 1.0
-            cat.sit_probe = [probe, cat.next, 0, paws]
-        probe, prev, done, _ = cat.sit_probe
+            cat.sit_probe = [probe, cat.next, 0, paws, robot]
+        probe, prev, done, _, _ = cat.sit_probe
         for _ in range(SIT_CHECK_CHUNK):
             s = self._animate(cat, 0.0, 0.0, None, an=probe)
             inflate = self._half_chord(cat, self.circles(cat, s.x, s.y, s.yaw, s), self.circles(cat, pose=prev))
@@ -1421,6 +1451,7 @@ class CatHerd:
             if probe.sit >= 1.0:
                 probe.sit_target = 0.0  # sat: now getting up
             elif probe.sit == 0.0 and probe.sit_target == 0.0:
+                cat.sit_robot = cat.sit_probe[4]
                 return True
             prev, done = s, done + 1
             if done >= round(SIT_CHECK_TIME / ANIM_PERIOD):

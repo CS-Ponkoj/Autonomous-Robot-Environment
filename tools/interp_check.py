@@ -4,8 +4,8 @@ motion computed at every physics step). Development gate.
 Scenarios (scripted, so both runs follow the same paths): a cat walking into the stopped robot,
 the robot driving into a still cat, a cat walking past the robot while turning, a cat that sees
 the robot raising its tail (the alert lift starting mid-run) as it walks into it, and the robot
-driving into a cat's low tail and into its raised tail, and the robot driving into a cat that
-sits down as it comes (the sitting transition, then the sitting pose). For each: the largest difference of a
+driving into a cat's low tail and into its raised tail, and a cat sitting down beside the stopped
+robot and getting up again (both transitions and the sitting pose). For each: the largest difference of a
 collider endpoint over the run (gate: 10 mm for the body and head, 10 mm for the tail; 20 mm for
 the legs, whose steps can only start at a sample boundary, so a paw swinging at about 1.5 m/s
 can be up to one 10 ms sample, 15 mm, behind the reference), the time of the first
@@ -49,9 +49,11 @@ SCENARIOS = {
     "alert cat raises its tail walking into the robot": ((-2.0, 0.0, 0.0), (0.0, 0.0), (0.0, 0.0, math.pi), (0.4, 0.0), 6.0, True),
     "robot drives into a low tail": ((-2.0, 0.0, 0.0), (0.3, 0.0), (-0.95, 0.0, 0.0), (0.0, 0.0), 4.0, False),
     "robot drives at a cat with its tail raised": ((-2.0, 0.0, 0.0), (0.3, 0.0), (-0.95, 0.0, 0.0), (0.0, 0.0), 4.0, True),
-    "robot drives into a cat sitting down": ((-2.2, 0.0, 0.0), (0.3, 0.0), (-1.0, 0.0, math.pi / 2), (0.0, 0.0), 5.0, False),
+    "a cat sits down and gets up beside the stopped robot": ((-2.2, 0.0, 0.0), (0.0, 0.0), (-1.0, 0.0, math.pi / 2),
+                                                             (0.0, 0.0), 4.0, False),
 }
-SITTING = {"robot drives into a cat sitting down"}  # placed in the sit state (it sits down at once)
+# placed in the sit state (it sits down at once), then told to stand at this time (s)
+SITTING = {"a cat sits down and gets up beside the stopped robot": 3.0}
 
 
 def run(name: str, reference: bool) -> dict:
@@ -74,7 +76,7 @@ def run(name: str, reference: bool) -> dict:
         h._plan = straight
         h.place(0, *cat, v=ccmd[0], state="sit" if name in SITTING else "walk")
         h.cats[0].sees_robot = sees  # (behaviour is off: fixed for the run)
-        lifts = []
+        lifts, sits = [], []
         parts = set()
         ends, times = [], []
         onset = None
@@ -83,10 +85,13 @@ def run(name: str, reference: bool) -> dict:
         while s.time < seconds - 1e-9:
             if rcmd != (0.0, 0.0):
                 s.drive(*rcmd)
+            if name in SITTING and s.time >= SITTING[name]:
+                h.cats[0].state = "pause"  # get up
             s.advance(C.PHYSICS_DT)
             ends.append(h.col_world[0].copy())
             times.append(s.time)
             lifts.append(h.cats[0].animator.tail_lift)
+            sits.append(h.cats[0].animator.sit)
             m = s.sim.model
             for touching in s.sim.cat_contacts_now().values():
                 for c, sign in touching:
@@ -104,7 +109,7 @@ def run(name: str, reference: bool) -> dict:
                 "initiators": [e.get("initiator") for e in events],
                 "force": max([e.get("peak_force_n", 0.0) for e in events] or [0.0]),
                 "impulse": max([e.get("impulse_ns", 0.0) for e in events] or [0.0]),
-                "moved_in_contact": moved_in_contact, "lift": max(lifts), "sit": h.cats[0].animator.sit,
+                "moved_in_contact": moved_in_contact, "lift": max(lifts), "sit": max(sits), "sit_end": sits[-1],
                 "parts": sorted(parts)}
     finally:
         K.ANIM_PERIOD, K.ROOT_SUBSTEPS = saved
@@ -128,7 +133,8 @@ def main() -> int:
         same = prod["contacts"] == ref["contacts"] and prod["initiators"] == ref["initiators"] and prod["parts"] == ref["parts"]
         tunnel = prod["moved_in_contact"] <= 0.002 and ref["moved_in_contact"] <= 0.002
         lifted = (prod["lift"] > 0.5) == SCENARIOS[name][5] and (ref["lift"] > 0.5) == SCENARIOS[name][5]
-        sat = (prod["sit"] == 1.0 and ref["sit"] == 1.0) if name in SITTING else (prod["sit"] == ref["sit"] == 0.0)
+        sat = all(r["sit"] == 1.0 and r["sit_end"] == 0.0 for r in (prod, ref)) if name in SITTING else \
+            prod["sit"] == ref["sit"] == 0.0  # sat fully and got up fully, or never sat
         force_ok = abs(prod["force"] - ref["force"]) <= max(FORCE_REL * max(prod["force"], ref["force"]), FORCE_FLOOR)
         impulse_ok = abs(prod["impulse"] - ref["impulse"]) <= max(FORCE_REL * max(prod["impulse"], ref["impulse"]),
                                                                   IMPULSE_FLOOR)

@@ -133,6 +133,7 @@ class CatAnimator:
         self.tail_lift_target = 0.0  # rad: how high to raise the tail (set by the herd when alert)
         self.tail_lift = 0.0  # rad, eased toward the target
         self.sit_target = 0.0  # 0 stand, 1 sit (set by the herd)
+        self.calm = False  # set by the herd while a sit-down is being checked: the tail eases still
         self.sit = 0.0  # the posture now, eased toward the target (never jumping)
         self.shift = 0.0  # m the body is moved forward this update (sitting); the caller adds it
         self._hips = rig.joint("Hips_01")
@@ -276,15 +277,17 @@ class CatAnimator:
         if not freeze:
             self.head_yaw += float(clip(want - self.head_yaw, -HEAD_RATE * dt, HEAD_RATE * dt))
         # tail: a slow wave running to the tip, larger when idle
-        # (sitting down, sitting, or getting up, the tail is still: those poses depend only on how
-        # far the cat has sat, so the check of the whole sit-down holds for them)
-        want_amp = 0.0 if (self.sit > 0.0 or self.sit_target > 0.0) else (0.10 if moving else 0.18) * self.tail_target
+        # (while a sit-down is checked, sitting down, sitting, and getting up, the tail's sway and
+        # lift ease to zero, the same way as in the check of the whole sit-down, so the poses the cat
+        # goes through are the ones checked)
+        still = self.calm or self.sit > 0.0 or self.sit_target > 0.0
+        want_amp = 0.0 if still else (0.10 if moving else 0.18) * self.tail_target
         if not freeze:
             self.tail_amp += float(clip(want_amp - self.tail_amp, -TAIL_AMP_RATE * dt, TAIL_AMP_RATE * dt))
         amp = self.tail_amp
         # an alert cat (the robot close) raises its tail, eased; most of the lift at the base
         if not freeze:
-            lift_to = 0.0 if (self.sit > 0.0 or self.sit_target > 0.0) else self.tail_lift_target  # (sitting: still)
+            lift_to = 0.0 if still else self.tail_lift_target
             self.tail_lift += float(clip(lift_to - self.tail_lift, -TAIL_LIFT_RATE * dt, TAIL_LIFT_RATE * dt))
         # spine, neck and head, tail (a wave running to the tip, most of the lift at the base):
         # kernels.posture, written into the local rotations (the dict holds views of them)
