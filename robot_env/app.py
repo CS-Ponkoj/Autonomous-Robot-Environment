@@ -540,6 +540,7 @@ class App:
         self._make_renderer()
         self._inset = None  # cached robot-camera inset and the simulated time it shows
         self._inset_pending = None  # (size, time) of an inset scene prepared, drawn next frame
+        self._inset_pixels = None
         self._shadow_lights = None  # the room lights that may cast shadows (from the model)
         self._inset_time = -math.inf
         self.frame_times: list[float] = []  # seconds between presented frames (measured)
@@ -600,8 +601,15 @@ class App:
         self.episode = Episode(task)
         if hasattr(self, "view"):
             self.view.reset()  # the robot teleported: snap the camera
+        self._drop_inset()  # nothing from before the reset is shown
         self._next_decision = 0.0
         self._last_sent = None
+
+    def _drop_inset(self) -> None:
+        """Forget the robot-camera preview (shown, and any scene prepared for it): after a reset,
+        while it is not on screen, or when its size changes, it starts again from the present."""
+        self._inset = self._inset_pixels = self._inset_pending = None
+        self._inset_time = -math.inf
 
     def update_episode(self) -> None:
         ep, s = self.episode, self.system
@@ -739,25 +747,28 @@ class App:
         self.screen.blit(_surface(image), (0, 0))
 
         if self.hud == "none":
+            self._drop_inset()  # not on screen: a later preview starts from the present
             _text_box(self.screen, self.font, ["H: show panels"], (24, 20))
             self.draw_banners()
             return
         width, height = self.screen.get_size()
         compact = self.hud == "compact"
         if camera == "robot_cam":  # the main view already shows the robot camera: no duplicate inset
-            self._inset_pending = None
+            self._drop_inset()
         else:
             cam_rect = pygame.Rect(width - 256, 16, 240, 180) if compact else pygame.Rect(width - 336, 16, 320, 240)
             size = (cam_rect.height, cam_rect.width)
-            if self._inset_pending is not None and self._inset_pending[0] == size:
+            if (self._inset is not None and self._inset.get_size() != cam_rect.size) or \
+                    (self._inset_pending is not None and self._inset_pending[0] != size):
+                self._drop_inset()  # the panels changed size: a preview at the new size, from now
+            if self._inset_pending is not None:
                 # second half: draw the scene prepared last frame (one frame old, on a 10 Hz preview)
                 image = s.sim.render_prepared()
                 self._inset_pixels = image  # the cached surface shares these pixels
                 self._inset, self._inset_time = _surface(image), self._inset_pending[1]
                 self._inset_pending = None
             else:
-                stale = self._inset is None or self._inset.get_size() != cam_rect.size
-                if stale or abs(s.time - self._inset_time) >= INSET_PERIOD - 1e-9:
+                if self._inset is None or abs(s.time - self._inset_time) >= INSET_PERIOD - 1e-9:
                     # first half: the scene, at the shown size, without shadow or floor-reflection
                     # passes (each re-draws the whole scene, and the small inset shows neither);
                     # the skins were posed for this frame. Drawn in the next frame: the cost is

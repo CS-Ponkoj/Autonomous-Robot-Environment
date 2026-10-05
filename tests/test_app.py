@@ -6,7 +6,7 @@ import numpy as np
 import pygame
 import pytest
 
-from robot_env.app import App, parse_script
+from robot_env.app import VIEWS, App, parse_script
 from robot_env.sim import close_renderer
 
 
@@ -960,6 +960,46 @@ def test_the_inset_is_prepared_in_one_frame_and_drawn_in_the_next(monkeypatch):
     assert app._inset_time == prepared_at
     app.draw()  # not due again yet: nothing new
     assert draws == [1] and app._inset_pending is None
+    close_renderer(app.renderer)
+    app.system.close()
+    app.display.close()
+    pygame.quit()
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize("transition", ["restart", "hide panels", "robot camera view", "panel size"])
+def test_no_preview_from_before_a_transition_is_shown(transition):
+    """After a restart, panels hidden and shown again, the robot-camera view and back, or the
+    panels changing size, no robot-camera preview from before is drawn (not even for one frame,
+    and not at the wrong size); the next one shows the simulation after the transition."""
+    app = _app_for_inset()
+    app.draw()
+    app.draw()  # a preview is up
+    assert app._inset is not None
+    app._inset_time = -float("inf")
+    app.draw()  # and a new scene prepared (pending)
+    assert app._inset_pending is not None
+    if transition == "restart":
+        app.new_episode(app.seed + 1)
+    elif transition == "hide panels":
+        app.hud = "none"
+        app.draw()
+        app.system.advance(1.0)
+        app.hud = "compact"
+    elif transition == "robot camera view":
+        app.view.mode = VIEWS.index("robot camera")
+        app.draw()
+        app.system.advance(1.0)
+        app.view.mode = 0
+    else:
+        app.hud = "full"
+    after = app.system.time
+    app.draw()  # the first frame after: nothing old is shown
+    assert app._inset is None and app._inset_pending is not None and app._inset_pending[1] >= after
+    app.draw()
+    w, h = app._inset.get_size()
+    rect = (240, 180) if app.hud == "compact" else (320, 240)
+    assert (w, h) == rect and app._inset_time >= after
     close_renderer(app.renderer)
     app.system.close()
     app.display.close()
