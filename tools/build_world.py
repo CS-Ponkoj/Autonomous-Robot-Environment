@@ -822,6 +822,8 @@ HEADER = """<!--
     <texture name="whiteboard" type="2d" file="whiteboard.png"/>
     <texture name="tv_screen" type="2d" file="tv_screen.png"/>
     <!-- floors and walls at their real-world scales (texrepeat: repeats per metre) -->
+    <!-- reflectance renders only on the first reflective geom in the model, the base plane (the lab and
+         corridor floor); on every other material it does nothing under the classic renderer -->
     <material name="wood_floor" texture="tx_laminate" texrepeat="0.588 0.588" texuniform="true" emission="0.17" specular="0.3" shininess="0.3" reflectance="0.08"/>
     <material name="tile" texture="tx_porcelain" texrepeat="0.5 0.5" texuniform="true" specular="0.5" shininess="0.4" reflectance="0.22"/>
     <material name="tile_dark" texture="tx_concrete" texrepeat="0.25 0.25" texuniform="true" emission="0.17" specular="0.2" shininess="0.2" reflectance="0.05"/>
