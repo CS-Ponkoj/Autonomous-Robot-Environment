@@ -1004,3 +1004,54 @@ def test_no_preview_from_before_a_transition_is_shown(transition):
     app.system.close()
     app.display.close()
     pygame.quit()
+
+
+def _key(app, key):
+    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=key, mod=0, unicode="", scancode=0))
+    pygame.event.post(pygame.event.Event(pygame.KEYUP, key=key, mod=0, unicode="", scancode=0))
+    return app.handle_events()
+
+
+@pytest.mark.gui
+def test_the_options_button_sets_the_number_of_cats_and_restarts():
+    """The window starts with 4 cats. The Options button on the panels opens the options beside
+    them (the simulation and driving go on); clicking a number restarts with that many cats (same
+    goal); O toggles the options; Esc closes them before it would quit."""
+    from robot_env.cats import DEFAULT_CATS
+    assert DEFAULT_CATS == 4
+    app = App(1000, None, 5, None, 0, cats=DEFAULT_CATS, cat_seed=0)
+    app._frame_dt = 1 / 60
+    assert app.system.cats.n == 4 and not app.menu.open
+    goal = app.episode.task.goal
+    app.draw()
+    click = lambda pos: pygame.event.post(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos))  # noqa: E731
+    click(app.menu.button.center)
+    assert app.handle_events() and app.menu.open
+    t = app.system.time
+    app.simulate(0.05)
+    assert app.system.time > t  # the simulation goes on with the options open
+    app.draw()  # lays out the choices
+    two = next(rect for rect, i, value in app.menu._targets if value == 2)
+    click(two.center)
+    assert app.handle_events()
+    assert app.cat_count == 2 and app.system.cats.n == 2 and app.system.time == 0.0  # restarted
+    assert app.episode.task.goal == goal
+    app.draw()
+    zero = next(rect for rect, i, value in app.menu._targets if value == 0)
+    click(zero.center)
+    assert app.handle_events() and app.cat_count == 0 and app.system.cats is None
+    assert _key(app, pygame.K_ESCAPE) and not app.menu.open  # Esc closes the options, not the window
+    assert _key(app, pygame.K_o) and app.menu.open
+    assert _key(app, pygame.K_o) and not app.menu.open
+    click(app.menu.button.center)  # the button again
+    assert app.handle_events() and app.menu.open
+    app.draw()
+    app._close_all()
+
+
+def test_the_window_starts_with_four_cats():
+    import inspect
+
+    import robot_env.app as A
+    from robot_env.cats import DEFAULT_CATS
+    assert DEFAULT_CATS == 4 and "default=DEFAULT_CATS" in inspect.getsource(A.main)

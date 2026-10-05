@@ -1,4 +1,4 @@
-"""Wandering cats: realistic, animated, and solid (on by default; 3 cats, up to 4).
+"""Wandering cats: realistic, animated, and solid (on by default in the window: 4 cats).
 
 Each cat is the rigged cat model (robot_env/cat_rig.py: "Cat" by Vr-cvantorium, CC BY 4.0) with
 its own coat, animated procedurally (robot_env/cat_motion.py). Its motion is prescribed, not
@@ -36,7 +36,7 @@ from .layout import clearance, region_of, shapes_from_model
 from .sim import WorldExtra
 
 MAX_CATS = 4
-DEFAULT_CATS = 3
+DEFAULT_CATS = 4
 ANIM_PERIOD = 0.01  # s: motion and animation sample period (100 Hz); colliders interpolate between
 ROOT_SUBSTEPS = 4  # root integration steps per sample (speed and acceleration limits per substep)
 COATS = ("cat_anisotropic1.png", "coat_ginger_mackerel.png", "coat_black_tuxedo.png", "coat_grey_tabby.png")

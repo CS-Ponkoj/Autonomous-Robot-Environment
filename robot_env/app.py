@@ -46,9 +46,87 @@ HELP = [
     "Space: emergency brake (release Space, keys and mouse, then press a drive key)",
     "Left-drag: rotate view    Wheel: zoom    C: change view",
     "R: restart    N: next goal    T: continue after contact on/off",
-    "F11: fullscreen    F12: screenshot    H: panels (compact, full, none)    Esc: quit",
+    "Options button or O: options (number of cats)    F11: fullscreen    F12: screenshot    H: panels    Esc: quit",
 ]
 SCREENSHOT_DIR = Path(__file__).resolve().parent.parent / "screenshots"
+
+
+@dataclass
+class MenuOption:
+    """One line of the options menu: its name, the choices, the one in use, what choosing one
+    does, and a note shown beside it."""
+    name: str
+    choices: tuple
+    current: object  # () -> the choice in use
+    apply: object  # (choice) -> None
+    note: str = ""
+
+
+class OptionsMenu:
+    """The options panel, opened by the Options button on the panels (or O) and docked beside them,
+    so the view and driving carry on. Click a choice to use it. More options are added as
+    MenuOption lines."""
+
+    def __init__(self, options: list[MenuOption]):
+        self.button = pygame.Rect(16, 80, 96, 28)  # below the status lines (App places it)
+        self.options = options
+        self.open = False
+        self._targets: list[tuple[pygame.Rect, int, object]] = []  # clickable choices (last drawn)
+        self.panel = pygame.Rect(0, 0, 0, 0)
+
+    def toggle(self) -> None:
+        self.open = not self.open
+
+    def choose(self, i: int, value) -> None:
+        if value != self.options[i].current():
+            self.options[i].apply(value)
+
+    def handle_click(self, pos) -> bool:
+        """True if the click was the menu's (the button or the open panel)."""
+        if self.button.collidepoint(pos):
+            self.toggle()
+            return True
+        if not self.open:
+            return False
+        for rect, i, value in self._targets:
+            if rect.collidepoint(pos):
+                self.choose(i, value)
+                return True
+        return self.panel.collidepoint(pos)
+
+    def draw_button(self, screen: pygame.Surface, font) -> None:
+        b = self.button
+        pygame.draw.rect(screen, (60, 90, 130) if self.open else (30, 36, 48), b, border_radius=5)
+        pygame.draw.rect(screen, (235, 240, 245), b, 1, border_radius=5)
+        label = font.render("Options", True, (235, 240, 245))
+        screen.blit(label, label.get_rect(center=b.center))
+
+    def draw(self, screen: pygame.Surface, font) -> None:
+        x, y = self.button.left, self.button.bottom + 8
+        self.panel = pygame.Rect(x, y, 370, 52 + 58 * len(self.options))
+        shade = pygame.Surface(self.panel.size, pygame.SRCALPHA)
+        shade.fill((10, 14, 22, 225))
+        screen.blit(shade, self.panel.topleft)
+        pygame.draw.rect(screen, (235, 240, 245), self.panel, 1)
+        self._targets = []
+        y += 12
+        for i, opt in enumerate(self.options):
+            screen.blit(font.render(opt.name, True, (255, 205, 0)), (x + 14, y + 6))
+            cx = x + 70
+            for value in opt.choices:
+                cell = pygame.Rect(cx, y, 40, 28)
+                in_use = value == opt.current()
+                pygame.draw.rect(screen, (60, 90, 130) if in_use else (40, 46, 58), cell, border_radius=4)
+                if in_use:
+                    pygame.draw.rect(screen, (90, 220, 140), cell, 2, border_radius=4)
+                label = font.render(str(value), True, (235, 240, 245))
+                screen.blit(label, label.get_rect(center=cell.center))
+                self._targets.append((cell, i, value))
+                cx += 48
+            if opt.note:
+                screen.blit(font.render(opt.note, True, (170, 180, 195)), (x + 14, y + 34))
+            y += 58
+        screen.blit(font.render("Click to choose.  O or Esc: close", True, (170, 180, 195)), (x + 14, self.panel.bottom - 26))
 
 
 @dataclass
@@ -534,8 +612,13 @@ class App:
         self.font = pygame.font.SysFont("consolas", 16)
         self.big = pygame.font.SysFont("consolas", 30, bold=True)
         self.clock = pygame.time.Clock()
+        self.cat_count, self.cat_seed = cats, cat_seed
         self.system = RobotSystem(cats=cats, cat_seed=cat_seed)
         self.room = RoomMap(self.system.sim.model)
+        self.menu = OptionsMenu([
+            MenuOption("Cats", tuple(range(MAX_CATS + 1)), lambda: self.cat_count, self.set_cats,
+                       "changing it restarts the simulation"),
+        ])
         self.renderer = None
         self._make_renderer()
         self._inset = None  # cached robot-camera inset and the simulated time it shows
@@ -589,6 +672,21 @@ class App:
         self.hud = "full" if on else "none"
 
     # ----- episodes -----
+    def set_cats(self, n: int) -> None:
+        """Restart with n cats (the cats are part of the world model, so the world is rebuilt);
+        the same goal seed, view, and speed level."""
+        if not 0 <= n <= MAX_CATS:
+            raise ValueError(f"cats must be 0 to {MAX_CATS}")
+        close_renderer(self.renderer)  # bound to the old model
+        self.renderer = None
+        self.system.close()
+        self.cat_count = n
+        self.system = RobotSystem(cats=n, cat_seed=self.cat_seed)
+        self.room = RoomMap(self.system.sim.model)
+        self._shadow_lights = None
+        self._make_renderer()
+        self.new_episode(self.seed)
+
     def new_episode(self, seed: int) -> None:
         self.seed = seed
         task = self.room.sample_task(seed)
@@ -638,9 +736,18 @@ class App:
                 return False
             if self.display.handle_event(event):
                 self._make_renderer()
+            if (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.hud != "none"
+                    and self.menu.handle_click(event.pos)):
+                continue  # the Options button or its panel (not a drag of the view)
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    if self.menu.open:
+                        self.menu.toggle()  # Esc closes the options first
+                        continue
                     return False
+                if event.key == pygame.K_o:
+                    self.menu.toggle()
+                    continue
                 if event.key == pygame.K_c:
                     self.view.mode = (self.view.mode + 1) % len(VIEWS)
                     self.view.reset()
@@ -728,6 +835,14 @@ class App:
 
     # ----- drawing -----
     def draw(self) -> None:
+        self._draw_scene()
+        if self.hud != "none":
+            self.menu.button.top = 80 if self.hud == "compact" else 220  # under the status lines
+            self.menu.draw_button(self.screen, self.font)
+            if self.menu.open:
+                self.menu.draw(self.screen, self.font)
+
+    def _draw_scene(self) -> None:
         s = self.system
         camera = self.view.apply(s.sim, self._frame_dt)  # viewer only
         # The robot's own camera shows the ceiling; overview cameras hide it (cutaway).
@@ -799,7 +914,8 @@ class App:
                 f"   time {self.episode_time():5.1f}/{C.EPISODE_TIME_LIMIT:.0f} s",
                 f"safety: {safety}   collisions {s.collisions}   {self.clock.get_fps():3.0f} FPS",
             ], (24, 20))
-            _text_box(self.screen, self.font, ["H: more    C: view    F11: fullscreen    Esc: quit"], (24, height - 36))
+            _text_box(self.screen, self.font, ["H: more    C: view    O: options    F11: fullscreen    Esc: quit"],
+                      (24, height - 36))
             self.draw_banners()
             return
         fresh = s.command_age is not None and s.command_age <= C.COMMAND_LIFETIME
