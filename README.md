@@ -103,9 +103,9 @@ The app paces frames on its own 60-per-second schedule (it does not wait for the
 refresh, which on Windows could stall a covered window for a quarter second); on the tested
 Windows desktop the window system showed whole frames. The rate actually reached depends on the
 computer and on the scene (for example, how many cats are on). On the tested computer (Windows 11,
-GeForce RTX 5060, idle desktop) the 1280 x 720 window holds 60 frames per second in every view with
-four cats (`tools\fps_protocol.py --gate`: every trial at least 59.8 frames per second, 95% of frames
-within 17 ms, none over 25 ms). A large window costs no more to draw than about 1920 x 1080 pixels: beyond
+GeForce RTX 5060, idle desktop) the 1280 x 720 window with four cats passed the frame-rate check in
+every view (`tools\fps_protocol.py --gate`: at least 59.5 frames per second in every trial; measured,
+at least 59.8, with 95% of frames within 17.1 ms and none over 25 ms). A large window costs no more to draw than about 1920 x 1080 pixels: beyond
 that the picture is drawn at that size and scaled by the graphics card.
 
 **Panels (H cycles them):**
@@ -428,7 +428,7 @@ obs, reward, terminated, truncated, info = env.step([0.3, 0.0])  # [v m/s, omega
 | `.venv\Scripts\python tools\build_world.py` | Regenerates `world.xml` after layout changes |
 | `.venv\Scripts\python tools\make_textures.py` | Regenerates the textures in `robot_env/assets/` |
 | `.venv\Scripts\python tools\eval_baseline.py --set heldout --levels 1 2 5 --out qa_output\baseline_heldout.json` | Evaluates the rule-based baseline driver headless (see below). `--set dev` uses the tuning seeds 2000 to 2019; `--logs DIR` writes a drive log per episode. |
-| `.venv\Scripts\python tools\fps_protocol.py` | Measures rendered performance: 3 or more trials per view, frame-time percentiles, late frames, real-time factor, and the host details. Add `--note` to record background load; `--gate` fails unless every view reaches 60 frames per second with 4 cats (p95 frame at most 20 ms, none over 50 ms). |
+| `.venv\Scripts\python tools\fps_protocol.py` | Measures rendered performance: 3 or more trials per view, frame-time percentiles, late frames, real-time factor, and the host details. Add `--note` to record background load; `--gate` fails unless, with 4 cats, every trial of every view reaches 59.5 frames per second (the 60-per-second schedule), with 95% of frames within 20 ms, none over 50 ms, and a real-time factor of at least 0.99. |
 | `.venv\Scripts\python tools\roam_check.py --repeat` | Cats roaming: 20 cat seeds, 10 simulated minutes each: rooms reached, stalls, gaps, contacts, and a repeat run compared step by step. |
 | `.venv\Scripts\python tools\doorway_check.py` | A cat in each doorway with the robot coming through: every door, both directions, every speed level, both resting states (100 trials). |
 | `.venv\Scripts\python tools\gait_check.py` | The cats' gait: paws planted without slipping, nothing below the floor, no joint jumps, at every speed and turn they use. |

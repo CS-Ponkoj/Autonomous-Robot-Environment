@@ -30,8 +30,8 @@ def published_text_files():
         yield path
 
 
-def test_published_files_do_not_mention_assistant_tools():
-    """Owner rule: nothing pushed may mention the AI assistants used during development."""
+def test_published_files_contain_no_development_attribution():
+    """Owner rule: published files contain no prohibited development attribution."""
     words = re.compile(("co" + "dex|cl" + "aude").encode(), re.IGNORECASE)
     bad = [str(p.relative_to(ROOT)) for p in published_text_files() if words.search(p.read_bytes())]
     assert not bad, bad

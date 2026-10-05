@@ -3,8 +3,8 @@ evidence for the eye gate).
 
     .venv\\Scripts\\python tools\\cat_face.py         -> qa_output/cats/faces.png, faces_robot_camera.png
 
-faces.png: one row per coat; columns: front, 45 degrees left, 45 degrees right, each under three
-lights (overhead, from the left, from the right). faces_robot_camera.png: the robot's own camera
+faces.png: one row per coat; for each of three lights (overhead, from the left, from the right),
+three columns: 45 degrees right, front, 45 degrees left (white gutters between them). faces_robot_camera.png: the robot's own camera
 looking at each cat from 0.5, 1.0, and 1.5 m. Printed per coat, from the skinned mesh as drawn:
 the height difference of the two irises (pupils level), their size difference, and the angle
 between the two gaze directions.
