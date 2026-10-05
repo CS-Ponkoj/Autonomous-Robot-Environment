@@ -39,21 +39,13 @@
   "sha256": "d18b9d9a5e3444ff2111dc078470a4f6ebd18de447b575aeb4482d09c7c672cd",
   "bytes": 949103
  },
- "painted_plaster_wall.json": {
-  "sha256": "145609db6dff60f4c6181dc38a92789dd79593a5ef3b03a24527259c781691e8",
-  "bytes": 1203
+ "paint_roller.json": {
+  "sha256": "b9b50392c49d80c369474ed88ea8f306724a3a60ee0302a0ae7330990931b1e6",
+  "bytes": 606
  },
- "painted_plaster_wall.png": {
-  "sha256": "30ef836cb675c4263322c6419a5017020e5490a11f9b9e8dc6a5a12d0992a506",
-  "bytes": 798791
- },
- "plastered_wall_04.json": {
-  "sha256": "ca74ff05a09b35fe6dc679f7967a1f8e4f7668de6fa014d1008d626bd48b59d5",
-  "bytes": 1216
- },
- "plastered_wall_04.png": {
-  "sha256": "ac908c4735d595739891c95fac0d280970d7894503ddc3ae08f06e8d7df3c4ba",
-  "bytes": 529492
+ "paint_roller.png": {
+  "sha256": "4ced210744d9262f9aaac2cbfb8554312d1f45e44c9b90ecee64dfe7b406718b",
+  "bytes": 817041
  },
  "rug_blue_woven.json": {
   "sha256": "41207fe48ab5b3e5f65bb0cdd1ed131edac75ee2a71b067a1fe44b8df9378698",

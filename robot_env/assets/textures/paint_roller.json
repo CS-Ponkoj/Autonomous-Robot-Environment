@@ -1,0 +1,39 @@
+{
+ "id": "paint_roller",
+ "file": "paint_roller.png",
+ "size_px": 1024,
+ "repeat_m": [
+  1.0,
+  1.0
+ ],
+ "licence": "this project (procedural)",
+ "recipe": {
+  "size": 1024,
+  "seed": 7,
+  "mean": 0.93,
+  "std": 0.025,
+  "bands": [
+   [
+    0.002,
+    0.006,
+    0.5,
+    1.0
+   ],
+   [
+    0.006,
+    0.025,
+    0.4,
+    1.5
+   ],
+   [
+    0.2,
+    0.6,
+    0.1,
+    1.0
+   ]
+  ]
+ },
+ "tool_sha256": "a9c9aaebca34c65e44c98bb154660396b7078e5493f1d868039ce4788fa3763b",
+ "sha256": "4ced210744d9262f9aaac2cbfb8554312d1f45e44c9b90ecee64dfe7b406718b",
+ "bytes": 817041
+}

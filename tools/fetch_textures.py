@@ -41,7 +41,6 @@ LIGHT = np.array([0.0, 0.35, 1.0]) / np.linalg.norm([0.0, 0.35, 1.0])  # from ab
 # (the material's colour then tints it), or None to keep the source colour.
 TEXTURES: dict[str, dict] = {
     # walls: a fine indoor roller-paint plaster, grey, its variation set (std 0.04 of full scale)
-    "plastered_wall_04": dict(source="polyhaven", size=1024, neutral=(0.93, None, 0.04)),
     # window blinds: a woven hessian, light
     "hessian_230": dict(source="polyhaven", size=512, saturation=0.5, target_mean=0.8),
     "laminate_floor_02": dict(source="polyhaven", size=1024, neutral=None),
@@ -201,10 +200,14 @@ def build(out: Path, wanted: list[str]) -> list[dict]:
         (out / f"{tex_id}.json").write_text(json.dumps(rec, indent=1) + "\n", encoding="utf-8")
         records.append(rec)
         print(tex_id, len(data) // 1024, "KiB")
+    return records
+
+
+def write_manifest(out: Path) -> None:
+    """MANIFEST.json: every file in the folder with its hash and size (after all are made)."""
     manifest = {p.name: {"sha256": hashlib.sha256(p.read_bytes()).hexdigest(), "bytes": p.stat().st_size}
                 for p in sorted(out.glob("*")) if p.name != "MANIFEST.json"}
     (out / "MANIFEST.json").write_text(json.dumps(manifest, indent=1) + "\n", encoding="utf-8")
-    return records
 
 
 # Rugs: the existing designs (robot_env/assets/rug_*.png, tools/make_textures.py) woven into a CC0
@@ -250,6 +253,42 @@ def make_rugs(out: Path) -> list[dict]:
     return records
 
 
+# painted plaster, made here (no photograph of a wall is plain enough: they carry stains and pits):
+# size px over 1 m; bands of (shortest, longest wavelength in m, share of the variation, how much
+# longer the features run up the wall than across it: the roller's laps); the grey's mean and std
+PAINT = {"paint_roller": dict(size=1024, seed=7, mean=0.93, std=0.025,
+                              bands=((0.002, 0.006, 0.5, 1.0), (0.006, 0.025, 0.4, 1.5), (0.2, 0.6, 0.1, 1.0)))}
+
+
+def make_paint(out: Path) -> list[dict]:
+    """Roller-painted plaster: white noise shaped in frequency into a fine stipple, the roller's
+    mottle (a little longer up the wall than across), and a faint broad unevenness; periodic by
+    construction (it tiles without a seam), the same bytes every run."""
+    records = []
+    for name, spec in PAINT.items():
+        n = spec["size"]
+        rng = np.random.default_rng(spec["seed"])
+        f = np.fft.fftfreq(n, d=1.0 / n)  # cycles per metre (the image spans 1 m)
+        fx, fy = np.meshgrid(f, f)  # rows run up the wall
+        g = np.zeros((n, n))
+        for lo, hi, share, stretch in spec["bands"]:
+            k = np.hypot(fx, fy * stretch)
+            band = ((k >= 1.0 / hi) & (k <= 1.0 / lo)).astype(float)
+            part = np.real(np.fft.ifft2(np.fft.fft2(rng.standard_normal((n, n))) * band))
+            g += share * part / max(float(part.std()), 1e-12)
+        g = spec["mean"] + (g - g.mean()) * (spec["std"] / g.std())
+        data = _png(Image.fromarray((np.clip(g, 0, 1) * 255 + 0.5).astype(np.uint8), "L").convert("RGB"))
+        (out / f"{name}.png").write_bytes(data)
+        rec = {"id": name, "file": f"{name}.png", "size_px": n, "repeat_m": [1.0, 1.0],
+               "licence": "this project (procedural)", "recipe": {k: v for k, v in spec.items()},
+               "tool_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+               "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
+        (out / f"{name}.json").write_text(json.dumps(rec, indent=1) + "\n", encoding="utf-8")
+        records.append(rec)
+        print(name, len(data) // 1024, "KiB")
+    return records
+
+
 def main(argv: list[str]) -> int:
     if "--check" in argv:
         import tempfile
@@ -262,6 +301,9 @@ def main(argv: list[str]) -> int:
     build(OUT, [a for a in wanted if a in TEXTURES] or ([] if wanted else list(TEXTURES)))
     if not wanted or any(a in RUGS for a in wanted):
         make_rugs(OUT)
+    if not wanted or any(a in PAINT for a in wanted):
+        make_paint(OUT)
+    write_manifest(OUT)
     return 0
 
 
