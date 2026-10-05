@@ -1615,6 +1615,53 @@ def test_a_paw_landing_short_never_goes_below_the_floor(monkeypatch, which, outs
 
 
 @pytest.mark.slow
+def test_the_way_out_search_does_not_lose_its_first_steps(monkeypatch):
+    """Regression (roaming seed 4, 4 cats: a cat between the storage shelf's end and the pallet
+    stood over two minutes): the search recorded reached poses on a 2 cm grid, the size of a
+    step, so a step could land in the cell it left, count as already reached, and be dropped;
+    from this pose the search died after three expansions and found nothing, every time. On a
+    grid finer than a step it finds the way out."""
+    from robot_env import cats as K
+    s = RobotSystem(cats=1, cat_seed=4)
+    s.reset(-1.97, 2.28, 2.98, (4.0, 2.5))
+    herd = s.cats
+    herd.place(0, -0.79, -2.177, math.radians(-19.3), state="walk")
+    cat = herd.cats[0]
+    assert WALL_GAP <= herd.gaps(cat, cat.x, cat.y, cat.yaw)[0] < WALL_GAP + 0.02  # a tight spot
+    assert len(herd._escape_search(cat)) > 0
+    monkeypatch.setattr(K, "ESCAPE_GRID", (0.02, 0.15))  # the old grid: the search finds nothing
+    assert herd._escape_search(cat) == []
+    s.close()
+
+
+def test_a_dart_needs_room_along_its_whole_path():
+    """Regression (roaming seed 1, 4 cats: a cat by the storage pallet darted back into the gap it
+    had just worked its way out of, over and over, and stood 7 s): a dart's heading is scored by
+    the least clearance along the 0.6 m ahead, not at its end alone, and with no heading roomy
+    enough the cat walks instead. At the pallet every dart taken has DART_ROOM along its path,
+    and facing into the gap the cat does not dart at all."""
+    from robot_env.cats import DART_ROOM
+    s = RobotSystem(cats=1, cat_seed=1)
+    s.reset(-1.97, 2.28, 2.98, (4.0, 2.5))
+    herd = s.cats
+    walked = darted = 0
+    for k in range(16):
+        yaw = 2 * math.pi * k / 16
+        herd.place(0, -0.95, -2.11, yaw, state="pause")
+        cat = herd.cats[0]
+        herd._enter(cat, "dart")
+        if cat.state == "walk":
+            walked += 1
+            continue
+        darted += 1
+        h = cat.target_yaw
+        room = min(float(herd._static_clear(cat.x + d * math.cos(h), cat.y + d * math.sin(h)))
+                   for d in (0.15, 0.3, 0.45, 0.6))
+        assert room >= DART_ROOM
+    assert walked > 0 and darted > 0
+    s.close()
+
+
 def test_a_crowded_cat_finds_its_way_out_on_the_retry():
     """Regression (roaming seed 4, rebuilt from placed cats): a cat by the office door, boxed in
     by two resting cats and the wall, has been getting nowhere; its way-out search finds nothing.

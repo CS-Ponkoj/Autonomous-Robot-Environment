@@ -115,6 +115,10 @@ ESCAPE_ROOM = 0.025  # m of spare gap that counts as out of the tight spot (the 
 ESCAPE_DISTANCE = 0.12  # m from where it was stuck
 ESCAPE_DEPTH = 24  # steps at most
 ESCAPE_EXPANSIONS = 600  # poses explored at most (the search runs only after a stall)
+# (m, rad) grid of the poses the search has reached: finer than a step (2 cm, 0.15 rad), so a step
+# never lands in the cell it left and is taken for a pose already reached
+ESCAPE_GRID = (0.01, 0.075)
+DART_ROOM = 0.18  # m of clearance a dart's whole path needs (the widest body circle, 0.116 m, WALL_GAP and spare)
 GIVE_WAY_AFTER = 2.0  # s a cat that wants to move may get nowhere before it gives way
 GIVE_WAY_MOVE = 0.05  # m of progress that counts as getting somewhere
 ESCAPE_RETRY = 0.5  # s after a search found no way out, the cat looks again
@@ -800,9 +804,15 @@ class CatHerd:
         if state == "walk":
             cat.target_yaw = self._open_heading(cat)
         elif state == "dart":
-            # a dart is a burst forward: the roomiest heading within 60 degrees of the present one
+            # a dart is a burst forward: the roomiest heading within 60 degrees of the present one,
+            # its room the least along the whole 0.6 m ahead (a point beyond a gap too narrow to
+            # pass is no room); with no heading that roomy, the cat walks instead
             options = cat.yaw + r.uniform(-math.pi / 3, math.pi / 3, 6)
-            room = [float(self._static_clear(cat.x + 0.6 * math.cos(h), cat.y + 0.6 * math.sin(h))) for h in options]
+            room = [min(float(self._static_clear(cat.x + d * math.cos(h), cat.y + d * math.sin(h)))
+                        for d in (0.15, 0.3, 0.45, 0.6)) for h in options]
+            if max(room) < DART_ROOM:
+                self._enter(cat, "walk")
+                return
             cat.target_yaw = float(options[int(np.argmax(room))])
         if state == "travel" and not self._new_route(cat):
             cat.state, cat.state_until = "walk", self.time + 3.0
@@ -996,7 +1006,8 @@ class CatHerd:
 
         start = (cat.x, cat.y, cat.yaw)
         here = float(room(*(np.array([v]) for v in start))[0])
-        key = lambda p: (round(p[0] / 0.02), round(p[1] / 0.02), round(p[2] / 0.15))  # noqa: E731
+        gx, gyaw = ESCAPE_GRID
+        key = lambda p: (round(p[0] / gx), round(p[1] / gx), round(p[2] / gyaw))  # noqa: E731
         seen = {key(start)}
         heap = [(-here, 0, start, [])]
         count = 0
