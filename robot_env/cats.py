@@ -1366,7 +1366,8 @@ class CatHerd:
         if not resting and self.time >= cat.plan_at - 1e-9:
             self._plan(cat)
             cat.plan_at = self.time + PLAN_PERIOD
-        if cat.escape and not resting:
+        escaping = bool(cat.escape) and not resting
+        if escaping:
             # a worked-out way out of a tight spot: each slow step for ESCAPE_STEP seconds
             cv, cw, cl = cat.escape[0][:3]
             if self.time + 1e-9 >= cat.escape[0][3]:
@@ -1381,7 +1382,7 @@ class CatHerd:
             x += (v * math.cos(yaw) - cl * math.sin(yaw)) * dt
             y += (v * math.sin(yaw) + cl * math.cos(yaw)) * dt
         blocked_now = False
-        if not self._clear_move(cat, x, y, yaw):
+        if not self._clear_move(cat, x, y, yaw, escaping):
             # The hard guard: the plan assumed the present body pose; if this sample would come
             # too close after all, stay put, brake, and plan again at once (a kinematic body
             # cannot pass through anything).
@@ -1575,11 +1576,13 @@ class CatHerd:
         pos[:, 0] += an.shift  # sitting: the body moves forward
         return Sample(cat.x, cat.y, cat.yaw, pos, rot)
 
-    def _clear_move(self, cat: Cat, x: float, y: float, yaw: float) -> bool:
+    def _clear_move(self, cat: Cat, x: float, y: float, yaw: float, escaping: bool = False) -> bool:
         """The root move alone (the present body pose carried to the new root) keeps the whole
         cat clear over the sample. A quick first check: the animated pose is then proven over
-        the whole sample (pose_ok with sweep_from)."""
-        return self.pose_ok(cat, x, y, yaw, margin=MOVE_ROOM, sweep_from=cat.next)
+        the whole sample (pose_ok with sweep_from). A step of a worked-out way out may dip
+        ESCAPE_DIP into MOVE_ROOM, as the search that found it allowed."""
+        return self.pose_ok(cat, x, y, yaw, margin=MOVE_ROOM - (ESCAPE_DIP if escaping else 0.0),
+                            sweep_from=cat.next)
 
     def _current_sample(self, cat: Cat) -> Sample:
         """The interpolated pose now (root lerp, joint position lerp, rotation nlerp)."""

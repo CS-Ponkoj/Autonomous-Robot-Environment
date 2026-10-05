@@ -1653,6 +1653,38 @@ def test_the_way_out_may_dip_a_little_into_the_cushion(monkeypatch):
     s.close()
 
 
+def test_the_way_out_found_is_the_way_out_taken(monkeypatch):
+    """Regression (roaming seed 13 again, 8 s): the search allowed its steps ESCAPE_DIP into
+    MOVE_ROOM, but the guard on every executed step did not, so the first step that dipped was
+    refused, the way out dropped, and the cat waited to search again. Executing the way out under
+    the same allowance, the cat leaves the tight spot within the way out's own time."""
+    from robot_env import cats as K
+    from robot_env.config import PHYSICS_DT
+
+    def run(clear_move=None):
+        if clear_move is not None:
+            monkeypatch.setattr(K.CatHerd, "_clear_move", clear_move)
+        s = RobotSystem(cats=1, cat_seed=13)
+        s.reset(-1.97, 2.28, 2.98, (4.0, 2.5))
+        herd = s.cats
+        herd.place(0, -1.5021, -4.8096, math.radians(-19.435), state="walk")
+        cat = herd.cats[0]
+        x0, y0 = cat.x, cat.y
+        cat.escape = herd._escape_search(cat)
+        steps = len(cat.escape)
+        cat.state_until = herd.time + K.ESCAPE_STEP * steps + 0.5
+        for _ in range(round((K.ESCAPE_STEP * steps + 0.25) / PHYSICS_DT)):
+            s.advance(PHYSICS_DT)
+        moved = math.hypot(cat.x - x0, cat.y - y0)
+        s.close()
+        return steps, moved
+    steps, moved = run()
+    assert steps > 0 and moved >= 0.1
+    original = K.CatHerd._clear_move
+    _, moved_old = run(lambda self, cat, x, y, yaw, escaping=False: original(self, cat, x, y, yaw))
+    assert moved_old < 0.05  # the old guard: the way out refused at its first dip
+
+
 def test_a_dart_needs_room_along_its_whole_path():
     """Regression (roaming seed 1, 4 cats: a cat by the storage pallet darted back into the gap it
     had just worked its way out of, over and over, and stood 7 s): a dart's heading is scored by
