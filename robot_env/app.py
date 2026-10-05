@@ -746,6 +746,8 @@ class App:
                         continue
                     return False
                 if event.key == pygame.K_o:
+                    if self.hud == "none":
+                        self.hud = "compact"  # the options sit beside the panels: show them
                     self.menu.toggle()
                     continue
                 if event.key == pygame.K_c:
@@ -759,6 +761,8 @@ class App:
                     self.continue_after_contact = not self.continue_after_contact
                 elif event.key == pygame.K_h:
                     self.hud = HUD_MODES[(HUD_MODES.index(self.hud) + 1) % len(HUD_MODES)]
+                    if self.hud == "none":
+                        self.menu.open = False  # hidden with the panels
                 elif event.key == pygame.K_F12:
                     self.save_screenshot()
             self.view.handle_event(event)

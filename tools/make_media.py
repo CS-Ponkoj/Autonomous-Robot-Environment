@@ -7,8 +7,10 @@ floor, and still screenshots. Development-only (needs requirements-dev.txt).
     .venv\\Scripts\\python tools\\make_media.py --gif-only # rebuilds docs/demo.gif from docs/demo.mp4
 
 Pinned: goal seed 1000, speed level 2, 4 cats (the window's default) with cat seed 16 (demo,
-time-lapse, and scene stills); the doorway scene uses one cat (cat seed 2) and the robot driven
-straight ahead by a key script. Every image in the README comes from this tool.
+time-lapse, and scene stills); the doorway scene has 4 cats too (cat seed 2): one resting in the
+doorway, the others sitting far away, and the robot driven straight ahead by a key script. Every
+image in the README comes from this tool, and goal-labelled images are refused unless the goal
+was reached with no collision.
 """
 
 from __future__ import annotations
@@ -39,6 +41,7 @@ GIF_FPS = 8
 GIF_COLORS = 64
 VIDEO_FPS = 30
 DOOR = (2.5, 0.75)  # the lab doorway on the corridor's north side
+OUT_OF_THE_WAY = ((-3.6, 3.3, 0.5), (-3.2, -3.4, 2.0), (3.4, -3.0, -2.4))  # office, storage, reception
 ROAM_SECONDS = 90.0  # simulated time in the roaming time-lapse
 ROAM_SAMPLE = 0.5  # s of simulated time between time-lapse frames (shown at 12 per second: 6x)
 
@@ -82,32 +85,39 @@ def record() -> list[tuple[float, np.ndarray]]:
     app.draw, app.update_episode = draw, update_episode
     summary = app.run()
     print("demo: recorded", len(frames), "frames;", {k: summary[k] for k in ("status", "episode_time", "collisions")})
+    if summary["status"] != "success" or summary["collisions"]:
+        raise RuntimeError(f"the demo did not reach the goal cleanly: {summary['status']}, {summary['collisions']} collisions")
     return frames
 
 
 def record_doorway() -> list[tuple[float, np.ndarray]]:
-    """A cat resting in the lab doorway; the robot drives straight at it (W held). The cat steps
-    out of the robot's path and the robot drives through: no push, no contact."""
-    app = _quiet(App(SEED, screenshot=None, frames=60 * 40, script=parse_script("none:1.0;W:12"), view=0,
-                     speed_level=LEVEL - 1, cats=1, cat_seed=2))
+    """A cat resting in the lab doorway, seen by the robot's own camera; the robot drives straight
+    at it (W held). The cat steps out of the robot's path and the robot drives through: no push,
+    no contact."""
+    app = _quiet(App(SEED, screenshot=None, frames=60 * 40, script=parse_script("none:1.0;W:12"), view=VIEWS.index("robot camera"),
+                     speed_level=LEVEL - 1, cats=CATS, cat_seed=2))
     s = app.system
     s.reset(DOOR[0], DOOR[1] - 1.2, math.pi / 2, (DOOR[0], 3.6))
     s.cats.place(0, DOOR[0], DOOR[1] + 0.1, math.pi / 2, state="pause")
+    for i, (x, y, yaw) in enumerate(OUT_OF_THE_WAY[:CATS - 1], start=1):  # the others rest far from the door
+        s.cats.place(i, x, y, yaw, state="sit")
     app.view.reset()
-    app.view.distance, app.view.elevation = 2.0, -24.0
+    app.view.distance, app.view.elevation = 2.0, -24.0  # (if switched to the chase view)
     frames: list[tuple[float, np.ndarray]] = []
     raw_draw = app.draw
 
     def draw():
         raw_draw()
         frames.append((s.time, _frame(app)))
-        if s.time > 11.0 or s.sim.true_pose()[1] > DOOR[1] + 1.6:
+        if s.time > 11.0 or s.sim.true_pose()[1] > DOOR[1] + 0.9:
             app.frames_left = 1
 
     app.draw = draw
     summary = app.run()
     print("doorway: recorded", len(frames), "frames;", {k: summary[k] for k in ("collisions",)},
           "cat contacts", s.cat_contacts)
+    if summary["collisions"] or s.cat_contacts:
+        raise RuntimeError("the doorway scene had a collision or a cat contact")
     return frames
 
 
@@ -217,6 +227,9 @@ def _scene(robot, view: int, hud: str = "compact", frames: int = 150, setup=None
                     app.draw()
                     app.clock.tick(60)
                 break
+        if until_goal and (app.episode.status != "success" or app.system.collisions):
+            raise RuntimeError(f"the goal was not reached cleanly: {app.episode.status}, "
+                               f"{app.system.collisions} collisions")
         image = _frame(app)
     finally:
         app._close_all()

@@ -121,12 +121,24 @@ def artifact(tool: str | Path, argv: list[str], **fields) -> dict:
             "tool_sha256": file_sha256(tool), "argv": list(argv), "deps": deps(), **fields}
 
 
+def is_sha256(value) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
+
+
 def check_strict(before: dict, after: dict | None = None) -> str | None:
-    """None if a release-gate run may stand: a known commit, a clean tree, and (given the end
-    snapshot) nothing changed during the run; otherwise the reason it may not."""
+    """None if a release-gate run may stand: a known commit, a clean tree, every identity hash
+    present (source, tool, model) at both ends, and (given the end snapshot) nothing changed during
+    the run; otherwise the reason it may not."""
     b = before["build"]
     if b.get("commit") is None:
         return "the commit is unknown"
+    for snap, when in ((before, "start"), (after, "end")):
+        if snap is None:
+            continue
+        for key, value in (("source_sha256", snap["build"].get("source_sha256")),
+                           ("tool_sha256", snap.get("tool_sha256")), ("model_sha256", snap.get("model_sha256"))):
+            if not is_sha256(value):
+                return f"the {key.replace('_sha256', '')} hash is missing at the {when}"
     if b.get("working_tree") != "clean":
         return f"the working tree is {b.get('working_tree')}"
     if after is not None:

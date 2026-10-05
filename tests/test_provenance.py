@@ -148,3 +148,66 @@ def test_collecting_provenance_imports_no_kernels():
             "print('robot_env.kernels' in sys.modules, 'numba' in sys.modules, d['kernels_compiled'])")
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=P.ROOT, timeout=120)
     assert out.stdout.split() == ["False", "False", "None"]
+
+
+@pytest.mark.parametrize("missing", ["source_sha256", "tool_sha256", "model_sha256"])
+@pytest.mark.parametrize("when", ["start", "end"])
+def test_strict_gate_requires_every_identity_hash(missing, when):
+    clean = {"build": {"commit": "a" * 40, "working_tree": "clean", "source_sha256": "1" * 64},
+             "tool_sha256": "2" * 64, "model_sha256": "3" * 64}
+
+    def without(snap):
+        snap = {**snap, "build": dict(snap["build"])}
+        if missing == "source_sha256":
+            snap["build"]["source_sha256"] = None
+        else:
+            snap[missing] = None
+        return snap
+    before, after = (without(clean), clean) if when == "start" else (clean, without(clean))
+    reason = P.check_strict(before, after)
+    assert reason is not None and "missing" in reason and when in reason
+    assert P.check_strict(clean, clean) is None
+
+
+@pytest.mark.parametrize("bad", [
+    {"kernels_compiled": "yes"},  # not true/false/null
+    {"numpy": 2},  # a version that is not text
+    {"extra": "1"},  # an unexpected key
+    "drop python",  # a key missing
+])
+def test_drive_log_rejects_a_malformed_dependency_snapshot(tmp_path, bad):
+    s = RobotSystem()
+    s.log = DriveLog(tmp_path / "run.jsonl")
+    s.reset(-4.0, -2.5, 0.0, (4.0, 2.5))
+    s.advance(0.04)
+    s.close()
+    raw = [json.loads(line) for line in (tmp_path / "run.jsonl").read_text().splitlines()]
+    head = dict(raw[0])
+    deps = dict(head["deps"])
+    if bad == "drop python":
+        deps.pop("python")
+    else:
+        deps.update(bad)
+    head["deps"] = deps
+    with pytest.raises(IncompleteLogError):
+        validate_log([head, *raw[1:]])
+    validate_log(raw)  # the original is fine
+
+
+def test_the_frame_rate_gate_is_always_strict(monkeypatch):
+    """fps_protocol --gate is a release gate: it applies the strict provenance rule even without --strict."""
+    import importlib
+    fp = importlib.import_module("tools.fps_protocol")
+    seen = {}
+
+    def begin(tool, argv, strict, out=None, **fields):
+        seen["strict"] = strict
+        raise RuntimeError("stop before any trial")
+    monkeypatch.setattr(P, "begin", begin)
+    monkeypatch.setattr(P, "model_of", lambda **k: "3" * 64)
+    with pytest.raises(RuntimeError, match="stop before"):
+        fp.main(["--gate"])
+    assert seen["strict"] is True
+    with pytest.raises(RuntimeError, match="stop before"):
+        fp.main([])
+    assert seen["strict"] is False

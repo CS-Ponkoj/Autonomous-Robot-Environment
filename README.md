@@ -21,7 +21,7 @@ on the panels changes the number (0 to 4), and `--cats N` sets it at start.*
 | ![Four cats seen by the robot's camera](docs/cats_robot_camera.png) | ![A cat near the goal, from the robot's camera while it drives itself](docs/robot_camera_cat.png) |
 | The four cats (brown tabby, ginger tabby, grey tabby, and black and white behind the brown one) down the corridor, in the robot's camera view; the lidar map shows the cats it can detect. | The robot's camera while it drives itself: the goal marker and a cat beside it. |
 | ![A cat gives way in the lab doorway](docs/doorway.gif) | ![Four cats roaming the floor, top view time-lapse](docs/cats_roaming.gif) |
-| A cat resting in the lab doorway steps out of the robot's way, and the robot drives through (no push, no contact). | Time-lapse from above: four cats roam every room while the robot stays parked. |
+| The robot's own camera: a cat resting in the lab doorway turns and steps out of the robot's way, and the robot drives through (no push, no contact). | Time-lapse from above: four cats roam every room while the robot stays parked. |
 | ![Goal reached, top view with the cats](docs/top_view_cats.png) | ![The office floor from above](docs/floor_top.png) |
 | Goal reached, top view: a tabby cat in the corridor and the black cat in the storage room. | The whole 10 x 10 m office floor: office, lab, corridor, storage, and reception. |
 | ![The robot close up](docs/robot_closeup.png) | ![Driving down the corridor](docs/corridor.png) |

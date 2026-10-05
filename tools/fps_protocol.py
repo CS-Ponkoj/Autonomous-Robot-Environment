@@ -12,7 +12,8 @@ working tree differs from it), the cat count, the cats' kernels (compiled or not
 with an empty cache, and loading from the cache), and a free-text background-load note. A field that
 cannot be read is reported as "unavailable", never guessed.
 
-The frame-rate gate (--gate; 4 cats, every view, every trial must pass): at least 60 FPS (the
+The frame-rate gate (--gate, which is also --strict: a clean, known build that does not change
+during the run; 4 cats, every view, every trial must pass): at least 60 FPS (the
 app's 60 Hz schedule: at least 59.5 measured in each trial), p95 frame at most 20 ms, no frame
 over 50 ms, and a real-time factor of at least 0.99.
 """
@@ -136,6 +137,7 @@ def main(argv=None) -> int:
         p.error("at least 3 trials per view")
     if a.gate and a.cats != GATE["cats"]:
         p.error(f"the gate is measured with {GATE['cats']} cats")
+    a.strict = a.strict or a.gate  # the frame-rate gate is a release gate: strict provenance
     from robot_env import provenance
     model = provenance.model_of(cats=a.cats, cat_seed=16)
     before = provenance.begin(__file__, sys.argv if argv is None else ["fps_protocol.py", *argv], a.strict, a.out,

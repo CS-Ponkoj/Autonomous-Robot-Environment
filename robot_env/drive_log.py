@@ -276,8 +276,14 @@ def _check_provenance(head: dict) -> None:
     if not isinstance(head.get("build_label"), str):
         raise IncompleteLogError("header build_label is not text")
     d = head.get("deps")
-    if d is not None and (not isinstance(d, dict) or "kernels_compiled" not in d):
-        raise IncompleteLogError("header deps is not a dependency snapshot")
+    if d is not None:
+        keys = {"python", *provenance._PACKAGES, "kernels_compiled"}
+        if not isinstance(d, dict) or set(d) != keys:
+            raise IncompleteLogError("header deps is not a dependency snapshot")
+        if any(d[k] is not None and not isinstance(d[k], str) for k in keys - {"kernels_compiled"}):
+            raise IncompleteLogError("header deps: a version is not text")
+        if d["kernels_compiled"] not in (True, False, None):
+            raise IncompleteLogError("header deps: kernels_compiled is not true, false, or null")
 
 
 def provenance_of(head: dict) -> dict:

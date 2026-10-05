@@ -1045,7 +1045,13 @@ def test_the_options_button_sets_the_number_of_cats_and_restarts():
     assert _key(app, pygame.K_o) and not app.menu.open
     click(app.menu.button.center)  # the button again
     assert app.handle_events() and app.menu.open
+    # hiding the panels (H to "none") closes the options with them; O then shows the panels again
+    while app.hud != "none":
+        _key(app, pygame.K_h)
+    assert not app.menu.open
+    assert _key(app, pygame.K_o) and app.menu.open and app.hud == "compact"
     app.draw()
+    assert _key(app, pygame.K_ESCAPE) and not app.menu.open  # visible, so Esc closes it
     app._close_all()
 
 
