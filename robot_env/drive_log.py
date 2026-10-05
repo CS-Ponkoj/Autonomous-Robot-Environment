@@ -28,9 +28,11 @@ from pathlib import Path
 import numpy as np
 
 from . import config as C
+from . import provenance
 
 FORMAT = "robot-drive-log"
-VERSION = 1
+VERSION = 2  # 2: header provenance: build (commit, working tree, source hash), build_label, model_sha256, deps
+READABLE = (1, 2)  # version 1 logs (no provenance) are still read; their provenance is reported unknown
 UNITS = {"t": "s", "v": "m/s", "omega": "rad/s", "lidar": "m", "lidar_angles": "rad",
          "pose": "m, m, rad (yaw)", "velocity": "m/s, rad/s"}
 
@@ -68,7 +70,7 @@ class IncompleteLogError(ValueError):
 
 class DriveLog:
     def __init__(self, path: str | Path, *, profile: str = "ideal", task_seed: int | None = None,
-                 noise_seed: int | None = None, build: str = "unknown", note: str = "",
+                 noise_seed: int | None = None, build: str = "", note: str = "",
                  cats: int | None = None, cat_seed: int | None = None):
         self.path = Path(path)
         self.failed = False
@@ -86,7 +88,9 @@ class DriveLog:
             return
         self._header = {
             "kind": "header", "format": FORMAT, "version": VERSION, "units": UNITS,
-            "profile": profile, "config_sha256": config_hash(), "build": build or "unknown",
+            "profile": profile, "config_sha256": config_hash(),
+            "build": provenance.build_id(), "build_label": build or "",
+            "model_sha256": None, "deps": None,  # filled from the system at bind
             "task_seed": task_seed, "noise_seed": noise_seed,
             "physics_dt": C.PHYSICS_DT, "control_period": C.CONTROL_PERIOD, "decision_period": C.DECISION_PERIOD,
             "command_lifetime": C.COMMAND_LIFETIME, "scan_max_age": C.SCAN_MAX_AGE,
@@ -121,8 +125,13 @@ class DriveLog:
             if claimed is not None and claimed != actual[key]:
                 self._fail(ValueError(f"log says {key}={claimed} but the system has {actual[key]}"))
                 return
+        try:
+            actual["model_sha256"] = system.sim.model_sha256
+        except Exception:  # provenance never stops a run
+            actual["model_sha256"] = None
+        actual["deps"] = provenance.deps()
         if self._header_written:
-            if self._header.get("cats") != actual["cats"] or self._header.get("cat_seed") != actual["cat_seed"]:
+            if any(self._header.get(k) != actual[k] for k in ("cats", "cat_seed", "model_sha256")):
                 self._fail(ValueError("log header written for a different system"))
             return
         self._header.update(actual)
@@ -248,12 +257,45 @@ def _check_time(rec: dict, key: str, required: bool) -> None:
         raise IncompleteLogError(f"{rec.get('kind')} record: {key}={str(v)[:40]!r} is not a finite number")
 
 
+def _hex(v, n: int) -> bool:
+    return isinstance(v, str) and len(v) == n and all(c in "0123456789abcdef" for c in v)
+
+
+def _check_provenance(head: dict) -> None:
+    """A version 2 header's provenance: types and hash formats (None where unknown)."""
+    b = head.get("build")
+    if not isinstance(b, dict) or set(b) != {"commit", "working_tree", "source_sha256"}:
+        raise IncompleteLogError("header build is not {commit, working_tree, source_sha256}")
+    if b["commit"] is not None and not _hex(b["commit"], 40):
+        raise IncompleteLogError("header build commit is not 40 hex digits")
+    if b["working_tree"] not in ("clean", "modified", "unknown"):
+        raise IncompleteLogError("header build working_tree is not clean, modified, or unknown")
+    for key, value in (("source_sha256", b["source_sha256"]), ("model_sha256", head.get("model_sha256"))):
+        if value is not None and not _hex(value, 64):
+            raise IncompleteLogError(f"header {key} is not 64 hex digits")
+    if not isinstance(head.get("build_label"), str):
+        raise IncompleteLogError("header build_label is not text")
+    d = head.get("deps")
+    if d is not None and (not isinstance(d, dict) or "kernels_compiled" not in d):
+        raise IncompleteLogError("header deps is not a dependency snapshot")
+
+
+def provenance_of(head: dict) -> dict:
+    """A log header's provenance; for a version 1 log (written before it was recorded), unknown."""
+    if head.get("version", 1) < 2:
+        return {"build": {"commit": None, "working_tree": "unknown", "source_sha256": None},
+                "build_label": head.get("build", ""), "model_sha256": None, "deps": None}
+    return {k: head.get(k) for k in ("build", "build_label", "model_sha256", "deps")}
+
+
 def validate_log(records: list[dict], allow_incomplete: bool = False) -> None:
     if not records or records[0].get("kind") != "header":
         raise IncompleteLogError("missing header")
     head = records[0]
-    if head.get("format") != FORMAT or head.get("version") != VERSION:
+    if head.get("format") != FORMAT or head.get("version") not in READABLE:
         raise IncompleteLogError(f"unsupported format {head.get('format')} v{head.get('version')}")
+    if head["version"] >= 2:
+        _check_provenance(head)
     kinds = [r.get("kind") for r in records]
     if kinds.count("header") != 1:
         raise IncompleteLogError("more than one header")

@@ -20,7 +20,6 @@ over 50 ms, and a real-time factor of at least 0.99.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import platform
@@ -65,25 +64,6 @@ def kernel_times() -> dict:
         if r.returncode == 0 and r.stdout.strip():
             cold = round(float(r.stdout.strip().splitlines()[-1]), 2)
     return {"compiled": kernels.COMPILED, "cold_compile_s": cold, "cached_warm_s": round(kernels.warm(), 2)}
-
-
-def revision() -> dict:
-    """The commit, whether the working tree differs from it (changed or new files that git does
-    not ignore), and a SHA-256 of every such source file under robot_env/ and tools/, so the code
-    that produced the artifact is identified even when it is not committed."""
-    root = Path(__file__).resolve().parent.parent
-    git = ["git", "-C", str(root)]
-    try:
-        commit = subprocess.run(git + ["rev-parse", "HEAD"], capture_output=True, text=True,
-                                timeout=10, check=True).stdout.strip()
-        status = subprocess.run(git + ["status", "--porcelain"], capture_output=True, text=True,
-                                timeout=10, check=True).stdout.strip()
-        files = subprocess.run(git + ["ls-files", "--cached", "--others", "--exclude-standard", "robot_env", "tools"],
-                               capture_output=True, text=True, timeout=10, check=True).stdout.split()
-    except (OSError, subprocess.SubprocessError):
-        return {"commit": "unavailable", "working_tree": "unavailable", "sources": "unavailable"}
-    sources = {f: hashlib.sha256((root / f).read_bytes()).hexdigest() for f in sorted(files) if (root / f).is_file()}
-    return {"commit": commit or "unavailable", "working_tree": "modified" if status else "clean", "sources": sources}
 
 
 def host_info() -> dict:
@@ -150,12 +130,17 @@ def main(argv=None) -> int:
     p.add_argument("--note", default="", help="background load or other conditions during the run")
     p.add_argument("--out", type=Path, default=OUT / "fps_protocol.json")
     p.add_argument("--gate", action="store_true", help="exit 1 unless every view meets the frame-rate gate")
+    p.add_argument("--strict", action="store_true", help="release gate: refuse unless the commit is known, the tree clean, and nothing changes during the run")
     a = p.parse_args(argv)
     if a.trials < 3:
         p.error("at least 3 trials per view")
     if a.gate and a.cats != GATE["cats"]:
         p.error(f"the gate is measured with {GATE['cats']} cats")
-    result = {"protocol": 3, "cats": a.cats, "revision": revision(), "kernels": kernel_times(), "command": "python tools/fps_protocol.py " + " ".join(sys.argv[1:]),
+    from robot_env import provenance
+    model = provenance.model_of(cats=a.cats, cat_seed=16)
+    before = provenance.begin(__file__, sys.argv if argv is None else ["fps_protocol.py", *argv], a.strict, a.out,
+                              model_sha256=model)
+    result = {"protocol": 4, "cats": a.cats, "kernels": kernel_times(), "command": "python tools/fps_protocol.py " + " ".join(sys.argv[1:]),
               "time": time.strftime("%Y-%m-%d %H:%M:%S"), "warmup_frames": WARMUP_FRAMES,
               "sample_frames": SAMPLE_FRAMES, "script": SCRIPT, "window": list(WINDOW),
               "frame_budget_ms": 1000 / FPS, "renderer": None, "host": host_info(),
@@ -182,9 +167,12 @@ def main(argv=None) -> int:
         and v["worst_ms"] <= GATE["worst_ms_max"] and v["rtf_min"] >= GATE["rtf_min"])]
     if a.gate:
         result["gate"] = {**GATE, "failed_views": failed, "result": "FAIL" if failed else "PASS"}
+    after = provenance.end(before, __file__, sys.argv if argv is None else ["fps_protocol.py", *argv], a.strict,
+                           a.out, model_sha256=provenance.model_of(cats=a.cats, cat_seed=16))
+    result = {**after, **result}
     a.out.parent.mkdir(parents=True, exist_ok=True)
     a.out.write_text(json.dumps(result, indent=1), encoding="utf-8")
-    rev = result["revision"]
+    rev = result["build"]
     print(f"revision {rev['commit']} ({rev['working_tree']}), {a.cats} cats; kernels {result['kernels']}")
     if a.gate:
         print("frame-rate gate:", f"FAIL ({', '.join(failed)})" if failed else "PASS")

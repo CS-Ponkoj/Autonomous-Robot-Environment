@@ -57,17 +57,26 @@ def run(timed: bool) -> tuple[float, list[float]]:
 
 
 def main() -> int:
-    from fps_protocol import host_info, revision
+    import argparse
 
-    from robot_env import kernels
+    from fps_protocol import host_info
+
+    from robot_env import kernels, provenance
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--strict", action="store_true", help="release gate: refuse unless the commit is known, the tree clean, and nothing changes during the run")
+    a = ap.parse_args()
+    out = Path(__file__).resolve().parent.parent / "qa_output" / "perf_check.json"
+    model = provenance.model_of(cats=4, cat_seed=16)
+    before = provenance.begin(__file__, sys.argv, a.strict, out, model_sha256=model)
     warm = kernels.warm()
     rtfs = [run(False)[0] for _ in range(3)]
     _, plans = run(True)
     p = 1000 * np.array(plans)
     p95 = float(np.percentile(p, 95))
     passed = kernels.COMPILED and min(rtfs) >= RTF_MIN and p95 <= 1000 * PLAN_P95_MAX
-    result = {"command": "python tools/perf_check.py " + " ".join(sys.argv[1:]), "time": time.strftime("%Y-%m-%d %H:%M:%S"),
-              "revision": revision(), "host": host_info(), "python": platform.python_version(),
+    after = provenance.end(before, __file__, sys.argv, a.strict, out, model_sha256=provenance.model_of(cats=4, cat_seed=16))
+    result = {**after, "command": "python tools/perf_check.py " + " ".join(sys.argv[1:]),
+              "time": time.strftime("%Y-%m-%d %H:%M:%S"), "host": host_info(), "python": platform.python_version(),
               "kernels": {"compiled": kernels.COMPILED, "warm_s": round(warm, 2)},
               "scenario": {"cats": 4, "cat_seed": 16, "seconds": SECONDS, "warmup_s": 2.0, "runs": 3},
               "rtf": [round(r, 3) for r in rtfs],
@@ -75,10 +84,9 @@ def main() -> int:
                         "worst_ms": round(float(p.max()), 3)},
               "gate": {"compiled": True, "rtf_min": RTF_MIN, "plan_p95_ms_max": 1000 * PLAN_P95_MAX,
                        "result": "PASS" if passed else "FAIL"}}
-    out = Path(__file__).resolve().parent.parent / "qa_output" / "perf_check.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, indent=1), encoding="utf-8")
-    rev = result["revision"]
+    rev = result["build"]
     print(f"4 cats, robot driving: real-time factor {', '.join(f'{r:.2f}' for r in rtfs)} (every run >= {RTF_MIN}); "
           f"{len(p)} cat plans: p50 {np.percentile(p, 50):.3f} p95 {p95:.3f} worst {p.max():.3f} ms "
           f"(p95 <= {1000 * PLAN_P95_MAX:.0f} ms); kernels compiled: {kernels.COMPILED}; revision {rev['commit']} "

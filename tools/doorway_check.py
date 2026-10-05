@@ -20,6 +20,7 @@ Each trial records:
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import sys
 from concurrent.futures import ProcessPoolExecutor
@@ -113,7 +114,12 @@ def main() -> int:
     from robot_env import config as C
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--strict", action="store_true", help="release gate: refuse unless the commit is known, the tree clean, and nothing changes during the run")
+    ap.add_argument("--out", type=Path, help="write the result (with its provenance) as JSON here")
     a = ap.parse_args()
+    from robot_env import provenance
+    model = provenance.model_of(cats=1, cat_seed=2)
+    before = provenance.begin(__file__, sys.argv, a.strict, a.out, model_sha256=model)
     with ProcessPoolExecutor(max_workers=a.workers) as pool:
         results = list(pool.map(run_trial, trials()))
     fails = []
@@ -151,6 +157,12 @@ def main() -> int:
     n = len(results)
     print(f"{n - len(fails)}/{n} trials pass; smallest gap from a cat (as drawn) to the robot's footprint "
           f"{1000 * min(lows):.1f} mm (gate {1000 * MIN_FOOTPRINT_GAP:.0f} mm: the robot's safety buffer is 50 mm)")
+    after = provenance.end(before, __file__, sys.argv, a.strict, a.out, model_sha256=provenance.model_of(cats=1, cat_seed=2))
+    if a.out:
+        a.out.parent.mkdir(parents=True, exist_ok=True)
+        a.out.write_text(json.dumps({**after, "result": "PASS" if not fails else "FAIL", "trials": n,
+                                     "passed": n - len(fails), "failures": fails,
+                                     "min_footprint_gap_mm": round(1000 * min(lows), 1)}, indent=1), encoding="utf-8")
     return 0 if not fails else 1
 
 

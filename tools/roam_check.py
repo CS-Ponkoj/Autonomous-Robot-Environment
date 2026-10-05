@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import math
 import sys
 from concurrent.futures import ProcessPoolExecutor
@@ -95,7 +96,12 @@ def main() -> int:
     ap.add_argument("--seconds", type=float, default=CAT_LIMIT)
     ap.add_argument("--workers", type=int, default=10)
     ap.add_argument("--repeat", action="store_true", help="also run the first seed twice and compare")
+    ap.add_argument("--strict", action="store_true", help="release gate: refuse unless the commit is known, the tree clean, and nothing changes during the run")
+    ap.add_argument("--out", type=Path, help="write the result (with its provenance) as JSON here")
     a = ap.parse_args()
+    from robot_env import provenance
+    before = provenance.begin(__file__, sys.argv, a.strict, a.out,
+                              model_sha256=provenance.model_of(cats=a.cats, cat_seed=0))
     if "-" in a.seeds:
         lo, hi = (int(v) for v in a.seeds.split("-"))
         seeds = list(range(lo, hi + 1))
@@ -130,6 +136,16 @@ def main() -> int:
           f"repeat identical: {'-' if repeat is None else same}: {'PASS' if passed else 'FAIL'}")
     if repeat is not None:
         print(f"trace digest seed {results[0]['seed']}: {results[0]['trace']} / repeat {repeat['trace']}")
+    after = provenance.end(before, __file__, sys.argv, a.strict, a.out,
+                           model_sha256=provenance.model_of(cats=a.cats, cat_seed=0))
+    if a.out:
+        a.out.parent.mkdir(parents=True, exist_ok=True)
+        a.out.write_text(json.dumps({**after, "result": "PASS" if passed else "FAIL", "seeds": [r["seed"] for r in results],
+                                     "cats": a.cats, "seconds": a.seconds, "herd_ok": herd_ok, "cat_ok": cat_ok,
+                                     "longest_stall_s": worst_stall, "smallest_gap_margin_mm": round(1000 * worst_gap, 2),
+                                     "contacts": contacts, "repeat_identical": None if repeat is None else same,
+                                     "per_seed": [{k: v for k, v in r.items()} for r in results]},
+                                    indent=1, default=str), encoding="utf-8")
     return 0 if passed else 1
 
 

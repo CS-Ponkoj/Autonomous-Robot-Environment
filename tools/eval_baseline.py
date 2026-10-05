@@ -80,7 +80,13 @@ def main(argv=None) -> int:
                    choices=range(1, len(C.SPEED_LEVELS) + 1))
     p.add_argument("--out", type=Path, help="write the JSON result here")
     p.add_argument("--logs", type=Path, help="write one drive log per episode into this folder")
+    p.add_argument("--strict", action=argparse.BooleanOptionalAction, default=None,
+                   help="release gate: refuse unless the commit is known, the tree clean, and nothing changes during the run (default: on for --set heldout)")
     a = p.parse_args(argv)
+    from robot_env import provenance
+    strict = a.strict if a.strict is not None else a.set == "heldout"
+    args = sys.argv if argv is None else ["eval_baseline.py", *argv]
+    before = provenance.begin(__file__, args, strict, a.out, model_sha256=provenance.model_of(), seed_set=a.set)
     system = RobotSystem()
     room = RoomMap(system.sim.model)
     episodes = []
@@ -104,10 +110,11 @@ def main(argv=None) -> int:
         }
         print(f"level {level}: {summary[f'level{level}']}")
     system.close()
+    after = provenance.end(before, __file__, args, strict, a.out, model_sha256=provenance.model_of(), seed_set=a.set)
     if a.out:
         a.out.parent.mkdir(parents=True, exist_ok=True)
         a.out.write_text(json.dumps({
-            "schema": SCHEMA, "command": "python tools/eval_baseline.py " + " ".join(sys.argv[1:]),
+            **after, "schema": SCHEMA, "command": "python tools/eval_baseline.py " + " ".join(sys.argv[1:]),
             "time": time.strftime("%Y-%m-%d %H:%M:%S"), "seed_set": a.set, "seeds": list(SEED_SETS[a.set]),
             "config_sha256": config_hash(), "driver": BaselineDriver.name,
             "summary": summary, "episodes": episodes}, indent=1), encoding="utf-8")

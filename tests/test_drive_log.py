@@ -41,7 +41,7 @@ def test_log_round_trips_with_full_scans_and_telemetry(tmp_path):
     s.log.close()
     recs = read_log(tmp_path / "run.jsonl")
     head, ticks, foot = recs[0], [r for r in recs if r["kind"] == "tick"], recs[-1]
-    assert head["format"] == FORMAT and head["version"] == VERSION and head["build"] == "test-build"
+    assert head["format"] == FORMAT and head["version"] == VERSION and head["build_label"] == "test-build"
     assert head["task_seed"] == 3 and head["noise_seed"] == 11 and len(head["config_sha256"]) == 64
     assert np.allclose(head["lidar_angles"], C.LIDAR_ANGLES)
     assert len(ticks) == round(1.0 / C.CONTROL_PERIOD) and foot["kind"] == "footer" and not foot["failed"]

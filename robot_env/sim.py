@@ -73,7 +73,10 @@ class RobotSim:
         assets = {p.name: p.read_bytes() for p in ASSETS.glob("*.png")}
         if extra is not None:
             assets.update(extra.files)
-        self.model = mujoco.MjModel.from_xml_string(load_world_xml(include_obstacles, extra_world_xml, extra), assets)
+        xml = load_world_xml(include_obstacles, extra_world_xml, extra)
+        self.model = mujoco.MjModel.from_xml_string(xml, assets)
+        self._model_input = (xml, assets)  # for model_sha256 (hashed on first use)
+        self._model_sha256: str | None = None
         self.pre_render: list = []  # callables run before any render (e.g. posing the cats' skins)
         if abs(self.model.opt.timestep - C.PHYSICS_DT) > 1e-12:
             raise ValueError("world.xml timestep must match config.PHYSICS_DT")
@@ -268,6 +271,16 @@ class RobotSim:
         yaw = self.true_pose()[2]
         qv = self.data.qvel
         return float(qv[0] * math.cos(yaw) + qv[1] * math.sin(yaw)), float(qv[5])
+
+    @property
+    def model_sha256(self) -> str:
+        """SHA-256 of the exact model input (the final XML and every in-memory asset), so a log or
+        result names the world it ran in: obstacles, cats, skins, coats, and textures included."""
+        if self._model_sha256 is None:
+            from .provenance import model_sha256
+            self._model_sha256 = model_sha256(*self._model_input)
+            self._model_input = None
+        return self._model_sha256
 
     def close(self) -> None:
         if self._camera_renderer is not None:
