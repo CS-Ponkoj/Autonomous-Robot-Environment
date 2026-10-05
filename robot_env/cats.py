@@ -79,7 +79,8 @@ SIT_RISE = 0.01  # m: a seated cat gets up once the robot comes within this of t
 # room to get up in (still clear of it); a room is taken only this clear of the robot and the cats
 ROBOT_RELIEF = 0.005  # m inside ROBOT_GAP before the robot counts as having driven in (not a creep)
 ROOM_STEP = 0.01  # m: a seated cat's room to get up in is covered by circles grouping moves this small
-ROOM_MARGIN = 0.005  # m the room is grown by: breathing, and a get-up begun at another time than checked
+ROOM_MARGIN = 0.005  # m the room is grown by, and kept beyond the wall gap in a sit-down check: the
+# breathing, and a get-up begun at another time than checked (at most 0.65 mm measured)
 PATROL_MEMORY = 120.0  # s: a room never visited counts as last seen this long ago
 PATROL_BASE = 10.0  # s added to every room's weight, so a recent room is still possible
 # Local planner: every PLAN_PERIOD each moving cat scores candidate motions over PLAN_HORIZON
@@ -1455,8 +1456,8 @@ class CatHerd:
 
     def _sit_check(self, cat: Cat) -> bool | None:
         """Whether the whole sit-down from here fits, and getting up again: every 10 ms pose (paws
-        shuffling under the body, sitting, then standing up; the root fixed) keeps the wall gap,
-        and SIT_ROOM beyond the robot and cat gaps from where they are now, over each move, as
+        shuffling under the body, sitting, then standing up; the root fixed) keeps ROOM_MARGIN
+        beyond the wall gap, and SIT_ROOM beyond the robot and cat gaps from where they are now, over each move, as
         pose_ok's sweep measures it. It starts only once the cat is calm (spine straight, head
         forward, tail without sway or lift; see CatAnimator.update), and it stays so until it is
         up again, so the poses the cat goes through are the ones checked, but for its breathing
@@ -1483,7 +1484,9 @@ class CatHerd:
             circ = self.circles(cat, s.x, s.y, s.yaw, s)
             inflate = self._half_chord(cat, circ, self.circles(cat, pose=prev))
             g = self.gaps(cat, s.x, s.y, s.yaw, s, inflate, sweep=True)
-            if g[0] < WALL_GAP or g[1] < ROBOT_GAP + SIT_ROOM or g[2] < CAT_GAP + SIT_ROOM:
+            # (walls too keep ROOM_MARGIN to spare: the cat's breathing then never takes a pose
+            # it goes through inside the wall gap, which the fallbacks could only hold forever)
+            if g[0] < WALL_GAP + ROOM_MARGIN or g[1] < ROBOT_GAP + SIT_ROOM or g[2] < CAT_GAP + SIT_ROOM:
                 return False
             if probe.sit > 0.0 or probe.sit_target == 0.0:
                 swept.append(circ + np.c_[np.zeros((len(circ), 2)), inflate])

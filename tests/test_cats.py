@@ -899,6 +899,45 @@ def test_a_cat_cannot_park_in_a_settled_seated_cats_room_from_its_tail_side(monk
     s.close()
 
 
+def test_a_cat_at_the_closest_wall_spot_it_sits_at_always_gets_up():
+    """Regression (review D6): at the closest spot to the corridor wall where its sit-down still
+    passes the check (found by bisection, facing the wall), the cat sits and, its sit cut short at
+    any of several times across a breathing cycle, is fully up within SIT_UP_TIME, its animation
+    going on (never held still for ever because breathing took a pose inside the wall gap)."""
+    from robot_env.cat_motion import SIT_UP_TIME
+    s, herd, cat = _sit_system(-2.0, -0.30, -math.pi / 2)
+    near, far = -0.45, -0.30  # does not fit / fits
+    for _ in range(12):
+        mid = 0.5 * (near + far)
+        herd.place(0, -2.0, mid, -math.pi / 2, state="pause")
+        if herd._sit_fits(cat):
+            far = mid
+        else:
+            near = mid
+    s.close()
+    for hold in (0.5, 0.9, 1.4, 2.0, 2.6):
+        s, herd, cat = _sit_system(-2.0, far, -math.pi / 2)
+        herd._enter(cat, "sit")
+        cat.state_until = math.inf
+        low = [[math.inf] * 3]
+        t_sit = None
+        while t_sit is None or s.time < t_sit + hold:
+            s.advance(C.PHYSICS_DT)
+            _low_gaps(herd, low)
+            if t_sit is None and cat.animator.sit > 0.0:
+                t_sit = s.time
+            assert not cat.no_sit and s.time < 10.0  # sits without giving up part way
+        herd._enter(cat, "flee")
+        cat.target_v, cat.state_until = 0.0, math.inf
+        t0, a0 = s.time, cat.animator.time
+        while cat.animator.sit > 0.0:
+            s.advance(C.PHYSICS_DT)
+            _low_gaps(herd, low)
+            assert s.time <= t0 + SIT_UP_TIME + 2 * ANIM_PERIOD  # up at once, fully
+        assert cat.animator.time > a0 and _gaps_kept(low) and s.cat_contacts == 0
+        s.close()
+
+
 def test_a_cat_sits_by_a_wall_with_the_robot_in_sight():
     """Regression (review D2): by the corridor's south wall with the robot in sight, the cat does
     not turn its head toward the robot while its sit-down is checked, sitting, or getting up (the
