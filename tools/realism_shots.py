@@ -43,11 +43,11 @@ SHOTS = {
 }
 
 
-def light_eye(m, lights: Lights, eye: np.ndarray) -> None:
-    """The lights drawn from this eye, and shadows from the two room lights nearest it among
-    them (as the window does)."""
-    lights.choose(eye[0], eye[1])
-    lights.shadows(eye[0], eye[1], 2)
+def light_eye(m, lights: Lights, eye: np.ndarray, at: np.ndarray) -> None:
+    """The lights drawn from this eye looking at `at`, and shadows from the two drawn room lights
+    nearest where it looks."""
+    lights.choose(eye[0], eye[1], look=(at[0], at[1]))
+    lights.shadows(at[0], at[1], 2)
 
 
 def render(label: str) -> Path:
@@ -60,7 +60,8 @@ def render(label: str) -> Path:
     r = mujoco.Renderer(m, height=H, width=W)
     opt = mujoco.MjvOption()
     opt.geomgroup[3] = 1  # the ceiling and its lights, as a person standing in the room sees them
-    lights = Lights(m)
+    lights = s.sim.lights
+    m.geom_rgba[[m.geom(n).id for n in ("goal_disc", "goal_pole", "goal_flag")], 3] = 0.0  # no task marker
     tiles = []
     for name, (eye, at, *fov) in SHOTS.items():
         m.vis.global_.fovy = fov[0] if fov else FOVY
@@ -72,7 +73,7 @@ def render(label: str) -> Path:
         cam.distance = float(np.linalg.norm(v))
         cam.azimuth = math.degrees(math.atan2(v[1], v[0]))
         cam.elevation = math.degrees(math.asin(v[2] / np.linalg.norm(v)))
-        light_eye(m, lights, eye)
+        light_eye(m, lights, eye, at)
         s.sim.before_render()
         r.update_scene(d, cam, opt)
         r.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = 1

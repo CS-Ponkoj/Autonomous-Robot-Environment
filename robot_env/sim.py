@@ -25,6 +25,7 @@ _WORLD_SOLID_GROUP = np.array([1, 0, 0, 0, 0, 0], dtype=np.uint8)  # world solid
 _VIEW_GROUP = np.array([1, 0, 1, 0, 0, 1], dtype=np.uint8)  # what blocks the viewer: solids, visual detail, cats
 _SIGHT_GROUP = np.array([1, 0, 0, 0, 1, 0], dtype=np.uint8)  # what blocks a cat's view: walls and furniture
 CAMERA_SHADOW_LIGHTS = 2  # room lights casting shadows in the robot camera's image (as in the window)
+CAMERA_LOOK = 1.5  # m ahead of the robot: where its camera looks, for choosing the lights
 _SPAWN_HEIGHT = 0.0505
 
 
@@ -225,9 +226,12 @@ class RobotSim:
             self._camera_renderer = mujoco.Renderer(self.model, height=size[0], width=size[1])
         if not posed:
             self.before_render()
-        x, y, _ = self.true_pose()  # the robot's room lights, with shadows from the two nearest
-        self.lights.choose(x, y)
-        self.lights.shadows(x, y, CAMERA_SHADOW_LIGHTS if shadows else 0)
+        # the lights of the robot's room and of the room it looks into, shadows from the two room
+        # lights nearest where it looks
+        x, y, yaw = self.true_pose()
+        ahead = (x + CAMERA_LOOK * math.cos(yaw), y + CAMERA_LOOK * math.sin(yaw))
+        self.lights.choose(x, y, look=ahead)
+        self.lights.shadows(*ahead, CAMERA_SHADOW_LIGHTS if shadows else 0)
         self._camera_renderer.update_scene(self.data, camera="robot_cam", scene_option=self.camera_option)
         self._camera_renderer.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = reflections
 

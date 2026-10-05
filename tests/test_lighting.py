@@ -102,3 +102,33 @@ def test_a_world_with_few_lights_draws_them_all():
     lights = Lights(m)
     lights.choose(0.0, 0.0)
     assert m.light_active.all()
+
+
+def _fittings(sim, room):
+    return {k for k in range(sim.model.nlight) if sim.lights.region[k] == room and sim.lights.shadowing[k]}
+
+
+def test_a_room_seen_through_a_doorway_is_lit():
+    """From the corridor looking into the office, the office's own fittings are drawn (not only
+    the corridor's), ahead of every window light."""
+    sim = RobotSim()
+    eye, look = (-2.5, 0.0), (-2.5, 3.0)
+    assert region_of(*eye) == "corridor" and region_of(*look) == "office"
+    sim.lights.choose(*eye, look=look)
+    on = set(np.flatnonzero(sim.model.light_active))
+    assert _fittings(sim, "office") <= on and _fittings(sim, "corridor") & on
+
+
+def test_an_eye_in_a_doorway_takes_the_room_it_looks_into():
+    sim = RobotSim()
+    door = next((-2.5, y) for y in np.linspace(0.0, 3.0, 301) if region_of(-2.5, y) is None)
+    sim.lights.choose(*door, look=(-2.5, 3.0))
+    assert _fittings(sim, "office") <= set(np.flatnonzero(sim.model.light_active))
+
+
+def test_the_robot_camera_lights_the_room_ahead_of_it():
+    sim = RobotSim()
+    sim.reset(-2.5, 0.0, np.pi / 2, (0.0, 0.0))  # in the corridor, facing the office door
+    sim.render_camera((60, 80))
+    assert _fittings(sim, "office") <= set(np.flatnonzero(sim.model.light_active))
+    sim.close()

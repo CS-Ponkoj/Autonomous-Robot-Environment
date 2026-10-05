@@ -25,7 +25,7 @@ from .cats import DEFAULT_CATS, MAX_CATS
 from .display import Display
 from .manual import ManualDriver, ManualInput
 from .safety import is_safe
-from .sim import close_renderer
+from .sim import CAMERA_LOOK, close_renderer
 from .system import RobotSystem
 from .types import Command, Driver
 
@@ -1087,18 +1087,20 @@ class App:
         sim = self.system.sim
         m = sim.model
         top = VIEWS[self.view.mode] == "top"
-        rx, ry, _ = sim.true_pose()
+        rx, ry, ryaw = sim.true_pose()
+        look = (rx + CAMERA_LOOK * math.cos(ryaw), ry + CAMERA_LOOK * math.sin(ryaw))  # the robot camera's
         if camera == "robot_cam" or top:
             x, y = rx, ry
         else:  # where the free camera's eye is
             az, el = math.radians(camera.azimuth), math.radians(camera.elevation)
             x = camera.lookat[0] - camera.distance * math.cos(el) * math.cos(az)
             y = camera.lookat[1] - camera.distance * math.cos(el) * math.sin(az)
+            look = (float(camera.lookat[0]), float(camera.lookat[1]))
         if self._light_view != self.view.mode:
-            sim.lights.snap(x, y, top)
+            sim.lights.snap(x, y, top, look)
             self._light_view = self.view.mode
         else:
-            sim.lights.fade(x, y, self._frame_dt, top)
+            sim.lights.fade(x, y, self._frame_dt, top, look)
         if top:
             names = [mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_LIGHT, k) for k in range(m.nlight)]
             fixed = [k for k, n in enumerate(names) if n in TOP_SHADOW_LIGHTS and m.light_active[k]]
