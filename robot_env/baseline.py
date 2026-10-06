@@ -93,9 +93,11 @@ class BaselineDriver:
         self._last = np.full((SIZE, SIZE), -np.inf)
         self._refused = np.full((SIZE, SIZE), -np.inf)  # blocked until this time (no progress there)
         self._turn_until = -1.0
+        self._last_v = 0.0  # the forward speed last commanded
         self._turn_w = 0.0
         self.dist = None
         self._next_plan = 0.0
+        self._now = 0.0
         self._goal = None
         self._still_since: float | None = None
         self._backup_until = -1.0
@@ -196,6 +198,11 @@ class BaselineDriver:
             frontier = self._seen_free & near_unseen & ~blocked
             if frontier.any():
                 dist = self._wavefront(frontier, blocked, rx, ry)
+            if not np.isfinite(dist[rx, ry]) and (self._refused > -np.inf).any():
+                # nothing reachable at all: the refused space may be what closed it; forget it
+                self._refused[:] = -np.inf
+                self.occupied = (self._last - self._first >= CONFIRM_SPAN) | (self._now - self._last < DYNAMIC_TTL)
+                return self._plan()
         self.dist = dist
 
     @staticmethod
@@ -241,6 +248,7 @@ class BaselineDriver:
 
     # ----- driving -----
     def decide(self, obs: Observation) -> Decision:
+        self._now = obs.time
         # a dropped reading takes its ray's recent return (kept up to date every decision)
         seen, self._lidar = bridge(obs, self._lidar)
         self._integrate(obs)
@@ -252,8 +260,10 @@ class BaselineDriver:
             self._plan()
             self._next_plan = obs.time + REPLAN_PERIOD
         if obs.time < self._backup_until:
+            self._last_v = 0.0
             return Decision(Command(-0.5 * self.v_max * C.MANUAL_REVERSE_FACTOR, 0.0), obs.seq)
         if obs.time < self._turn_until:
+            self._last_v = 0.0
             return Decision(Command(0.0, self._turn_w), obs.seq)
         r = np.where(seen.lidar_valid, seen.lidar, C.LIDAR_RANGE)
         along, lateral = r * np.cos(obs.lidar_angles), np.abs(r * np.sin(obs.lidar_angles))
@@ -264,7 +274,8 @@ class BaselineDriver:
             # no progress: the way ahead is refused here; remember it, plan around it, and get out
             # by backing up only into space seen clear, else by turning toward the roomier side
             self._still_since = None
-            self._refuse_ahead(obs.time)
+            if self._last_v > 0.04:  # it tried to go forward and could not: that space is refused
+                self._refuse_ahead(obs.time)
             self._plan()
             self._next_plan = obs.time + REPLAN_PERIOD
             behind = (along < 0) & (lateral < HALF_WIDTH)
@@ -278,11 +289,13 @@ class BaselineDriver:
                 self._turn_until = obs.time + TURN_TIME
             return Decision(STOP_COMMAND, obs.seq)
         heading = self._target_heading()
+        lost = heading is None
         if heading is None:
             heading = obs.goal_bearing  # no known route: head for the goal and let safety stop us
         heading = math.atan2(math.sin(heading), math.cos(heading))
         w = float(np.clip(2.0 * heading, -self.w_max, self.w_max))
         if abs(heading) > 0.5:
+            self._last_v = 0.0
             return Decision(Command(0.0, w), obs.seq)  # turn in place first
         # a reading still unknown counts as no return here (the speed choice), since the safety
         # layer blocks any motion into it
@@ -291,4 +304,9 @@ class BaselineDriver:
         v = min(self.v_max * room * math.cos(heading) ** 2, max(0.08, obs.goal_distance))
         if room > 0.0:  # never a crawl the encoders read as standing still
             v = max(v, min(V_CREEP, self.v_max))
+        elif lost:  # no route and the way ahead blocked: turn toward the roomier side, never stand
+            left = float(np.mean(np.where(seen.lidar_valid, r, 0.0)[obs.lidar_angles > 0]))
+            right = float(np.mean(np.where(seen.lidar_valid, r, 0.0)[obs.lidar_angles < 0]))
+            w = self.w_max * (1.0 if left >= right else -1.0)
+        self._last_v = v
         return Decision(Command(v, w), obs.seq)
