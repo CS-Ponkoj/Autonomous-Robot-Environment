@@ -46,10 +46,12 @@ def room(sim):
 
 
 def test_visible_and_colliding_geometry_agree(sim):
-    """World geoms: everything that collides is visible as a solid (group 0) or is a hidden member
-    (group 4) of a furniture item drawn by a detailed mesh, and every solid-group geom collides.
-    Visual detail (group 2) and the ceiling (3) never collide."""
+    """World geoms: everything that collides is visible as a solid (group 0) or is hidden (group 4):
+    a member of a furniture item drawn by a detailed mesh, or an outer wall drawn as plaster pieces
+    around its windows; and every solid-group geom collides. Visual detail (group 2) and the
+    ceiling (3) never collide."""
     bw = _build_world()
+    walls = {f"wall_{side}_0" for side in ("north", "south", "east", "west")}
     members = {n for it in bw.furniture_items for n in it["members"]}
     assert all(it["meshes"] and it["members"] for it in bw.furniture_items)
     m = sim.model
@@ -58,9 +60,9 @@ def test_visible_and_colliding_geometry_agree(sim):
             continue
         name = m.geom(g).name
         if m.geom_contype[g] != 0:
-            assert m.geom_group[g] == 0 or (m.geom_group[g] == 4 and name in members), name
+            assert m.geom_group[g] == 0 or (m.geom_group[g] == 4 and name in members | walls), name
         if m.geom_group[g] == 4:
-            assert name in members and m.geom_contype[g] != 0, name
+            assert name in members | walls and m.geom_contype[g] != 0, name
         if m.geom_group[g] == 0:
             assert m.geom_contype[g] != 0, name
         if m.geom_group[g] in (2, 3):
@@ -342,3 +344,21 @@ def test_the_held_out_tasks_are_frozen_and_still_valid(room):
         assert t.start == (sx, sy, yaw) and t.goal == (gx, gy), seed
         assert t.estimated_travel_time() <= C.EPISODE_TIME_LIMIT / 2, seed
     assert set(C.HELDOUT_TASKS) == set(C.HELDOUT_SEEDS)
+
+
+def test_an_outer_wall_is_drawn_whole_but_for_its_windows():
+    """The pieces drawn for each outer wall with windows, with its window openings, cover the wall
+    face exactly (no gap where the hidden solid would show nothing, no overlap), and each opening
+    lies inside its wall."""
+    bw = _build_world()
+    for axis, at, a, b in (("x", bw.H, -bw.H - bw.T, bw.H + bw.T), ("x", -bw.H, -bw.H - bw.T, bw.H + bw.T),
+                           ("y", bw.H, -bw.H, bw.H), ("y", -bw.H, -bw.H, bw.H)):
+        openings = [bw.window_opening(c, ax, w, sz, ht) for c, ax, _, w, sz, ht in bw.WINDOWS
+                    if ax == axis and abs((c[1] if ax == "x" else c[0]) - at) < 1e-9]
+        assert openings
+        pieces = bw._pieces(a, b, openings)
+        drawn = sum((hi - lo) * (z1 - z0) for lo, hi, z0, z1 in pieces)
+        holes = sum(2 * hw * (z1 - z0) for _, hw, z0, z1 in openings)
+        assert abs(drawn + holes - (b - a) * bw.WH) < 1e-9
+        for c, hw, z0, z1 in openings:
+            assert a < c - hw and c + hw < b and 0.0 < z0 < z1 < bw.WH
