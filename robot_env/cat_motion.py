@@ -33,6 +33,7 @@ TROT_SPEED = 0.55  # m/s: faster than this the cat trots
 STEP_HEIGHT = 0.03  # m a swinging hind paw is lifted
 STEP_HEIGHT_FRONT = 0.04  # m a swinging front paw is lifted (cats lift the front paws higher)
 GAIT_FULL_SPEED = 0.25  # m/s from which the body's motion with the steps is at its full size
+GAIT_RATE = 1.0  # 1/s: how fast that motion may grow or fade (a stop eases the sway out, never swinging the tail)
 PELVIS_ROLL = math.radians(4.0)  # the pelvis rolls down on the side of the swinging hind leg
 PELVIS_YAW = math.radians(5.0)  # and swings forward on that side (the shoulders counter it)
 PAW_CURL_FRONT = math.radians(35.0)  # wrist flexion of a swinging front paw at mid-swing
@@ -308,8 +309,9 @@ class CatAnimator:
         # walking, the body moves with the steps: the pelvis rolls down and swings forward on the
         # side of the swinging hind leg, the spine carries the opposite turn up to the shoulders
         # (a ripple along the back), and the neck takes it out again so the head stays steady
-        if not freeze:  # (held too when frozen: dropping the sway at a stop would swing the tail)
-            self.gait = min(speed / GAIT_FULL_SPEED, 1.0) * (1.0 - sit)
+        if not freeze:  # eased (held when frozen): dropping the sway at once would swing the tail
+            want_gait = min(speed / GAIT_FULL_SPEED, 1.0) * (1.0 - sit)
+            self.gait += float(clip(want_gait - self.gait, -GAIT_RATE * dt, GAIT_RATE * dt))
         gait = self.gait
         if gait > 0.0:
             mid = duty + 0.5 * (1.0 - duty)  # the left hind leg's mid-swing, in its cycle
