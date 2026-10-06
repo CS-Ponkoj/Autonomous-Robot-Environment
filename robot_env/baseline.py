@@ -1,4 +1,4 @@
-"""Rule-based baseline driver: the reference that later drivers and realism changes
+"""Rule-based baseline driver: the reference that other drivers and realism changes
 are compared against.
 
 It sees only the Observation (lidar, encoder velocity, goal distance and bearing), through the
