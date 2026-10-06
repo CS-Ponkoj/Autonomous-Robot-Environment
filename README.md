@@ -75,8 +75,7 @@ on the panels changes the number (0 to 4), and `--cats N` sets it at start.*
   safety layer that refuses moves it predicts to be unsafe from the current
   lidar scan.
 - **Experiments:** a [Gymnasium](https://gymnasium.farama.org/) environment
-  exposes the same robot and safety layer to a program, which is how a
-  decision model can drive it.
+  exposes the same robot and safety layer to a program, so your own controller can drive it.
 
 ## 2. Setup
 
