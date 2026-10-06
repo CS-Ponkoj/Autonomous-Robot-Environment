@@ -3,7 +3,7 @@
   "tool": "tools/fetch_models.py",
   "tool_sha256": "f05450bc8e5d00985585074c173139e2dfa1c99bfb7c571a8d3bbb444d6ccb39",
   "procedural_tool": "tools/proc_furniture.py",
-  "procedural_tool_sha256": "c1efd6ab64f04c8bfc8f32e387c5d71fec3025064ed7dcdbac8115d6524199ea",
+  "procedural_tool_sha256": "94779c0fe3d9d1101b58b7355e84d699987954fd0a00833c713e47c07596a026",
   "props_tool": "tools/proc_props.py",
   "props_tool_sha256": "48b8f4a459599567f6c1901146db877c70356fe54a905d9647a381dbeddecfde",
   "python": "3.11.5",
@@ -180,6 +180,10 @@
    "source": "tools/proc_furniture.py"
   },
   {
+   "id": "proc_reception_counter",
+   "source": "tools/proc_furniture.py"
+  },
+  {
    "id": "proc_safety_poster",
    "source": "tools/proc_furniture.py"
   },
@@ -193,6 +197,10 @@
   },
   {
    "id": "proc_smoke_detector",
+   "source": "tools/proc_furniture.py"
+  },
+  {
+   "id": "proc_snake_plant",
    "source": "tools/proc_furniture.py"
   },
   {
@@ -953,6 +961,42 @@
    "sha256": "59ddf6347b8893d0620a0d3e9f5e936c2c1cef2a76e42a9946e595ea472925e7",
    "bytes": 67802
   },
+  "proc_reception_counter.json": {
+   "sha256": "d23893bd9a58b3886f3744d1cb3a558d8fe9de8393a5156dce706bb0cb510189",
+   "bytes": 1612
+  },
+  "proc_reception_counter_0.msh": {
+   "sha256": "5545590ab64b3ba8b150459027836a2986c7622e199f7b73512c5fd4a40fd78a",
+   "bytes": 24784
+  },
+  "proc_reception_counter_0.png": {
+   "sha256": "8d7ce2302ef2a097a1d5d9d72a32361bf76ca185fd8ace9a2c82c1d93eb5fcb2",
+   "bytes": 357470
+  },
+  "proc_reception_counter_1.msh": {
+   "sha256": "d6c7eba0dd1124d013cdb5cbb53c68d848645db6f6b0592e5144070294c0938b",
+   "bytes": 32848
+  },
+  "proc_reception_counter_2.msh": {
+   "sha256": "12a853796323eca38fec371b6588d5bfcd0bb2ef356045ddd9dfd54a42d9b6c4",
+   "bytes": 928
+  },
+  "proc_reception_counter_2.png": {
+   "sha256": "6829610d8db1135c8732c0da1a1ae99937b12a2657924fdb6a7d1c8070ef1ef7",
+   "bytes": 152457
+  },
+  "proc_reception_counter_3.msh": {
+   "sha256": "50bf315f6ee3ed5f87338f9fb4997c1dbfe2ed45643dcd90f11ed20e3b6c86b8",
+   "bytes": 24784
+  },
+  "proc_reception_counter_3.png": {
+   "sha256": "ee180052cbae94efe9d1210de520828cca1c07d4b1dfb931ae63099b366d339d",
+   "bytes": 337288
+  },
+  "proc_reception_counter_4.msh": {
+   "sha256": "2bd5e5cd83c37fa93582fb79133f77da6afbba06559a093a7c969b6163239332",
+   "bytes": 928
+  },
   "proc_safety_poster.json": {
    "sha256": "b0cf041253adb11609045a2ac647a7ac11925d71eb90a849ef1bced8e07bee0c",
    "bytes": 535
@@ -1012,6 +1056,34 @@
   "proc_smoke_detector_0.png": {
    "sha256": "8fc9ef8ab80cd8d8fd87eae369dd8019a17166465c0c1be68d077168c881e6c3",
    "bytes": 3398
+  },
+  "proc_snake_plant.json": {
+   "sha256": "39ec2f3ef4c6faa703c06fe120f9d3964afecfa978a170a2d1be8293ad687e3f",
+   "bytes": 1069
+  },
+  "proc_snake_plant_0.msh": {
+   "sha256": "29b118afd0bec33d8eefc94ee269e2955e0dd53e7861b53b03c5b4e9a8b41094",
+   "bytes": 10704
+  },
+  "proc_snake_plant_0.png": {
+   "sha256": "ee180052cbae94efe9d1210de520828cca1c07d4b1dfb931ae63099b366d339d",
+   "bytes": 337288
+  },
+  "proc_snake_plant_1.msh": {
+   "sha256": "e189c30f3026fb9fda1faf61d564fed9f9ac402e2a23b7de2e1652c1870ce0e1",
+   "bytes": 7120
+  },
+  "proc_snake_plant_1.png": {
+   "sha256": "8b1d7870e102cd4712704f334be6b7e0d159de08ac638cb978685ff2b9e5abec",
+   "bytes": 269261
+  },
+  "proc_snake_plant_2.msh": {
+   "sha256": "8d9eb01147501e81f23b76436e1c285fab88dac537d0ce1c52ff88b1a2933d16",
+   "bytes": 19984
+  },
+  "proc_snake_plant_2.png": {
+   "sha256": "16b0c91568ae7af1ed4bcd9389f4b10b83e118c9ed09c6c501961e1a4e5ceb1c",
+   "bytes": 88473
   },
   "proc_socket.json": {
    "sha256": "bf0ee2063798e72e260b736d5efd8136ca9f29f112b379dfb75a09c647ec04c4",

@@ -373,6 +373,15 @@ def lab_stool(name, pos):
                                  ("box", "seat", (0, 0, 0.615), (0.17, 0.17, 0.04))], "bin_dark")
 
 
+def snake_plant(name, pos):
+    """A snake plant in a ceramic pot (procedural, tools/proc_furniture.py): the pot crosses the
+    lidar plane; its leaves are one solid round them above it."""
+    with item(name):
+        model("proc_snake_plant", pos)
+        members(name, pos, 0.0, [("cyl", "pot_low", (0, 0, 0.1), 0.17, 0.1), ("cyl", "pot", (0, 0, 0.3), 0.18, 0.1),
+                                 ("cyl", "leaves", (0, 0, 0.82), 0.2, 0.42)], "pot")
+
+
 def box_sofa(name, pos, yaw=0.0):
     """Three-seat box-arm sofa (procedural, 2.10 x 0.84 x 0.80 m) on a recessed plinth: its
     upholstered base crosses the lidar plane, nothing under it. Front -y at yaw 0."""
@@ -562,22 +571,6 @@ def standing_lamp(name, pos):
                                  ("cyl", "collar", (0, 0, 0.176), 0.024, 0.016),
                                  ("cyl", "pole", (0, 0, 0.82), 0.012, 0.635),
                                  ("cyl", "shade", (0, 0, 1.55), 0.2, 0.1)], "bin_dark")
-
-
-def sofa(name, center, width, facing_y, seats=2):
-    """Upholstered sofa: solid base, armrests and back (all reach the floor), visual cushions."""
-    x, y = center
-    box(f"{name}_base", (x, y, 0.21), (width / 2, 0.4, 0.21), "fabric")
-    for sx in (-1, 1):
-        box(f"{name}_arm_{'e' if sx > 0 else 'w'}", (x + sx * (width / 2 - 0.08), y, 0.32), (0.08, 0.4, 0.32), "fabric")
-    back_y = y - facing_y * 0.31
-    box(f"{name}_back", (x, back_y, 0.4), (width / 2, 0.09, 0.4), "fabric")
-    inner = width / 2 - 0.16
-    cw = inner / seats
-    for k in range(seats):
-        cx_ = x - inner + cw * (2 * k + 1)
-        box(None, (cx_, y + facing_y * 0.05, 0.47), (cw - 0.012, 0.3, 0.055), "fabric_light", cls="visual")
-        box(None, (cx_, back_y + facing_y * 0.13, 0.66), (cw - 0.012, 0.05, 0.16), "fabric_light", cls="visual")
 
 
 def plant(name, x, y, seed):
@@ -922,14 +915,6 @@ def window(k, center, axis, facing, width, sill_z, height=1.2):
                  'castshadow="false"/>')
 
 
-def floor_lamp(name, xy):
-    """Solid base the lidar sees; the pole and shade are visual and stay above the base."""
-    x, y = xy
-    cyl(name, (x, y, 0.1), 0.16, 0.1, "bin_dark")
-    cyl(None, (x, y, 0.85), 0.015, 0.65, "metal", cls="visual")
-    cyl(None, (x, y, 1.55), 0.16, 0.1, "lamp_shade", cls="visual")
-
-
 def build_floor():
     comment("Base floor (physics). Room floors on top are visual only.")
     geoms.append('    <geom name="floor" type="plane" size="5.6 5.6 0.1" material="tile"/>')
@@ -994,14 +979,15 @@ def build_floor():
 
     comment("Storage furniture: shelving rows with 1.2 m aisles")
     shelving_unit("storage_shelf_west", (-4.75, -3.0), (0.25, 1.2), 2.0, 4, seed=2)
-    shelving_unit("storage_shelf_mid", (-2.9, -3.5), (0.25, 1.2), 2.0, 4, seed=3)
+    shelving_unit("storage_shelf_mid", (-2.9, -3.6), (0.25, 1.2), 2.0, 4, seed=3)  # 0.72 m past the open door leaf into the west aisle
     shelving_unit("storage_shelf_east", (-1.15, -3.5), (0.25, 1.2), 2.0, 4, seed=4)
     carton_stack("storage_boxes", (-0.45, -4.55))
 
     comment("Reception furniture")
-    box("reception_counter", (3.5, -2.2, 0.55), (0.9, 0.3, 0.55), "desk_wood")
-    cabinet_seams((3.5, -2.2, 0.55), (0.9, 0.3, 0.55), "y", -1, 3)
-    box(None, (3.5, -2.2, 1.115), (0.95, 0.35, 0.015), "lab_top", cls="visual")
+    with item("reception_counter"):  # tools/proc_furniture.py reception_counter; the same solid as before
+        model("proc_reception_counter", (3.5, -2.2, 0.0))
+        box("reception_counter", (3.5, -2.2, 0.55), (0.9, 0.3, 0.55), "desk_wood")
+        box("reception_counter_top", (3.5, -2.2, 1.115), (0.93, 0.32, 0.015), "desk_wood")
     box_sofa("reception_sofa", (1.124, -4.56, 0.0), 180.0)  # against the south wall, facing north
     coffee_table("reception_table", (1.124, -3.415, 0.0))  # 0.45 m in front of the sofa
     end_table("reception_side_table", (2.429, -4.755, 0.0), 180.0)  # at the sofa's east end, drawer to the room
@@ -1013,7 +999,7 @@ def build_floor():
 
     comment("Corridor")
     box("corridor_water_cooler", (4.78, 0.4, 0.55), (0.17, 0.17, 0.55), "lab_white")
-    plant("corridor_plant", -4.75, -0.42, seed=23)
+    snake_plant("corridor_plant", (-4.75, -0.42, 0.0))
     comment("Everyday clutter (solid, at least 0.2 m tall so the lidar sees it)")
     waste_bin("office_trash_bin", (-2.6, 4.75, 0.0))
     standing_lamp("office_lamp", (-4.78, 3.85, 0.0))  # in the corner by the desk: 8 cm to the wall, 8 cm to the desk, closed to cats

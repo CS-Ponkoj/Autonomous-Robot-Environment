@@ -1,0 +1,95 @@
+{
+ "id": "proc_reception_counter",
+ "name": "Reception counter (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  1.86,
+  0.64,
+  1.13
+ ],
+ "parts": [
+  {
+   "mesh": "proc_reception_counter_0.msh",
+   "material": "melamine",
+   "texture": "proc_reception_counter_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 768,
+   "vertices": 486
+  },
+  {
+   "mesh": "proc_reception_counter_1.msh",
+   "material": "oak",
+   "texture": "proc_oak.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.2,
+   "shininess": 0.25,
+   "reflectance": 0.0,
+   "faces": 432,
+   "vertices": 864
+  },
+  {
+   "mesh": "proc_reception_counter_2.msh",
+   "material": "plinth",
+   "texture": "proc_reception_counter_2.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.2,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  },
+  {
+   "mesh": "proc_reception_counter_3.msh",
+   "material": "pot_ceramic",
+   "texture": "proc_reception_counter_3.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.35,
+   "shininess": 0.4,
+   "reflectance": 0.02,
+   "faces": 768,
+   "vertices": 486
+  },
+  {
+   "mesh": "proc_reception_counter_4.msh",
+   "material": "shadow",
+   "texture": null,
+   "rgba": [
+    0.03,
+    0.03,
+    0.03,
+    1.0
+   ],
+   "specular": 0.0,
+   "shininess": 0.0,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  }
+ ],
+ "note": "members: body, top"
+}

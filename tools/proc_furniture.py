@@ -50,6 +50,9 @@ MATERIALS = {
     "rack_blue": ((0.12, 0.27, 0.52, 1.0), 0.45, 0.4, 0.02),
     "rack_orange": ((0.86, 0.42, 0.08, 1.0), 0.45, 0.4, 0.02),
     "chipboard": ((0.7, 0.58, 0.42, 1.0), 0.1, 0.15, 0.0),
+    "pot_ceramic": ((0.86, 0.84, 0.79, 1.0), 0.35, 0.4, 0.02),
+    "pot_soil": ((0.16, 0.12, 0.09, 1.0), 0.05, 0.05, 0.0),
+    "snake_leaf": ((1.0, 1.0, 1.0, 1.0), 0.3, 0.35, 0.0),
 }
 OAK_RGB = (0.6, 0.43, 0.26)
 
@@ -64,6 +67,7 @@ SURFACES = {
     "concrete": (0.3, "concrete"), "upholstery": (0.08, "weave"), "plinth": (0.25, "matte"),
     "melamine": (0.5, "matte"), "worktop": (0.4, "concrete"), "rubber": (0.2, "matte"), "vinyl": (0.2, "matte"),
     "rack_blue": (0.5, "powder"), "rack_orange": (0.5, "powder"), "chipboard": (0.3, "concrete"),
+    "pot_ceramic": (0.25, "matte"), "pot_soil": (0.1, "concrete"),
 }
 
 
@@ -1018,10 +1022,91 @@ def storage_rack(model_id: str = "proc_storage_rack", hx: float = 1.2, hy: float
     return m.write(model_id, "Storage racking (procedural)", "members: plinth, posts, boards")
 
 
+def snake_leaf_texture(seed: int = 9):
+    """A snake plant leaf (u across, v along): dark green with lighter grey-green wavy cross bands,
+    yellow margins, a slightly darker midrib."""
+    from PIL import Image
+    rng = np.random.default_rng(seed)
+    h, w = 512, 128
+    vv, uu = np.mgrid[0:h, 0:w] / np.array([h, w], float)[:, None, None]
+    band = np.sin(2 * np.pi * (vv * 26 + 0.12 * np.sin(2 * np.pi * uu * 2.3) + 0.05 * _periodic_noise(rng, 512, 3.0)[:h, :w]))
+    k = 0.5 + 0.5 * band
+    green = np.array([34, 74, 40], float) * (1 - k[..., None]) + np.array([92, 120, 82], float) * k[..., None] * 0.9
+    green *= 1.0 + 0.06 * _periodic_noise(rng, 512, 1.5)[:h, :w, None]
+    green *= (1.0 - 0.12 * np.exp(-((uu - 0.5) / 0.05) ** 2))[..., None]  # midrib
+    edge = (uu < 0.07) | (uu > 0.93)
+    green[edge] = np.array([196, 178, 74], float)
+    return Image.fromarray(np.clip(green, 0, 255).astype(np.uint8))
+
+
+def snake_plant() -> dict:
+    """A snake plant (Sansevieria) in a cream ceramic pot 0.36 m across, 0.40 m tall (the pot
+    crosses the lidar plane): 13 sword leaves 0.45 to 0.85 m long, leaning out and curving a little,
+    two-sided, with banded texture and yellow margins."""
+    import random
+    rnd = random.Random(23)
+    m = Mesh()
+    m.cylinder("pot_ceramic", (0, 0, 0.2), 0.16, 0.2, seg=40, radius_top=0.18, tile=0.25)
+    m.annulus("pot_ceramic", 0.4, 0.165, 0.18, seg=40)
+    m.cylinder("pot_soil", (0, 0, 0.385), 0.165, 0.004, seg=40)
+    for k in range(13):
+        a = 2 * math.pi * k / 13 + rnd.uniform(-0.25, 0.25)
+        r0 = rnd.uniform(0.0, 0.07)
+        L, w = rnd.uniform(0.45, 0.85), rnd.uniform(0.045, 0.07)
+        lean, curve, twist = math.radians(rnd.uniform(3, 16)), rnd.uniform(0.02, 0.08), rnd.uniform(-0.6, 0.6)
+        base = np.array([r0 * math.cos(a), r0 * math.sin(a), 0.385])
+        out = np.array([math.cos(a), math.sin(a), 0.0])
+        vs, uvs = [], []
+        n = 8
+        for i in range(n + 1):
+            t = i / n
+            c = base + out * (math.sin(lean) * L * t + curve * t * t) + np.array([0, 0, math.cos(lean) * L * t])
+            half = w / 2 * (1.0 - t ** 2.2) + 0.002  # tapering to the tip
+            ang = a + math.pi / 2 + twist * t
+            side = np.array([math.cos(ang), math.sin(ang), 0.0])
+            vs += [c - side * half, c + side * half]
+            uvs += [(0.0, 1.0 - t), (1.0, 1.0 - t)]
+        v = np.array(vs)
+        f = []
+        for i in range(n):
+            q = 2 * i
+            f += [(q, q + 1, q + 3), (q, q + 3, q + 2)]
+        m.add("snake_leaf", v, f, uv=np.array(uvs))
+        m.add("snake_leaf", v, [(x, z, y) for x, y, z in f], uv=np.array(uvs))  # the other side
+    return m.write("proc_snake_plant", "Snake plant (procedural)", "members: pot, leaves",
+                   {"snake_leaf": snake_leaf_texture()})
+
+
+def reception_counter() -> dict:
+    """Reception counter 1.80 x 0.60 x 1.10 m: a white melamine body on a recessed dark plinth, the
+    visitors' side (+y) clad in vertical oak slats (4.4 cm, 6 mm dark gaps), a 3 cm cream stone top
+    with a 2 to 3 cm overhang at 1.10 m."""
+    import random
+    rnd = random.Random(31)
+    m = Mesh()
+    hx, hy, top = 0.9, 0.3, 1.10
+    m.box("plinth", (0, 0, 0.04), (hx - 0.01, hy - 0.01, 0.04))
+    m.rounded_box("melamine", (0, -0.011, (0.08 + top) / 2), (hx, hy - 0.011, (top - 0.08) / 2), 0.004)
+    m.box("shadow", (0, hy - 0.0215, (0.08 + top) / 2), (hx - 0.002, 0.0005, (top - 0.08) / 2))
+    n, L = 36, top - 0.08
+    pitch = 2 * hx / n
+    for k in range(n):  # slats, the grain running up them (built along x, stood up about y)
+        cx, w, d = -hx + (k + 0.5) * pitch, pitch - 0.006, 0.02
+        cy = hy - d / 2
+        m.textured_box("oak", (cx + 0.08, cy - d / 2, -w / 2), (cx + 0.08 + L, cy + d / 2, w / 2),
+                       {"-y": _oak(L, w, "flat_a", rnd), "+y": _oak(L, w, "flat_b", rnd),
+                        "-z": _oak(L, d, "edge", rnd), "+z": _oak(L, d, "edge", rnd),
+                        "-x": _oak(w, d, "end", rnd), "+x": _oak(w, d, "end", rnd)},
+                       rot=_rot_y(-90.0), pivot=(cx, cy, 0.0))
+    m.rounded_box("pot_ceramic", (0, 0, top + 0.015), (hx + 0.03, hy + 0.02, 0.015), 0.004)
+    return m.write("proc_reception_counter", "Reception counter (procedural)", "members: body, top",
+                   {"oak": oak_texture()})
+
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     for fn in (office_chair, filing_cabinet, waste_bin, floor_lamp, plant_stand, shelf_feet, lambda: shelf_books(11),
-               armchair, sofa, ottoman, coffee_table, end_table, lab_stool, storage_rack,
+               armchair, sofa, ottoman, coffee_table, end_table, lab_stool, storage_rack, snake_plant, reception_counter,
                lambda: storage_rack("proc_lab_rack", 0.7, 0.25, 2.0, 4, "steel_grey", "steel_grey"),
                lambda: lab_bench("proc_lab_bench_long", 1.2, 0.4, False, ("drawers", "door", "door", "drawers")),
                lambda: lab_bench("proc_lab_bench_island", 0.9, 0.4, True, ("drawers", "door", "drawers")),

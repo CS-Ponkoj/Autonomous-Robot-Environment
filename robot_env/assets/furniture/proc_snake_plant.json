@@ -1,0 +1,63 @@
+{
+ "id": "proc_snake_plant",
+ "name": "Snake plant (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.4362,
+  0.4813,
+  1.216
+ ],
+ "parts": [
+  {
+   "mesh": "proc_snake_plant_0.msh",
+   "material": "pot_ceramic",
+   "texture": "proc_snake_plant_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.35,
+   "shininess": 0.4,
+   "reflectance": 0.02,
+   "faces": 240,
+   "vertices": 244
+  },
+  {
+   "mesh": "proc_snake_plant_1.msh",
+   "material": "pot_soil",
+   "texture": "proc_snake_plant_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.05,
+   "shininess": 0.05,
+   "reflectance": 0.0,
+   "faces": 160,
+   "vertices": 162
+  },
+  {
+   "mesh": "proc_snake_plant_2.msh",
+   "material": "snake_leaf",
+   "texture": "proc_snake_plant_2.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.35,
+   "reflectance": 0.0,
+   "faces": 416,
+   "vertices": 468
+  }
+ ],
+ "note": "members: pot, leaves"
+}

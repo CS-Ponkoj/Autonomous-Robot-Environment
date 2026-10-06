@@ -317,10 +317,15 @@ continue; if a banner asks you to release a key, release it and press again.
   floor are solid: they collide and the lidar sees them. Rugs, windows,
   pictures, signs, the ceiling, and the light panels are visual only. The
   robot drives over rugs as if they were part of the floor.
-- **Furniture:** the office furniture is drawn by detailed models (a steel
-  desk, steel and wood shelving, a planter on a stand: CC0 models from Poly
-  Haven; an office chair, a filing cabinet, a waste bin, and a floor lamp made
-  in code). What collides and what the lidar sees are simple boxes and
+- **Furniture:** every room is furnished with detailed models. The office has a
+  steel desk, steel and wood shelving and a planter (CC0 models from Poly Haven)
+  with an office chair, books, a filing cabinet, a waste bin and a floor lamp.
+  The reception has a box-arm sofa, armchair and ottoman, an oak coffee table and
+  end table, a slatted oak counter, a lamp, a bin and a planter. The lab has
+  benches with drawers and a phenolic top, a drawer cabinet, stools and racking,
+  storage has steel racking, and the corridor has a snake plant. Everything but
+  the Poly Haven models is made in code (`tools/proc_furniture.py`), with
+  textures at real scale. What collides and what the lidar sees are simple boxes and
   cylinders fitted to each model: never more than 2 cm from what you see, and
   nothing visible sticks out of them by more than 1 cm. Open frames are honest:
   the robot (0.1355 m tall) fits under the desk's pedestals, as it would under a
