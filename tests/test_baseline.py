@@ -81,3 +81,18 @@ def test_baseline_gets_out_of_the_trap_the_qa_report_found():
     result = run_episode(s, RoomMap(s.sim.model), 4016, 0)
     s.close()
     assert result["outcome"] == "success" and result["collisions"] == 0, result
+
+
+def test_baseline_explores_toward_the_frontier_when_no_route_is_known():
+    """With the goal sealed off in its own map, the driver heads for the edge of what it has seen
+    free instead of standing still."""
+    d = BaselineDriver()
+    cx, cy = d._cell(0.0, 0.0)
+    gx, gy = d._cell(3.0, 0.0)
+    d._goal = (3.0, 0.0)
+    for k in range(-3, 4):  # a closed box around the goal
+        d.occupied[gx - 3, gy + k] = d.occupied[gx + 3, gy + k] = True
+        d.occupied[gx + k, gy - 3] = d.occupied[gx + k, gy + 3] = True
+    d._seen_free[cx - 10: cx + 1, cy - 3: cy + 4] = True
+    d._plan()
+    assert np.isfinite(d.dist[cx, cy]) and d._target_heading() is not None

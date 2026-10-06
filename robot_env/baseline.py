@@ -13,7 +13,9 @@ the task generator, or ground truth. Like a real robot, it builds its own memory
    are treated as free (optimistic exploration). Clearing cells along rays was tried and
    rejected: grazing rays erased real walls (6/20 development successes instead of 16/20).
 3. Planning: a wavefront (breadth-first distance field) from the goal over the grid inflated
-   by the robot radius, recomputed every 0.5 s or when new obstacles appear on the path.
+   by the robot radius, recomputed every 0.5 s or when new obstacles appear on the path. With no
+   route (space it could not move through closing the way), it explores instead: the wavefront
+   runs from the frontier, the cells its rays have seen free next to cells never seen.
 4. Following: walk down the distance field for about 0.5 m from the robot's cell and head for
    that point, turn in place when the heading error is large, and slow down when the corridor
    ahead is short.
@@ -82,6 +84,7 @@ class BaselineDriver:
         self._last_time: float | None = None
         self._last_vel = (0.0, 0.0)
         self.occupied = np.zeros((SIZE, SIZE), bool)  # derived: static, recent, or refused cells
+        self._seen_free = np.zeros((SIZE, SIZE), bool)  # cells a valid ray has passed through
         self._first = np.full((SIZE, SIZE), np.inf)  # first and last sighting of each cell
         self._last = np.full((SIZE, SIZE), -np.inf)
         self._refused = np.full((SIZE, SIZE), -np.inf)  # blocked until this time (no progress there)
@@ -118,6 +121,16 @@ class BaselineDriver:
         inside = (cx >= 0) & (cx < SIZE) & (cy >= 0) & (cy < SIZE)
         cx, cy = cx[inside], cy[inside]
         self._first[cx, cy] = np.minimum(self._first[cx, cy], obs.time)
+        # the space each valid ray crossed before its return (or its whole range): seen free
+        valid = obs.lidar_valid
+        steps = np.arange(CELL / 2, C.LIDAR_RANGE, CELL)
+        ra = th + obs.lidar_angles[valid]
+        reach = np.where(obs.lidar[valid] < C.LIDAR_RANGE - 1e-6, obs.lidar[valid] - CELL, C.LIDAR_RANGE)
+        d = steps[None, :]
+        keep = d < reach[:, None]
+        fx, fy = self._cell(x + (d * np.cos(ra)[:, None])[keep], y + (d * np.sin(ra)[:, None])[keep])
+        ok = (fx >= 0) & (fx < SIZE) & (fy >= 0) & (fy < SIZE)
+        self._seen_free[fx[ok], fy[ok]] = True
         self._last[cx, cy] = obs.time
         before = self.occupied
         self.occupied = ((self._last - self._first >= CONFIRM_SPAN) | (obs.time - self._last < DYNAMIC_TTL)
@@ -148,15 +161,33 @@ class BaselineDriver:
             # margin), so a robot standing inside the margin can still plan its way out.
             near = (ii - cx) ** 2 + (jj - cy) ** 2 <= (INFLATE + 1) ** 2
             blocked[near & ~self.occupied] = False
-        dist = np.full((SIZE, SIZE), np.inf)
-        dist[gx, gy] = 0.0
+        goal = np.zeros((SIZE, SIZE), bool)
+        goal[gx, gy] = True
+        dist = self._wavefront(goal, blocked, rx, ry)
+        inside = 0 <= rx < SIZE and 0 <= ry < SIZE
+        if inside and not np.isfinite(dist[rx, ry]):
+            # no route: explore toward the frontier (seen free, next to never seen, not blocked)
+            unseen = ~self._seen_free & ~self.occupied
+            near_unseen = np.zeros_like(unseen)
+            for dx, dy, _cost in _STEPS[:4]:
+                near_unseen |= _shift(unseen, dx, dy, False)
+            frontier = self._seen_free & near_unseen & ~blocked
+            if frontier.any():
+                dist = self._wavefront(frontier, blocked, rx, ry)
+        self.dist = dist
+
+    @staticmethod
+    def _wavefront(sources: np.ndarray, blocked: np.ndarray, rx: int, ry: int) -> np.ndarray:
+        """Grid distance to the nearest source cell, around blocked cells; stops once the robot's
+        neighbourhood (rx, ry) has settled."""
+        dist = np.where(sources, 0.0, np.inf)
         reached = None
         for k in range(4 * SIZE):
             best = dist
             for dx, dy, cost in _STEPS:
                 best = np.minimum(best, _shift(dist, dx, dy, np.inf) + cost)
-            best[blocked] = np.inf
-            best[gx, gy] = 0.0
+            best[blocked & ~sources] = np.inf
+            best[sources] = 0.0
             if np.array_equal(best, dist):
                 break
             dist = best
@@ -164,7 +195,7 @@ class BaselineDriver:
                 reached = k if reached is None else reached
                 if k - reached > LOOKAHEAD + 2:  # the robot's neighbourhood is settled: stop early
                     break
-        self.dist = dist
+        return dist
 
     def _target_heading(self) -> float | None:
         if self.dist is None:
