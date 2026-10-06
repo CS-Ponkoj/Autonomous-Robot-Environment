@@ -143,6 +143,7 @@ class CatAnimator:
         self.calm = False  # set by the herd while the cat is to sit: spine, head, and tail ease still
         self.sit = 0.0  # the posture now, eased toward the target (never jumping)
         self.shift = 0.0  # m the body is moved forward this update (sitting); the caller adds it
+        self.gait = 0.0  # 0 to 1: how much the body moves with the steps (the pelvis sway)
         self._hips = rig.joint("Hips_01")
         # the sitting geometry from the skeleton: the hips pivot nose-up and the body moves down and
         # forward so the shoulders (front of the spine) end where they stand, a little lower
@@ -200,11 +201,11 @@ class CatAnimator:
         legs = tuple((leg.planted, leg.world.copy(), leg.swing_from.copy(), leg.swing_to.copy(), leg.progress,
                       leg.duration, leg.lifted_cycle, leg.short, leg.short_start) for leg in self.legs.values())
         return (legs, self.cycles, self.time, self.head_yaw, self.tail_amp, self.bend, self.tail_lift, self.sit,
-                self.shift, getattr(self, "pose", None))
+                self.shift, self.gait, getattr(self, "pose", None))
 
     def restore(self, snap: tuple) -> None:
         (legs, self.cycles, self.time, self.head_yaw, self.tail_amp, self.bend, self.tail_lift, self.sit,
-         self.shift, pose) = snap
+         self.shift, self.gait, pose) = snap
         if pose is not None:
             self.pose = pose
         for leg, (planted, world, frm, to, progress, duration, lifted, short, start) in zip(self.legs.values(), legs):
@@ -236,7 +237,7 @@ class CatAnimator:
             leg.planted, leg.progress, leg.lifted_cycle, leg.short, leg.short_start = True, 0.0, -1, False, 0.0
             leg.world = self._to_world(leg.neutral, x, y, yaw)
         self.cycles, self.head_yaw, self.bend, self.tail_amp, self.tail_lift = 0.0, 0.0, 0.0, 0.0, 0.0
-        self.sit = self.sit_target = self.shift = 0.0
+        self.sit = self.sit_target = self.shift = self.gait = 0.0
         self._started = True
 
     # ----- per update -----
@@ -246,7 +247,8 @@ class CatAnimator:
         """Advance by dt for a cat at (x, y, yaw) moving at v (forward, m/s), w (turn, rad/s), and
         lat (a side step to its left, m/s). settle=False: no new settling or pivot step starts (a
         paw already in the air still lands). freeze=True also holds the posture (head, spine,
-        tail, breathing, gait phase) where it is. Returns ({joint: local rotation}, root height offset)."""
+        tail, breathing, gait phase and sway) where it is. Returns ({joint: local rotation}, root
+        height offset)."""
         if not self._started:
             self.reset(x, y, yaw)
         if not freeze:
@@ -306,7 +308,9 @@ class CatAnimator:
         # walking, the body moves with the steps: the pelvis rolls down and swings forward on the
         # side of the swinging hind leg, the spine carries the opposite turn up to the shoulders
         # (a ripple along the back), and the neck takes it out again so the head stays steady
-        gait = min(speed / GAIT_FULL_SPEED, 1.0) * (1.0 - sit)
+        if not freeze:  # (held too when frozen: dropping the sway at a stop would swing the tail)
+            self.gait = min(speed / GAIT_FULL_SPEED, 1.0) * (1.0 - sit)
+        gait = self.gait
         if gait > 0.0:
             mid = duty + 0.5 * (1.0 - duty)  # the left hind leg's mid-swing, in its cycle
             c = math.cos(2 * math.pi * (self.cycles - mid))
