@@ -15,9 +15,9 @@ Developed by [**Ponkoj Shill**](https://ponkoj.com)
 </div>
 
 A 3D simulation of a two-wheeled robot on an indoor office floor (corridor,
-office, lab, storage, reception, doorways, furniture). This version is the static foundation: you
-drive the robot to a goal by hand, through the same safety layer that any
-automatic driver will use later.
+office, lab, storage, reception, doorways, furniture). You drive the robot to a
+goal by hand, or let the built-in baseline driver do it, through the same safety
+layer that every automatic driver uses.
 
 It is an open project (MIT license): use the environment for your own work. Put
 your own robot type in it (the robot is defined in `tools/build_world.py`, which

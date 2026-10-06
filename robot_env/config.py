@@ -112,7 +112,7 @@ REWARD_GOAL = 10.0
 REWARD_COLLISION = -10.0
 REWARD_INTERVENTION = -0.1  # once per continuous intervention event
 
-# Held-out goal seeds (fixed obstacle layout, so these are held-out goals)
+# Held-out goal seeds (the obstacle layout is fixed, so these are held-out goals)
 HELDOUT_SEEDS = tuple(range(1000, 1010))
 # The held-out tasks themselves, frozen: seed -> ((start x, y, yaw), (goal x, y)), exactly as
 # RoomMap.sample_task drew them in the world before the office was furnished (revision 9ba1e37;
