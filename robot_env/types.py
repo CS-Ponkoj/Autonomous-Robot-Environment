@@ -34,6 +34,14 @@ class Observation:
     goal_bearing: float  # radians, positive means the goal is to the left
     contact: bool  # touching a wall or obstacle now
     camera: np.ndarray | None = field(default=None, repr=False)
+    # forward depth sensor (robot_env/sensing.py): ranges along fixed rays, their validity, and
+    # when the frame was taken; None where an observation has no depth (synthetic tests)
+    depth: np.ndarray | None = field(default=None, repr=False)  # (DEPTH_ROWS, DEPTH_COLS) m
+    depth_valid: np.ndarray | None = field(default=None, repr=False)  # False: closer than DEPTH_MIN
+    depth_time: float | None = None
+    # the IMU's gravity reading when the frame was taken: world up as a unit vector in the body
+    # frame (the body pitches a few degrees when it speeds up or brakes); levels the depth frame
+    depth_up: np.ndarray | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)

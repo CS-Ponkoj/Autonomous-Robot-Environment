@@ -40,7 +40,7 @@ def test_task_seed_option_selects_task(env):
 
 def test_observation_has_no_ground_truth(env):
     obs, info = env.reset(seed=1)
-    assert set(obs) == {"lidar", "lidar_valid", "velocity_estimate", "goal"}
+    assert set(obs) == {"lidar", "lidar_valid", "depth", "depth_valid", "velocity_estimate", "goal"}
     assert "ground_truth" in info  # ground truth is evaluation-only, in info
 
 
@@ -177,7 +177,7 @@ def test_format_versions_match_the_formats():
     """A format change must bump its version (datasets of different formats must not mix)."""
     env = RobotGoalEnv()
     obs, info = env.reset(options={"task_seed": 1000})
-    assert (C.OBSERVATION_VERSION, obs["lidar"].shape) == (2, (360,))
+    assert (C.OBSERVATION_VERSION, obs["lidar"].shape, obs["depth"].shape) == (3, (360,), (36, 64))
     assert (C.ACTION_VERSION, float(env.action_space.high[0]), float(env.action_space.high[1])) == (2, 1.0, 1.5)
     assert info["observation_version"] == env.metadata["observation_version"] == C.OBSERVATION_VERSION
     assert info["action_version"] == env.metadata["action_version"] == C.ACTION_VERSION

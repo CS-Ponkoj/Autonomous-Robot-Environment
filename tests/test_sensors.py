@@ -194,3 +194,91 @@ def test_lidar_reports_max_range_for_no_return_and_beyond_the_cutoff():
         ranges, valid = sim.scan()
         assert valid[diagonal] and ranges[diagonal] == pytest.approx(expected, abs=1e-6), surface
         sim.close()
+
+
+# ----- forward depth sensor (step Q3: obstacles below the lidar plane) -----
+
+def _cube(size, x, y):
+    h = size / 2
+    return f'<geom name="cube" type="box" pos="{x} {y} {h}" size="{h} {h} {h}" rgba="1 0 1 1"/>'
+
+
+def _drive_at(xml, speed, seconds=6.0, depth=True):
+    """Drive straight along +x at `speed` toward whatever xml adds; returns (contacts, the least
+    gap between the footprint and the cube, the stop position)."""
+    from robot_env.safety import footprint_distance
+    sim = RobotSim(include_obstacles=False, extra_world_xml=xml)
+    s = RobotSystem(sim=sim)
+    if not depth:
+        sim.depth_scan = lambda: (np.full((C.DEPTH_ROWS, C.DEPTH_COLS), C.DEPTH_MAX), np.ones((C.DEPTH_ROWS, C.DEPTH_COLS), bool),
+                                  np.array((0.0, 0.0, 1.0)))
+    s.reset(0.0, 0.0, 0.0, (5.0, 0.0))
+    g = sim.model.geom("cube").id
+    cx, cy = sim.data.geom_xpos[g][:2]
+    h = sim.model.geom_size[g][0]
+    corners = np.array([(cx + a * h, cy + b * h) for a in np.linspace(-1, 1, 5) for b in np.linspace(-1, 1, 5)])
+    least = math.inf
+    while s.time < seconds:
+        s.drive(speed, 0.0)
+        s.advance(0.02)
+        x, y, th = sim.true_pose()
+        dx, dy = corners[:, 0] - x, corners[:, 1] - y
+        lx, ly = dx * math.cos(th) + dy * math.sin(th), -dx * math.sin(th) + dy * math.cos(th)
+        least = min(least, float(footprint_distance(lx, ly).min()))
+    out = (s.collisions, least, sim.true_pose()[0])
+    s.close()
+    return out
+
+
+@pytest.mark.parametrize("speed", [0.2, 0.3, 0.6, 1.0])
+@pytest.mark.parametrize("size,offset", [(0.05, 0.0), (0.10, 0.0), (0.05, 0.1), (0.10, -0.12)])
+def test_low_obstacles_below_the_lidar_plane_are_avoided(size, offset, speed):
+    """5 and 10 cm cubes on the path (centred, and off-centre within the footprint) at every
+    tested speed: no contact, and at least the safety buffer kept (the lidar alone sees none)."""
+    contacts, least, _ = _drive_at(_cube(size, 1.6, offset), speed)
+    assert contacts == 0 and least >= C.SAFETY_BUFFER - 0.005, (contacts, least)
+
+
+def test_a_tall_block_stops_the_robot_no_later_than_the_lidar_alone():
+    block = '<geom name="cube" type="box" pos="1.6 0 0.15" size="0.15 0.15 0.15" rgba="1 0 1 1"/>'
+    _, _, with_depth = _drive_at(block, 0.6, 5.0)
+    _, _, lidar_only = _drive_at(block, 0.6, 5.0, depth=False)
+    assert with_depth <= lidar_only + 0.005
+
+
+def test_stale_depth_allows_no_forward_motion_but_turning():
+    from robot_env.safety import SafetyFlags
+    from robot_env.types import Command, Observation
+    ang = np.array(C.LIDAR_ANGLES)
+    o = Observation(1, 1.0, np.full(C.LIDAR_RAYS, C.LIDAR_RANGE), np.ones(C.LIDAR_RAYS, bool), ang, 1.0,
+                    (0.0, 0.0), 2.0, 0.0, False, None, np.full((C.DEPTH_ROWS, C.DEPTH_COLS), C.DEPTH_MAX),
+                    np.ones((C.DEPTH_ROWS, C.DEPTH_COLS), bool), 1.0 - C.DEPTH_MAX_AGE - 0.02)
+    r = SafetyLayer().filter(Command(0.3, 0.0), 0.99, o, 1.0, SafetyFlags())
+    assert r.command.v == 0.0 and "stale_depth" in r.reasons
+    r = SafetyLayer().filter(Command(0.0, 0.8), 0.99, o, 1.0, SafetyFlags())
+    assert r.command.omega == 0.8
+
+
+def test_depth_points_are_real_obstacles_everywhere_on_the_floor():
+    """No phantom obstacle (no false stop): at poses across every room and the corridor, each
+    depth point lies on a real solid (within 3 cm of one), the floor never reads as an obstacle."""
+    from robot_env.layout import RoomMap, clearance, shapes_from_model
+    from robot_env.sensing import depth_points
+    s = RobotSystem()
+    shapes = shapes_from_model(s.sim.model)
+    room = RoomMap(s.sim.model)
+    checked = 0
+    for seed in range(40):
+        task = room.sample_task(3000 + seed)
+        s.reset(*task.start, task.goal)
+        o = s.observe()
+        pts = depth_points(o)
+        if not len(pts):
+            continue
+        x, y, th = s.sim.true_pose()
+        wx = x + pts[:, 0] * math.cos(th) - pts[:, 1] * math.sin(th)
+        wy = y + pts[:, 0] * math.sin(th) + pts[:, 1] * math.cos(th)
+        assert clearance(shapes, wx, wy).max() <= 0.03
+        checked += len(pts)
+    s.close()
+    assert checked > 0

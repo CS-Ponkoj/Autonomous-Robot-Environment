@@ -16,6 +16,7 @@ import numpy as np
 from . import config as C
 from . import kernels
 from .lighting import Lights
+from .sensing import depth_directions
 
 WORLD_XML = Path(__file__).with_name("world.xml")
 ASSETS = Path(__file__).with_name("assets")
@@ -92,6 +93,7 @@ class RobotSim:
         self._model_input = (xml, assets)  # for model_sha256 (hashed on first use)
         self._model_sha256: str | None = None
         self.pre_render: list = []  # callables run before any render (e.g. posing the cats' skins)
+        self._depth_dirs = None  # the depth sensor's rays (built on first use)
         self.lights = Lights(self.model)  # which lights each render draws (visual only)
         if abs(self.model.opt.timestep - C.PHYSICS_DT) > 1e-12:
             raise ValueError("world.xml timestep must match config.PHYSICS_DT")
@@ -174,6 +176,25 @@ class RobotSim:
         return out
 
     # ----- sensors (non-privileged) -----
+    def depth_scan(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """The forward depth frame: ranges along the sensor's fixed rays (from the camera mount,
+        carried by the robot body's actual pose), DEPTH_MAX where nothing is within range, and
+        validity (False: closer than DEPTH_MIN, the sensor's blind range), and the IMU's gravity
+        reading (world up in the body frame) at that moment."""
+        if self._depth_dirs is None:
+            self._depth_dirs = depth_directions().reshape(-1, 3)
+            self._depth_world = np.empty_like(self._depth_dirs)
+            self._depth_geom = np.empty(len(self._depth_dirs), dtype=np.int32)
+            self._depth_dist = np.empty(len(self._depth_dirs))
+        rot = self.data.xmat[self.robot_body].reshape(3, 3)
+        origin = self.data.xpos[self.robot_body] + rot @ np.array(C.DEPTH_ORIGIN)
+        np.matmul(self._depth_dirs, rot.T, out=self._depth_world)
+        mujoco.mj_multiRay(self.model, self.data, origin, self._depth_world.ravel(), _RAY_GROUPS, 1,
+                           self.robot_body, self._depth_geom, self._depth_dist, None, len(self._depth_dist), C.DEPTH_MAX)
+        d = np.where(self._depth_dist < 0.0, C.DEPTH_MAX, np.minimum(self._depth_dist, C.DEPTH_MAX))
+        return (d.reshape(C.DEPTH_ROWS, C.DEPTH_COLS), (d >= C.DEPTH_MIN).reshape(C.DEPTH_ROWS, C.DEPTH_COLS),
+                rot[2].copy())
+
     def scan(self) -> tuple[np.ndarray, np.ndarray]:
         """Lidar ranges and validity. A valid ray with no return reports LIDAR_RANGE."""
         origin = self.data.site_xpos[self._lidar_site].copy()

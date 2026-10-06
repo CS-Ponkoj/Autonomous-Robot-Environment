@@ -42,6 +42,22 @@ LIDAR_RAYS = 360
 LIDAR_RANGE = 5.0
 LIDAR_ANGLES = tuple(-math.pi + i * 2 * math.pi / LIDAR_RAYS for i in range(LIDAR_RAYS))
 
+# Forward depth sensor: a ray frustum from the robot camera's mount, pitched down so its lowest
+# rows meet the floor just ahead of the bumper. The lidar plane (0.136 m) is at the robot's own
+# top, so anything shorter is invisible to it; the depth sensor sees it (ahead only: the sides
+# and the rear stay lidar-only).
+DEPTH_COLS, DEPTH_ROWS = 64, 36
+DEPTH_HFOV, DEPTH_VFOV = math.radians(80.0), math.radians(50.0)
+DEPTH_PITCH = math.radians(20.0)  # tilted down
+DEPTH_ORIGIN = (0.158, 0.0, 0.083)  # m in the robot body frame (the camera mount); the body is 0.0505 m up
+DEPTH_BODY_Z = 0.0505  # m: the body frame's height above the floor at rest
+DEPTH_MIN, DEPTH_MAX = 0.15, 3.0  # m: closer is invalid (blind), farther is no return
+DEPTH_PERIOD = 1.0 / 30.0  # s between frames
+DEPTH_MAX_AGE = 0.10  # s: older depth cannot authorise forward motion
+ROBOT_TOP = 0.1355  # m: the robot's collision height (its tallest solid part)
+DEPTH_FLOOR = 0.02  # m: returns lower than this are the floor
+DEPTH_VOXEL = 0.02  # m: obstacle points are kept one per cell of this size
+
 # Safety clearance model, derived from the step 5 motion check (measured on an
 # empty track, see tests/test_motion.py which re-checks these stay conservative):
 #   linear: 90% of 0.3-0.5 m/s in 0.14-0.16 s (avg accel 1.9-2.8 m/s^2);
@@ -117,5 +133,5 @@ HELDOUT_TASKS = {
 # Format versions, recorded with data. Bump them whenever the format changes, so datasets
 # from different formats are never mixed.
 # Observation 2: 360 lidar rays (was 36). Action 2: [v, omega] bounds +/-1.0 m/s (was 0.5).
-OBSERVATION_VERSION = 2
+OBSERVATION_VERSION = 3  # 3: the forward depth frame (depth, depth_valid)
 ACTION_VERSION = 2

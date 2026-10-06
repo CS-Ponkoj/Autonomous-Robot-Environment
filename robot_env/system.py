@@ -120,7 +120,8 @@ class RobotSystem:
         self.safety_log: deque[SafetyEvent] = deque(maxlen=2000)
         self.last_result = SafetyResult(STOP, ("no_command",))
         self._scan, self._scan_valid = self.sim.scan()
-        self._scan_time = self.sim.time
+        self._depth, self._depth_valid, self._depth_up = self.sim.depth_scan()
+        self._scan_time = self._depth_time = self.sim.time
         self._obs = self._build_observation()
         if self.log is not None:
             self.log.bind(self)  # the header always describes this system (cats, seed)
@@ -344,6 +345,9 @@ class RobotSystem:
             self._scan_time = now
             if f.active():
                 self._scan, self._scan_valid = self._apply_faults(self._scan, self._scan_valid)
+        if self.scan_enabled and not out and now - self._depth_time >= C.DEPTH_PERIOD - 1e-9:
+            self._depth, self._depth_valid, self._depth_up = self.sim.depth_scan()
+            self._depth_time = now
         self._obs = self._build_observation()
         result = self.safety.filter(self._requested, self._issued_at, self._obs, now, self.flags)
         self._target = result.command
@@ -398,6 +402,10 @@ class RobotSystem:
             goal_distance=dist,
             goal_bearing=bearing,
             contact=self.in_contact,
+            depth=_frozen(self._depth),
+            depth_valid=_frozen(self._depth_valid),
+            depth_time=self._depth_time,
+            depth_up=_frozen(self._depth_up),
         )
 
     @property

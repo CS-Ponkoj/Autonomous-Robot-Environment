@@ -39,6 +39,8 @@ class RobotGoalEnv(gym.Env):
         self.observation_space = spaces.Dict({
             "lidar": spaces.Box(0.0, C.LIDAR_RANGE, shape=(C.LIDAR_RAYS,), dtype=np.float32),
             "lidar_valid": spaces.MultiBinary(C.LIDAR_RAYS),
+            "depth": spaces.Box(0.0, C.DEPTH_MAX, shape=(C.DEPTH_ROWS, C.DEPTH_COLS), dtype=np.float32),
+            "depth_valid": spaces.MultiBinary((C.DEPTH_ROWS, C.DEPTH_COLS)),
             "velocity_estimate": spaces.Box(np.array([-2.0, -6.0], dtype=np.float32),
                                             np.array([2.0, 6.0], dtype=np.float32), dtype=np.float32),
             "goal": spaces.Box(np.array([0.0, -np.pi], dtype=np.float32),
@@ -96,6 +98,8 @@ class RobotGoalEnv(gym.Env):
         return {
             "lidar": np.clip(o.lidar, 0.0, C.LIDAR_RANGE).astype(np.float32),
             "lidar_valid": o.lidar_valid.astype(np.int8),
+            "depth": np.clip(o.depth, 0.0, C.DEPTH_MAX).astype(np.float32),
+            "depth_valid": o.depth_valid.astype(np.int8),
             "velocity_estimate": np.clip(np.array(o.velocity_estimate), [-2, -6], [2, 6]).astype(np.float32),
             "goal": np.array([min(o.goal_distance, 20.0), o.goal_bearing], dtype=np.float32),
         }

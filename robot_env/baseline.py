@@ -37,6 +37,7 @@ import numpy as np
 
 from . import config as C
 from .lidar import bridge
+from .sensing import depth_points
 from .types import Command, Decision, Observation
 
 STOP_COMMAND = Command(0.0, 0.0)
@@ -53,10 +54,12 @@ REFUSED_TTL = 8.0  # s the space ahead where the robot could not move stays bloc
 CONFIRM_SPAN = 0.5  # s a cell must be seen over to count as static
 DYNAMIC_TTL = 2.0  # s a briefly seen cell stays occupied after its last sighting
 V_CREEP = 0.06  # m/s: the slowest forward command while the lane ahead has room
+DEPTH_APART = 2  # cells (0.2 m) a depth point must be from anything the lidar has hit, to enter the map
 LOOKAHEAD = 5  # cells (0.5 m)
 HALF_WIDTH = C.FOOTPRINT_HALF_WIDTH + 0.04
 _DISK = [(dx, dy) for dx in range(-INFLATE, INFLATE + 1) for dy in range(-INFLATE, INFLATE + 1)
          if dx * dx + dy * dy <= INFLATE * INFLATE]
+_APART = [(dx, dy) for dx in range(-DEPTH_APART, DEPTH_APART + 1) for dy in range(-DEPTH_APART, DEPTH_APART + 1)]
 _STEPS = [(-1, 0, 1.0), (1, 0, 1.0), (0, -1, 1.0), (0, 1, 1.0),
           (-1, -1, 1.414), (-1, 1, 1.414), (1, -1, 1.414), (1, 1, 1.414)]
 
@@ -85,6 +88,7 @@ class BaselineDriver:
         self._last_vel = (0.0, 0.0)
         self.occupied = np.zeros((SIZE, SIZE), bool)  # derived: static, recent, or refused cells
         self._seen_free = np.zeros((SIZE, SIZE), bool)  # cells a valid ray has passed through
+        self._near_lidar = np.zeros((SIZE, SIZE), bool)  # within DEPTH_APART of a lidar hit, ever
         self._first = np.full((SIZE, SIZE), np.inf)  # first and last sighting of each cell
         self._last = np.full((SIZE, SIZE), -np.inf)
         self._refused = np.full((SIZE, SIZE), -np.inf)  # blocked until this time (no progress there)
@@ -117,7 +121,25 @@ class BaselineDriver:
         x, y, th = self.pose
         hit = obs.lidar_valid & (obs.lidar < C.LIDAR_RANGE - 1e-6)
         a = th + obs.lidar_angles[hit]
-        cx, cy = self._cell(x + obs.lidar[hit] * np.cos(a), y + obs.lidar[hit] * np.sin(a))
+        px, py = x + obs.lidar[hit] * np.cos(a), y + obs.lidar[hit] * np.sin(a)
+        lx, ly = self._cell(px, py)  # the lidar's cells, and the band around them (DEPTH_APART)
+        ok = (lx >= 0) & (lx < SIZE) & (ly >= 0) & (ly < SIZE)
+        for dx, dy in _APART:
+            nx, ny = lx[ok] + dx, ly[ok] + dy
+            fit = (nx >= 0) & (nx < SIZE) & (ny >= 0) & (ny < SIZE)
+            self._near_lidar[nx[fit], ny[fit]] = True
+        # what the lidar plane passes over, from the depth sensor: only cells the lidar has never
+        # come near (skirting and trim under a wall the lidar sees, in a frame where it misses
+        # that wall, would otherwise close doorways a cell at a time)
+        low = depth_points(obs)
+        if len(low):
+            wx = x + low[:, 0] * math.cos(th) - low[:, 1] * math.sin(th)
+            wy = y + low[:, 0] * math.sin(th) + low[:, 1] * math.cos(th)
+            dx_, dy_ = self._cell(wx, wy)
+            fit = (dx_ >= 0) & (dx_ < SIZE) & (dy_ >= 0) & (dy_ < SIZE)
+            fit[fit] = ~self._near_lidar[dx_[fit], dy_[fit]]
+            px, py = np.concatenate((px, wx[fit])), np.concatenate((py, wy[fit]))
+        cx, cy = self._cell(px, py)
         inside = (cx >= 0) & (cx < SIZE) & (cy >= 0) & (cy < SIZE)
         cx, cy = cx[inside], cy[inside]
         self._first[cx, cy] = np.minimum(self._first[cx, cy], obs.time)

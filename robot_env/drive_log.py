@@ -31,8 +31,9 @@ from . import config as C
 from . import provenance
 
 FORMAT = "robot-drive-log"
-VERSION = 2  # 2: header provenance: build (commit, working tree, source hash), build_label, model_sha256, deps
-READABLE = (1, 2)  # version 1 logs (no provenance) are still read; their provenance is reported unknown
+VERSION = 3  # 2: header provenance: build (commit, working tree, source hash), build_label, model_sha256, deps;
+            # 3: each new forward depth frame in the tick after it is taken (depth in mm, validity, time, IMU up)
+READABLE = (1, 2, 3)  # version 1 logs (no provenance) are still read; their provenance is reported unknown
 UNITS = {"t": "s", "v": "m/s", "omega": "rad/s", "lidar": "m", "lidar_angles": "rad",
          "pose": "m, m, rad (yaw)", "velocity": "m/s, rad/s"}
 
@@ -173,6 +174,7 @@ class DriveLog:
                 "collisions": system.collisions, "intervention_events": system.intervention_events,
                 "encoder": [v_est, w_est],
                 "lidar": pack_array(system._scan, "<f8"), "lidar_valid": pack_array(system._scan_valid, "u1"),
+                **self._depth_frame(system),
                 "flags": {k: bool(getattr(system.flags, k)) for k in
                           ("emergency_brake", "focus_lost", "episode_over", "manual_mode", "manual_input_held")},
                 "evaluation_only_truth": {"pose": [x, y, yaw], "velocity": [tv, tw],
@@ -183,6 +185,16 @@ class DriveLog:
             self.ticks += 1
         except Exception as e:  # a logging bug must never stop the robot's control
             self._fail(e)
+
+    def _depth_frame(self, system) -> dict:
+        """The depth frame, once: in the first tick after it was taken (millimetres, uint16)."""
+        t = getattr(system, "_depth_time", None)
+        if t is None or t == getattr(self, "_logged_depth", None):
+            return {}
+        self._logged_depth = t
+        mm = np.clip(np.round(np.asarray(system._depth) * 1000.0), 0, 65535)
+        return {"depth": pack_array(mm, "<u2"), "depth_valid": pack_array(system._depth_valid, "u1"),
+                "depth_time": t, "depth_up": [float(v) for v in system._depth_up]}
 
     def event(self, name: str, t: float, **data) -> None:
         self._write({"kind": "event", "t": t, "name": name, **data})
@@ -224,7 +236,7 @@ def read_log(path: str | Path, allow_incomplete: bool = False) -> list[dict]:
                 raise IncompleteLogError(f"line {n}: not JSON (truncated write?)") from e
             if not isinstance(rec, dict):
                 raise IncompleteLogError(f"line {n}: not a record")
-            for key in ("lidar", "lidar_valid", "lidar_angles"):
+            for key in ("lidar", "lidar_valid", "lidar_angles", "depth", "depth_valid"):
                 if isinstance(rec.get(key), dict) and "b64" in rec[key]:
                     rec[key] = unpack_array(rec[key])
             out.append(rec)

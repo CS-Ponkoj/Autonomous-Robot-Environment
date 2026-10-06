@@ -22,11 +22,13 @@ import numpy as np
 from . import config as C
 from . import kernels
 from .lidar import MEMORY_AGE, bridge  # noqa: F401 (MEMORY_AGE: re-exported)
+from .sensing import depth_points, remember
 from .types import STOP, Command, Observation
 
 # Reasons that count against the driver (interventions). Operator stops and
 # "no_command" are recorded as safety events but are not interventions.
-INTERVENTION_REASONS = frozenset({"invalid_input", "command_expired", "stale_scan", "speed_limit", "clearance"})
+INTERVENTION_REASONS = frozenset({"invalid_input", "command_expired", "stale_scan", "stale_depth", "speed_limit",
+                                  "clearance"})
 OPERATOR_REASONS = frozenset({"emergency_brake", "focus_lost", "episode_over", "released"})
 # Stops that bypass the comfort smoothing and command zero at once. "released" (the manual
 # driver letting go of its keys) is the only stop that ramps down.
@@ -68,6 +70,7 @@ class SafetyLayer:
     def __init__(self, clearance_enabled: bool = True):
         self.clearance_enabled = clearance_enabled
         self.memory = LidarMemory()  # bridges single dropped readings (at most MEMORY_AGE old)
+        self._depth = None  # robot_env.sensing.remember's state: depth points out of view now
 
     def filter(self, requested: Command | None, issued_at: float | None, obs: Observation,
                now: float, flags: SafetyFlags) -> SafetyResult:
@@ -88,15 +91,20 @@ class SafetyLayer:
         if now - obs.scan_time > C.SCAN_MAX_AGE + 1e-9:
             return SafetyResult(STOP, ("stale_scan",))
         obs = self.memory.fill(obs)
+        seen_depth, self._depth = remember(obs, self._depth)
+        stale_depth = obs.depth_time is not None and now - obs.depth_time > C.DEPTH_MAX_AGE + 1e-9
 
         reasons: list[str] = []
         v = min(max(requested.v, -C.MAX_LINEAR_SPEED), C.MAX_LINEAR_SPEED)
         w = min(max(requested.omega, -C.MAX_ANGULAR_SPEED), C.MAX_ANGULAR_SPEED)
         if (v, w) != (requested.v, requested.omega):
             reasons.append("speed_limit")
+        if stale_depth and v > 0.0:  # the space ahead is not freshly seen: no forward motion
+            v = 0.0
+            reasons.append("stale_depth")
         command = Command(v, w)
         if self.clearance_enabled and command != STOP:
-            safe = clearance_filter(command, obs)
+            safe = clearance_filter(command, obs, obstacle_points(obs, seen_depth))
             if safe != command:
                 reasons.append("clearance")
                 command = safe
@@ -105,7 +113,7 @@ class SafetyLayer:
 
 # ----- clearance -----
 
-def obstacle_points(obs: Observation) -> np.ndarray:
+def obstacle_points(obs: Observation, depth: np.ndarray | None = None) -> np.ndarray:
     """Obstacle points in the robot frame. Invalid rays become a band of virtual
     points just outside the footprint across that ray's whole sector, so motion
     into an unknown sector is blocked while motion away stays allowed."""
@@ -122,6 +130,9 @@ def obstacle_points(obs: Observation) -> np.ndarray:
                                   np.where(s > 1e-9, C.FOOTPRINT_HALF_WIDTH / s, np.inf))
         r = boundary + C.SAFETY_BUFFER * 0.5
         pts.append(np.column_stack((r * np.cos(ang), r * np.sin(ang))))
+    # what the lidar plane passes over (ahead only): this frame's points, or those given (with the
+    # remembered ones the safety layer keeps)
+    pts.append(depth_points(obs) if depth is None else depth)
     p = np.vstack(pts)
     return p[np.hypot(p[:, 0], p[:, 1]) <= C.SAFETY_CONSIDER_RADIUS]
 
@@ -212,13 +223,13 @@ def _largest_safe(make, obs: Observation, pts: np.ndarray) -> float:
     return lo
 
 
-def clearance_filter(command: Command, obs: Observation) -> Command:
+def clearance_filter(command: Command, obs: Observation, pts: np.ndarray | None = None) -> Command:
     """Every candidate passes the same check, in this order:
       1. the requested command;
       2. full turning with less forward speed (keeps steering away possible);
       3. the whole command slowed down (smooth approach instead of stop-go);
       4. stop."""
-    pts = obstacle_points(obs)
+    pts = obstacle_points(obs) if pts is None else pts
     if is_safe(command, obs, pts):
         return command
     v, w = command.v, command.omega

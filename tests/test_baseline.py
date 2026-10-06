@@ -30,7 +30,9 @@ def test_baseline_imports_nothing_privileged():
                 imported.add(node.module)
     assert not (imported & FORBIDDEN), imported & FORBIDDEN
     # robot_env.lidar: bridging dropped readings from the observation alone (no truth)
-    assert imported <= {"__future__", "math", "numpy", "robot_env.config", "robot_env.types", "robot_env.lidar"}, imported
+    # robot_env.sensing: depth points from the observation alone (no truth)
+    assert imported <= {"__future__", "math", "numpy", "robot_env.config", "robot_env.types", "robot_env.lidar",
+                        "robot_env.sensing"}, imported
 
 
 def _obs(seq, t, ranges, goal=(3.0, 0.0), vel=(0.0, 0.0)):
