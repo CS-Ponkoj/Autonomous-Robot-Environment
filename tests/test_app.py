@@ -599,6 +599,26 @@ def test_the_chase_camera_holds_its_zoom_through_the_demo_route():
     assert int(np.sum(np.diff(np.sign(steps)) != 0)) <= 8  # was 49 reversals
 
 
+def test_a_candidate_pose_is_judged_with_the_turn_toward_it():
+    """Regression (review): detour candidates were judged with the current turn, so while the robot
+    drove straight their outer side beams were ignored and a pose beside an edge could be chosen,
+    then pull the camera in once the view swung to it. A candidate 40 degrees off the shown azimuth
+    is judged with a 40 degree turn: its beam room is never larger than with no turn at all."""
+    sim, view = _settled_view(CAMERA_POSES["doorway"])
+    shown = view.cam.azimuth
+    seen = []
+    original = view._beam_room
+
+    def spy(sim_, az, el, turn=None):
+        seen.append(turn)
+        return original(sim_, az, el, turn)
+    view._beam_room = spy
+    view._clear_cache, view._beam_cache, view._sight_cache = {}, {}, {}
+    view._pose_sight(sim, 40.0, None, view._targets)
+    assert any(t is not None and abs(t - (shown + 40.0 - shown)) < 1.0 for t in seen), seen
+    sim.close()
+
+
 def test_wheel_always_changes_the_requested_zoom_and_tight_spaces_show_a_cue():
     from robot_env.app import ViewCamera
     from robot_env.sim import RobotSim

@@ -578,8 +578,9 @@ class ViewCamera:
         keep, take = min(self.distance, self.MIN_VIEW), min(max(self.distance, self.MIN_VIEW), self.TILT_BACK)
         floor = self.PITCH[0]
 
-        def ok(el, need):
-            return self._clear_distance(sim, azimuth, el) >= need and self._beam_room(sim, azimuth, el) >= need
+        def ok(el, need):  # the pitch for the pose being turned to now: judged with the current turn
+            return (self._clear_distance(sim, azimuth, el) >= need
+                    and self._beam_room(sim, azimuth, el) >= need)
         # Start from last frame's answer for this pose (the scene changes little between frames):
         # walk up while the next shallower angle is clear, or down until one is.
         key = (round(azimuth - self._heading - self.azimuth, 1), elev_override)
@@ -649,7 +650,7 @@ class ViewCamera:
         azimuth = self._heading + self.azimuth + offset
         elevation = self._settled_elevation(sim, azimuth, elev_override)  # judged where it will settle
         room = min(self.distance, self._clear_distance(sim, azimuth, elevation),
-                   max(self._beam_room(sim, azimuth, elevation), self.CLOSEST))
+                   max(self._beam_room(sim, azimuth, elevation, self._turn_to(azimuth)), self.CLOSEST))
         return self._sight_at(sim, azimuth, elevation, targets, room)
 
     def _pick(self, sim, targets, budget: int | None = SEARCH_PER_FRAME, fallback: bool = True):
@@ -691,14 +692,22 @@ class ViewCamera:
                     + levels.index(elev) * 0.5, offset * side < 0)
         return sorted(((o, e) for e in levels for o in self.OFFSETS), key=cost)
 
-    def _beam_room(self, sim, azimuth: float, elevation: float) -> float:
+    def _turn_to(self, azimuth: float) -> float:
+        """Degrees the view still turns to reach `azimuth` from what is shown (0 before a frame is shown)."""
+        if self._shown is None:
+            return 0.0
+        return (azimuth - self._shown[0] + 180.0) % 360.0 - 180.0
+
+    def _beam_room(self, sim, azimuth: float, elevation: float, turn: float | None = None) -> float:
         """Room along rays parallel to the line of sight, offset sideways and up: an edge (a door
         frame) is seen before the line of sight itself reaches it, so the camera glides in early.
         The outer side rays count only on the side the view is sweeping toward (a jamb beside a
         straight drive through a door never crosses the line of sight, so it no longer pulls the
-        camera in and lets it out again)."""
-        sweep = getattr(self, "_sweep", 0)
-        key = (round(azimuth, 2), round(elevation, 2), sweep, round(getattr(self, "_turn", 0.0)))
+        camera in and lets it out again). `turn`: the turn still to come toward this pose (the
+        current one by default; a candidate pose is judged with the turn toward it)."""
+        turn = self._turn if turn is None else turn
+        sweep = 0 if abs(turn) < self.SWEEP_DEG else (1 if turn > 0 else -1)
+        key = (round(azimuth, 2), round(elevation, 2), round(turn))
         cache = getattr(self, "_beam_cache", None)
         if cache is not None and key in cache:
             return cache[key]
@@ -722,7 +731,7 @@ class ViewCamera:
             if hit >= 0 and abs(side) > self.INNER_BEAM:
                 # an outer edge crosses the line of sight only if the view still turns far enough to
                 # reach it: atan(side / distance) (a jamb just behind the robot needs a large turn)
-                if math.degrees(math.atan2(abs(side), max(hit, 1e-3))) > abs(getattr(self, "_turn", 0.0)) + self.SWEEP_DEG:
+                if math.degrees(math.atan2(abs(side), max(hit, 1e-3))) > abs(turn) + self.SWEEP_DEG:
                     continue
             if hit >= 0:
                 best = min(best, max(hit - self.MARGIN, 0.02))
