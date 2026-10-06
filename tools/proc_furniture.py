@@ -43,6 +43,10 @@ MATERIALS = {
     "upholstery": ((0.56, 0.52, 0.45, 1.0), 0.1, 0.2, 0.0),
     "piping_oat": ((0.48, 0.44, 0.38, 1.0), 0.1, 0.2, 0.0),
     "plinth": ((0.08, 0.07, 0.06, 1.0), 0.2, 0.3, 0.0),
+    "melamine": ((0.88, 0.89, 0.9, 1.0), 0.3, 0.3, 0.0),
+    "worktop": ((0.17, 0.18, 0.19, 1.0), 0.4, 0.45, 0.02),
+    "rubber": ((0.07, 0.07, 0.075, 1.0), 0.15, 0.2, 0.0),
+    "vinyl": ((0.12, 0.13, 0.15, 1.0), 0.35, 0.4, 0.0),
 }
 OAK_RGB = (0.6, 0.43, 0.26)
 
@@ -55,6 +59,7 @@ SURFACES = {
     "fabric": (0.08, "weave"), "shade": (0.12, "linen"), "steel_grey": (0.6, "powder"),
     "steel_dark": (0.3, "brushed"), "plastic": (0.25, "matte"), "shell": (0.25, "matte"), "bin_mesh": (0.06, "perforated"),
     "concrete": (0.3, "concrete"), "upholstery": (0.08, "weave"), "plinth": (0.25, "matte"),
+    "melamine": (0.5, "matte"), "worktop": (0.4, "concrete"), "rubber": (0.2, "matte"), "vinyl": (0.2, "matte"),
 }
 
 
@@ -939,10 +944,64 @@ def end_table() -> dict:
                    {"oak": oak_texture()})
 
 
+LAB_TOP, LAB_CARCASS, LAB_PLINTH = 0.93, 0.90, 0.08  # worktop surface, carcass top, plinth top
+
+
+def _lab_fronts(m, hx, hy, side, sections):
+    """Drawer and door fronts on one long side (side -1: -y), each section 'drawers' or 'door':
+    3 mm proud over dark gaps, chrome bar handles."""
+    y = side * hy
+    w = 2 * hx / len(sections)
+    z0, z1 = LAB_PLINTH + 0.004, LAB_CARCASS - 0.004
+    m.box("shadow", (0, y + side * 0.0005, (z0 + z1) / 2), (hx - 0.004, 0.0005, (z1 - z0) / 2))
+    for k, kind in enumerate(sections):
+        xc = -hx + (k + 0.5) * w
+        rows = ((z0, z0 + (z1 - z0) / 3), (z0 + (z1 - z0) / 3, z0 + 2 * (z1 - z0) / 3), (z0 + 2 * (z1 - z0) / 3, z1))             if kind == "drawers" else ((z0, z1),)
+        for r0, r1 in rows:
+            m.box("melamine", (xc, y + side * 0.0015, (r0 + r1) / 2), (w / 2 - 0.003, 0.0035, (r1 - r0) / 2 - 0.003))
+            hz = r1 - 0.05 if kind == "drawers" else r1 - 0.12
+            hxw = 0.07 if kind == "drawers" else 0.012
+            hzw = 0.006 if kind == "drawers" else 0.06
+            hxp = xc if kind == "drawers" else xc + (w / 2 - 0.05) * (1 if k % 2 == 0 else -1)
+            m.box("chrome", (hxp, y + side * 0.018, hz), (hxw, 0.006, hzw))  # bar handle
+            for e in ((-1, 1) if kind == "drawers" else ()):
+                m.box("chrome", (hxp + e * (hxw - 0.006), y + side * 0.012, hz), (0.005, 0.006, 0.006))
+
+
+def lab_bench(model_id: str, hx: float, hy: float, back: bool, sections) -> dict:
+    """Laboratory bench 2 hx x 2 hy x 0.93 m: a white melamine carcass on a recessed dark plinth
+    (5 cm toe space at the front, 8 cm tall: nothing the robot fits under), drawer and door fronts
+    (on both long sides with back), a 3 cm dark phenolic worktop with a 2 cm overhang. Front -y."""
+    m = Mesh()
+    m.box("plinth", (0, 0.02 if not back else 0.0, LAB_PLINTH / 2), (hx - 0.01, hy - (0.03 if not back else 0.05), LAB_PLINTH / 2))
+    m.rounded_box("melamine", (0, 0, (LAB_PLINTH + LAB_CARCASS) / 2), (hx, hy, (LAB_CARCASS - LAB_PLINTH) / 2), 0.004)
+    _lab_fronts(m, hx, hy, -1, sections)
+    if back:
+        _lab_fronts(m, hx, hy, 1, sections)
+    m.rounded_box("worktop", (0, 0, (LAB_CARCASS + LAB_TOP) / 2), (hx + 0.02, hy + 0.02, (LAB_TOP - LAB_CARCASS) / 2), 0.005)
+    return m.write(model_id, "Laboratory bench (procedural)", "members: plinth, carcass, worktop")
+
+
+def lab_stool() -> dict:
+    """Laboratory stool: a weighted rubber drum base (0.34 m across, 0.16 m tall with a 1.5 cm
+    chamfer: it crosses the lidar plane, like the lamp's), a chrome column, a padded vinyl seat at
+    0.62 m."""
+    m = Mesh()
+    m.cylinder("rubber", (0, 0, 0.0725), 0.17, 0.0725, seg=48, tile=0.2)
+    m.cylinder("rubber", (0, 0, 0.1525), 0.17, 0.0075, seg=48, radius_top=0.155, tile=0.2)
+    m.cylinder("chrome", (0, 0, 0.38), 0.025, 0.22, seg=20)
+    m.cylinder("plastic", (0, 0, 0.585), 0.12, 0.01, seg=32)  # seat pan
+    m.rounded_box("vinyl", (0, 0, 0.625), (0.17, 0.17, 0.03), 0.03)  # (a round seat drawn as a soft square)
+    return m.write("proc_lab_stool", "Laboratory stool (procedural)", "members: base, column, seat")
+
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     for fn in (office_chair, filing_cabinet, waste_bin, floor_lamp, plant_stand, shelf_feet, lambda: shelf_books(11),
-               armchair, sofa, ottoman, coffee_table, end_table):
+               armchair, sofa, ottoman, coffee_table, end_table, lab_stool,
+               lambda: lab_bench("proc_lab_bench_long", 1.2, 0.4, False, ("drawers", "door", "door", "drawers")),
+               lambda: lab_bench("proc_lab_bench_island", 0.9, 0.4, True, ("drawers", "door", "drawers")),
+               lambda: lab_bench("proc_lab_cabinet", 0.3, 0.25, False, ("drawers",))):
         rec = fn()
         faces = sum(p["faces"] for p in rec["parts"])
         print(f"{rec['id']:22s} {faces:5d} faces  size {rec['size_m']}")

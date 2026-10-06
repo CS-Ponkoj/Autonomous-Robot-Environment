@@ -1,0 +1,79 @@
+{
+ "id": "proc_lab_stool",
+ "name": "Laboratory stool (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.34,
+  0.34,
+  0.655
+ ],
+ "parts": [
+  {
+   "mesh": "proc_lab_stool_0.msh",
+   "material": "chrome",
+   "texture": null,
+   "rgba": [
+    0.72,
+    0.73,
+    0.75,
+    1.0
+   ],
+   "specular": 0.9,
+   "shininess": 0.9,
+   "reflectance": 0.15,
+   "faces": 80,
+   "vertices": 82
+  },
+  {
+   "mesh": "proc_lab_stool_1.msh",
+   "material": "plastic",
+   "texture": "proc_lab_stool_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.35,
+   "shininess": 0.4,
+   "reflectance": 0.0,
+   "faces": 128,
+   "vertices": 130
+  },
+  {
+   "mesh": "proc_lab_stool_2.msh",
+   "material": "rubber",
+   "texture": "proc_lab_stool_2.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.15,
+   "shininess": 0.2,
+   "reflectance": 0.0,
+   "faces": 384,
+   "vertices": 392
+  },
+  {
+   "mesh": "proc_lab_stool_3.msh",
+   "material": "vinyl",
+   "texture": "proc_lab_stool_3.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.35,
+   "shininess": 0.4,
+   "reflectance": 0.0,
+   "faces": 768,
+   "vertices": 486
+  }
+ ],
+ "note": "members: base, column, seat"
+}

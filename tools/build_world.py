@@ -327,6 +327,35 @@ def _seating(hw, seats):
     return parts
 
 
+def lab_bench(name, model_id, pos, half, back, sections, yaw=0.0):
+    """Laboratory bench (procedural, tools/proc_furniture.py lab_bench): carcass on a recessed
+    plinth, fronts with bar handles (the lowest, at 0.30 m, are members), worktop at 0.93 m. Front
+    -y at yaw 0 (and +y with back)."""
+    hx, hy = half
+    parts = [("box", "plinth", (0, 0.0 if back else 0.02, 0.04), (hx - 0.01, hy - (0.05 if back else 0.03), 0.04)),
+             ("box", "carcass", (0, 0, 0.49), (hx, hy + 0.002, 0.41)),
+             ("box", "top", (0, 0, 0.915), (hx + 0.02, hy + 0.02, 0.015))]
+    w = 2 * hx / len(sections)
+    for side in ((-1, 1) if back else (-1,)):
+        for k, kind in enumerate(sections):
+            if kind == "drawers":
+                parts.append(("box", f"handle_{'n' if side > 0 else 's'}{k}", (-hx + (k + 0.5) * w, side * (hy + 0.012), 0.305),
+                              (0.07, 0.012, 0.006)))
+    with item(name):
+        model(model_id, pos, yaw)
+        members(name, pos, yaw, parts, "lab_white")
+
+
+def lab_stool(name, pos):
+    """Laboratory stool (procedural): weighted drum base 0.16 m tall (it crosses the lidar plane),
+    column, padded seat at 0.62 m."""
+    with item(name):
+        model("proc_lab_stool", pos)
+        members(name, pos, 0.0, [("cyl", "base", (0, 0, 0.08), 0.17, 0.08),
+                                 ("cyl", "column", (0, 0, 0.38), 0.025, 0.22),
+                                 ("box", "seat", (0, 0, 0.615), (0.17, 0.17, 0.04))], "bin_dark")
+
+
 def box_sofa(name, pos, yaw=0.0):
     """Three-seat box-arm sofa (procedural, 2.10 x 0.84 x 0.80 m) on a recessed plinth: its
     upholstered base crosses the lidar plane, nothing under it. Front -y at yaw 0."""
@@ -937,9 +966,8 @@ def build_floor():
     model("proc_wall_clock", (-2.7, H - 0.001, 1.75))  # on the north wall between the windows (visual, high up)
 
     comment("Lab furniture")
-    box("lab_bench_north", (2.6, 4.55, 0.45), (1.2, 0.4, 0.45), "lab_white")
-    cabinet_seams((2.6, 4.55, 0.45), (1.2, 0.4, 0.45), "y", -1, 4)
-    box(None, (2.6, 4.55, 0.915), (1.22, 0.42, 0.015), "lab_top", cls="visual")
+    lab_bench("lab_bench_north", "proc_lab_bench_long", (2.6, 4.55, 0.0), (1.2, 0.4), False,
+              ("drawers", "door", "door", "drawers"))  # against the north wall
     box(None, (2.0, 4.65, 0.96), (0.09, 0.12, 0.03), "lab_white", cls="visual")  # microscope base
     box(None, (2.0, 4.72, 1.08), (0.025, 0.03, 0.12), "lab_white", cls="visual")
     box(None, (2.0, 4.66, 1.17), (0.03, 0.07, 0.03), "robot_dark", cls="visual")
@@ -948,12 +976,10 @@ def build_floor():
         cyl(None, (bx, 4.5, 0.98 + 0.02 * k), 0.03 - 0.005 * k, 0.05 + 0.02 * k, "glass_ware", cls="visual")
     box(None, (3.3, 4.6, 1.02), (0.2, 0.17, 0.09), "lab_white", cls="visual")  # analyzer
     box(None, (3.3, 4.43, 1.04), (0.12, 0.001, 0.05), "screen", cls="visual")
-    box("lab_bench_island", (2.9, 2.5, 0.45), (0.9, 0.4, 0.45), "lab_white")
-    cabinet_seams((2.9, 2.5, 0.45), (0.9, 0.4, 0.45), "y", -1, 3)
-    cabinet_seams((2.9, 2.5, 0.45), (0.9, 0.4, 0.45), "y", 1, 3)
-    box(None, (2.9, 2.5, 0.915), (0.92, 0.42, 0.015), "lab_top", cls="visual")
+    lab_bench("lab_bench_island", "proc_lab_bench_island", (2.9, 2.5, 0.0), (0.9, 0.4), True,
+              ("drawers", "door", "drawers"))  # fronts on both sides
     shelving_unit("lab_shelving", (4.7, 1.9), (0.25, 0.7), 2.0, 4, seed=1)
-    box("lab_cart", (4.3, 4.0, 0.45), (0.3, 0.25, 0.45), "metal")
+    lab_bench("lab_cart", "proc_lab_cabinet", (4.3, 4.0, 0.0), (0.3, 0.25), False, ("drawers",))  # a drawer cabinet
 
     comment("Storage furniture: shelving rows with 1.2 m aisles")
     shelving_unit("storage_shelf_west", (-4.75, -3.0), (0.25, 1.2), 2.0, 4, seed=2)
@@ -980,9 +1006,9 @@ def build_floor():
     comment("Everyday clutter (solid, at least 0.2 m tall so the lidar sees it)")
     waste_bin("office_trash_bin", (-2.6, 4.75, 0.0))
     standing_lamp("office_lamp", (-4.78, 3.85, 0.0))  # in the corner by the desk: 8 cm to the wall, 8 cm to the desk, closed to cats
-    cyl("lab_trash_bin", (0.4, 4.62, 0.17), 0.13, 0.17, "bin_dark")
-    cyl("lab_stool_1", (3.32, 1.83, 0.25), 0.17, 0.25, "bin_dark")
-    cyl("lab_stool_2", (3.72, 1.83, 0.25), 0.17, 0.25, "bin_dark")
+    waste_bin("lab_trash_bin", (0.4, 4.62, 0.0))
+    lab_stool("lab_stool_1", (3.32, 1.83, 0.0))
+    lab_stool("lab_stool_2", (3.72, 1.83, 0.0))
     standing_lamp("reception_lamp", (4.78, -4.78, 0.0))  # in the south-east corner, 9 cm to both walls
     waste_bin("reception_trash_bin", (4.75, -3.0, 0.0))  # 10 cm to the east wall
     pallet_load("storage_pallet", (-0.5, -1.6))

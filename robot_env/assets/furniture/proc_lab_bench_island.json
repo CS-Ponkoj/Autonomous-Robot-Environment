@@ -1,0 +1,95 @@
+{
+ "id": "proc_lab_bench_island",
+ "name": "Laboratory bench (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  1.84,
+  0.848,
+  0.93
+ ],
+ "parts": [
+  {
+   "mesh": "proc_lab_bench_island_0.msh",
+   "material": "chrome",
+   "texture": null,
+   "rgba": [
+    0.72,
+    0.73,
+    0.75,
+    1.0
+   ],
+   "specular": 0.9,
+   "shininess": 0.9,
+   "reflectance": 0.15,
+   "faces": 456,
+   "vertices": 912
+  },
+  {
+   "mesh": "proc_lab_bench_island_1.msh",
+   "material": "melamine",
+   "texture": "proc_lab_bench_island_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 936,
+   "vertices": 822
+  },
+  {
+   "mesh": "proc_lab_bench_island_2.msh",
+   "material": "plinth",
+   "texture": "proc_lab_bench_island_2.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.2,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  },
+  {
+   "mesh": "proc_lab_bench_island_3.msh",
+   "material": "shadow",
+   "texture": null,
+   "rgba": [
+    0.03,
+    0.03,
+    0.03,
+    1.0
+   ],
+   "specular": 0.0,
+   "shininess": 0.0,
+   "reflectance": 0.0,
+   "faces": 24,
+   "vertices": 48
+  },
+  {
+   "mesh": "proc_lab_bench_island_4.msh",
+   "material": "worktop",
+   "texture": "proc_lab_bench_island_4.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.45,
+   "reflectance": 0.02,
+   "faces": 768,
+   "vertices": 486
+  }
+ ],
+ "note": "members: plinth, carcass, worktop"
+}

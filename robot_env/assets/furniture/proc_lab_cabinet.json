@@ -1,0 +1,95 @@
+{
+ "id": "proc_lab_cabinet",
+ "name": "Laboratory bench (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.64,
+  0.544,
+  0.93
+ ],
+ "parts": [
+  {
+   "mesh": "proc_lab_cabinet_0.msh",
+   "material": "chrome",
+   "texture": null,
+   "rgba": [
+    0.72,
+    0.73,
+    0.75,
+    1.0
+   ],
+   "specular": 0.9,
+   "shininess": 0.9,
+   "reflectance": 0.15,
+   "faces": 108,
+   "vertices": 216
+  },
+  {
+   "mesh": "proc_lab_cabinet_1.msh",
+   "material": "melamine",
+   "texture": "proc_lab_cabinet_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 804,
+   "vertices": 558
+  },
+  {
+   "mesh": "proc_lab_cabinet_2.msh",
+   "material": "plinth",
+   "texture": "proc_lab_cabinet_2.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.2,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  },
+  {
+   "mesh": "proc_lab_cabinet_3.msh",
+   "material": "shadow",
+   "texture": null,
+   "rgba": [
+    0.03,
+    0.03,
+    0.03,
+    1.0
+   ],
+   "specular": 0.0,
+   "shininess": 0.0,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  },
+  {
+   "mesh": "proc_lab_cabinet_4.msh",
+   "material": "worktop",
+   "texture": "proc_lab_cabinet_4.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.45,
+   "reflectance": 0.02,
+   "faces": 768,
+   "vertices": 486
+  }
+ ],
+ "note": "members: plinth, carcass, worktop"
+}
