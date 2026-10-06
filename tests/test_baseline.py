@@ -64,3 +64,20 @@ def test_baseline_is_deterministic_and_collision_free_on_development_seeds():
     assert first == second
     assert all(r["outcome"] == "success" and r["collisions"] == 0 for r in first), first
     s.close()
+
+
+def test_baseline_gets_out_of_the_trap_the_qa_report_found():
+    """Regression (QA report, seed 4016 at level 1): crawling at 1 to 2 cm/s toward a spot the
+    safety layer would not let it pass, then backing up blind, over and over, until the time
+    limit. With the creep floor, the refused-space memory, and the seen-clear backup it reaches
+    the goal with no contact."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+    from eval_baseline import run_episode
+    from robot_env.layout import RoomMap
+    from robot_env.system import RobotSystem
+    s = RobotSystem()
+    result = run_episode(s, RoomMap(s.sim.model), 4016, 0)
+    s.close()
+    assert result["outcome"] == "success" and result["collisions"] == 0, result

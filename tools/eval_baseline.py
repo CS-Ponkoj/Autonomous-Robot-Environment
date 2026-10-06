@@ -28,7 +28,9 @@ from robot_env.layout import RoomMap  # noqa: E402
 from robot_env.system import RobotSystem  # noqa: E402
 
 SCHEMA = 2  # 2: "path_efficiency" renamed "reference_path_ratio" (it can exceed 1)
-SEED_SETS = {"dev": tuple(range(2000, 2020)), "heldout": tuple(C.HELDOUT_SEEDS)}
+SEED_SETS = {"dev": tuple(range(2000, 2020)), "heldout": tuple(C.HELDOUT_SEEDS),
+             "trapped": (4002, 4016),  # the QA report's traps: no route (4002), a slow route with blind backups (4016)
+             "unseen": tuple(range(5000, 5030))}  # never used for tuning: the generalisation check
 
 
 def run_episode(system: RobotSystem, room: RoomMap, seed: int, level: int, log_dir: Path | None = None) -> dict:

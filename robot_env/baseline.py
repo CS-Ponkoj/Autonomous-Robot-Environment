@@ -7,17 +7,22 @@ the task generator, or ground truth. Like a real robot, it builds its own memory
 
 1. Odometry: integrates the encoder velocity estimate into a pose in its own start frame
    (trapezoidal: the average of the previous and current estimates over each interval).
-2. Mapping: a 0.1 m occupancy grid from its lidar hits (a hit marks a cell occupied for the
-   rest of the episode; the world is static). Unknown cells are treated as free (optimistic
-   exploration). Clearing cells along rays was tried and rejected: grazing rays erased real
-   walls (6/20 development successes instead of 16/20).
+2. Mapping: a 0.1 m occupancy grid from its lidar hits. A cell seen over CONFIRM_SPAN or longer
+   is static for the rest of the episode; one seen only briefly (a cat walking by) lapses
+   DYNAMIC_TTL after its last sighting, so moving things leave no phantom walls. Unknown cells
+   are treated as free (optimistic exploration). Clearing cells along rays was tried and
+   rejected: grazing rays erased real walls (6/20 development successes instead of 16/20).
 3. Planning: a wavefront (breadth-first distance field) from the goal over the grid inflated
    by the robot radius, recomputed every 0.5 s or when new obstacles appear on the path.
 4. Following: walk down the distance field for about 0.5 m from the robot's cell and head for
    that point, turn in place when the heading error is large, and slow down when the corridor
    ahead is short.
-5. Recovery: when it commands motion but the encoders show none for 1 s (for example the
-   safety layer refuses every move in a tight spot), it backs up briefly and replans.
+5. Recovery: when it commands motion but the encoders show none for STUCK_AFTER (the safety
+   layer refusing every move, say beside a corner the plan passed too close to), it marks the
+   space just ahead as refused in its own map for REFUSED_TTL and replans around it; then it
+   backs up only if the lidar shows the space behind clear (never blind), and otherwise turns
+   in place toward the side with more room. It never crawls below V_CREEP while the lane ahead
+   has room (a crawl reads as standing still), since the safety layer guards every move.
 With ideal sensors this works well; with realistic odometry drift and lidar noise (later
 realism rounds) it degrades, which is what a baseline should reveal.
 """
@@ -32,12 +37,20 @@ from . import config as C
 from .lidar import bridge
 from .types import Command, Decision, Observation
 
+STOP_COMMAND = Command(0.0, 0.0)
+
 CELL = 0.1  # m
 SIZE = 220  # cells per side (22 m): the start is at the center, so any goal on a 10 x 10 m floor fits
 INFLATE = int(math.ceil((C.CIRCUMSCRIBED_RADIUS + 0.06) / CELL))  # cells of clearance around obstacles
 REPLAN_PERIOD = 0.5  # s
 STUCK_AFTER = 1.0  # s of commanded but absent motion
-BACKUP_TIME = 0.8  # s of reversing to get out
+BACKUP_TIME = 0.6  # s of reversing to get out (only when the space behind is seen clear)
+TURN_TIME = 0.8  # s of turning in place to get out, when backing up is not seen clear
+REAR_CLEAR = 0.45  # m the lidar must see free behind the robot before it backs up
+REFUSED_TTL = 8.0  # s the space ahead where the robot could not move stays blocked in its map
+CONFIRM_SPAN = 0.5  # s a cell must be seen over to count as static
+DYNAMIC_TTL = 2.0  # s a briefly seen cell stays occupied after its last sighting
+V_CREEP = 0.06  # m/s: the slowest forward command while the lane ahead has room
 LOOKAHEAD = 5  # cells (0.5 m)
 HALF_WIDTH = C.FOOTPRINT_HALF_WIDTH + 0.04
 _DISK = [(dx, dy) for dx in range(-INFLATE, INFLATE + 1) for dy in range(-INFLATE, INFLATE + 1)
@@ -68,7 +81,12 @@ class BaselineDriver:
         self.pose = np.zeros(3)  # x, y, yaw in the driver's own start frame
         self._last_time: float | None = None
         self._last_vel = (0.0, 0.0)
-        self.occupied = np.zeros((SIZE, SIZE), bool)
+        self.occupied = np.zeros((SIZE, SIZE), bool)  # derived: static, recent, or refused cells
+        self._first = np.full((SIZE, SIZE), np.inf)  # first and last sighting of each cell
+        self._last = np.full((SIZE, SIZE), -np.inf)
+        self._refused = np.full((SIZE, SIZE), -np.inf)  # blocked until this time (no progress there)
+        self._turn_until = -1.0
+        self._turn_w = 0.0
         self.dist = None
         self._next_plan = 0.0
         self._goal = None
@@ -99,9 +117,23 @@ class BaselineDriver:
         cx, cy = self._cell(x + obs.lidar[hit] * np.cos(a), y + obs.lidar[hit] * np.sin(a))
         inside = (cx >= 0) & (cx < SIZE) & (cy >= 0) & (cy < SIZE)
         cx, cy = cx[inside], cy[inside]
-        new = bool((~self.occupied[cx, cy]).any())
-        self.occupied[cx, cy] = True
-        return new
+        self._first[cx, cy] = np.minimum(self._first[cx, cy], obs.time)
+        self._last[cx, cy] = obs.time
+        before = self.occupied
+        self.occupied = ((self._last - self._first >= CONFIRM_SPAN) | (obs.time - self._last < DYNAMIC_TTL)
+                         | (self._refused > obs.time))
+        return bool((self.occupied & ~before).any())
+
+    def _refuse_ahead(self, now: float) -> None:
+        """Mark the robot's lane just ahead as refused (no progress there) for REFUSED_TTL."""
+        x, y, th = self.pose
+        along = np.arange(C.FOOTPRINT_HALF_LENGTH + 0.05, C.FOOTPRINT_HALF_LENGTH + 0.36, CELL / 2)
+        across = np.arange(-HALF_WIDTH, HALF_WIDTH + 1e-9, CELL / 2)
+        a, b = np.meshgrid(along, across)
+        cx, cy = self._cell(x + a * math.cos(th) - b * math.sin(th), y + a * math.sin(th) + b * math.cos(th))
+        ok = (cx >= 0) & (cx < SIZE) & (cy >= 0) & (cy < SIZE)
+        self._refused[cx[ok], cy[ok]] = now + REFUSED_TTL
+        self.occupied[cx[ok], cy[ok]] = True
 
     # ----- planning -----
     def _plan(self) -> None:
@@ -156,8 +188,10 @@ class BaselineDriver:
 
     # ----- driving -----
     def decide(self, obs: Observation) -> Decision:
+        # a dropped reading takes its ray's recent return (kept up to date every decision)
+        seen, self._lidar = bridge(obs, self._lidar)
         self._integrate(obs)
-        new_obstacle = self._map(obs)
+        new_obstacle = self._map(seen)
         x, y, th = self.pose
         self._goal = (x + obs.goal_distance * math.cos(th + obs.goal_bearing),
                       y + obs.goal_distance * math.sin(th + obs.goal_bearing))
@@ -166,12 +200,30 @@ class BaselineDriver:
             self._next_plan = obs.time + REPLAN_PERIOD
         if obs.time < self._backup_until:
             return Decision(Command(-0.5 * self.v_max * C.MANUAL_REVERSE_FACTOR, 0.0), obs.seq)
+        if obs.time < self._turn_until:
+            return Decision(Command(0.0, self._turn_w), obs.seq)
+        r = np.where(seen.lidar_valid, seen.lidar, C.LIDAR_RANGE)
+        along, lateral = r * np.cos(obs.lidar_angles), np.abs(r * np.sin(obs.lidar_angles))
         moving = abs(obs.velocity_estimate[0]) > 0.02 or abs(obs.velocity_estimate[1]) > 0.05
         if moving or self._still_since is None:
             self._still_since = None if moving else obs.time
         elif obs.time - self._still_since > STUCK_AFTER:
-            self._backup_until, self._still_since = obs.time + BACKUP_TIME, None
-            self._next_plan = obs.time  # replan after backing up
+            # no progress: the way ahead is refused here; remember it, plan around it, and get out
+            # by backing up only into space seen clear, else by turning toward the roomier side
+            self._still_since = None
+            self._refuse_ahead(obs.time)
+            self._plan()
+            self._next_plan = obs.time + REPLAN_PERIOD
+            behind = (along < 0) & (lateral < HALF_WIDTH)
+            known = seen.lidar_valid[behind]
+            if known.all() and np.min(-along[behind], initial=C.LIDAR_RANGE) - C.FOOTPRINT_HALF_LENGTH >= REAR_CLEAR:
+                self._backup_until = obs.time + BACKUP_TIME
+            else:
+                left = float(np.mean(np.where(seen.lidar_valid, r, 0.0)[obs.lidar_angles > 0]))
+                right = float(np.mean(np.where(seen.lidar_valid, r, 0.0)[obs.lidar_angles < 0]))
+                self._turn_w = self.w_max * (1.0 if left >= right else -1.0)
+                self._turn_until = obs.time + TURN_TIME
+            return Decision(STOP_COMMAND, obs.seq)
         heading = self._target_heading()
         if heading is None:
             heading = obs.goal_bearing  # no known route: head for the goal and let safety stop us
@@ -179,12 +231,11 @@ class BaselineDriver:
         w = float(np.clip(2.0 * heading, -self.w_max, self.w_max))
         if abs(heading) > 0.5:
             return Decision(Command(0.0, w), obs.seq)  # turn in place first
-        # a dropped reading takes its ray's recent return; one still unknown counts as no return
-        # here (the speed choice), since the safety layer blocks any motion into it
-        seen, self._lidar = bridge(obs, self._lidar)
-        r = np.where(seen.lidar_valid, seen.lidar, C.LIDAR_RANGE)
-        along, lateral = r * np.cos(obs.lidar_angles), np.abs(r * np.sin(obs.lidar_angles))
+        # a reading still unknown counts as no return here (the speed choice), since the safety
+        # layer blocks any motion into it
         ahead = float(np.min(np.where((along > 0) & (lateral < HALF_WIDTH), along, C.LIDAR_RANGE)))
         room = float(np.clip((ahead - 0.25) / 0.6, 0.0, 1.0))
         v = min(self.v_max * room * math.cos(heading) ** 2, max(0.08, obs.goal_distance))
+        if room > 0.0:  # never a crawl the encoders read as standing still
+            v = max(v, min(V_CREEP, self.v_max))
         return Decision(Command(v, w), obs.seq)
