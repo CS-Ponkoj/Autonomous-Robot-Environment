@@ -1,0 +1,111 @@
+{
+ "id": "proc_water_cooler",
+ "name": "Water cooler (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.31,
+  0.36,
+  1.375
+ ],
+ "parts": [
+  {
+   "mesh": "proc_water_cooler_0.msh",
+   "material": "bottle_blue",
+   "texture": null,
+   "rgba": [
+    0.55,
+    0.72,
+    0.92,
+    0.38
+   ],
+   "specular": 0.95,
+   "shininess": 0.95,
+   "reflectance": 0.0,
+   "faces": 896,
+   "vertices": 710
+  },
+  {
+   "mesh": "proc_water_cooler_1.msh",
+   "material": "cooler_cold",
+   "texture": null,
+   "rgba": [
+    0.15,
+    0.4,
+    0.8,
+    1.0
+   ],
+   "specular": 0.5,
+   "shininess": 0.6,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  },
+  {
+   "mesh": "proc_water_cooler_2.msh",
+   "material": "cooler_grey",
+   "texture": null,
+   "rgba": [
+    0.3,
+    0.31,
+    0.33,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.35,
+   "reflectance": 0.0,
+   "faces": 228,
+   "vertices": 270
+  },
+  {
+   "mesh": "proc_water_cooler_3.msh",
+   "material": "cooler_hot",
+   "texture": null,
+   "rgba": [
+    0.8,
+    0.15,
+    0.12,
+    1.0
+   ],
+   "specular": 0.5,
+   "shininess": 0.6,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  },
+  {
+   "mesh": "proc_water_cooler_4.msh",
+   "material": "cooler_water",
+   "texture": null,
+   "rgba": [
+    0.35,
+    0.6,
+    0.9,
+    0.3
+   ],
+   "specular": 0.6,
+   "shininess": 0.8,
+   "reflectance": 0.0,
+   "faces": 208,
+   "vertices": 212
+  },
+  {
+   "mesh": "proc_water_cooler_5.msh",
+   "material": "cooler_white",
+   "texture": null,
+   "rgba": [
+    0.92,
+    0.92,
+    0.9,
+    1.0
+   ],
+   "specular": 0.35,
+   "shininess": 0.45,
+   "reflectance": 0.0,
+   "faces": 444,
+   "vertices": 318
+  }
+ ],
+ "note": "members: the cabinet box and the bottle cylinder"
+}

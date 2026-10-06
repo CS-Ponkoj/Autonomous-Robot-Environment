@@ -333,6 +333,15 @@ continue; if a banner asks you to release a key, release it and press again.
   can touch crosses that plane or stands under one that does; that is why the
   chair has four legs rather than a low star base and the shelf stands on
   levelling feet.
+- **Props and fittings** (made in code, visual only unless they stand on the
+  floor): storage and lab racks stocked with cartons and plastic totes, a loaded
+  pallet and a carton stack, a water cooler in the corridor, lab equipment on
+  the benches (a microscope, glassware with liquids, a tube rack, an analyzer
+  with a lit display), a desk set with a monitor, a wall clock, a whiteboard, a
+  TV, framed prints, and the building's fittings: sockets and switches by the
+  doors, exit and room signs, a fire extinguisher with its sign and call point,
+  smoke detectors, a dome camera, a notice board, a first aid kit, and cable
+  trunking.
 - **Task:** drive to the green goal marker (within 0.3 m) in 130 s without a
   collision. The start and goal are always in different rooms (or the
   corridor), so every task passes through a doorway. The seed fixes both;

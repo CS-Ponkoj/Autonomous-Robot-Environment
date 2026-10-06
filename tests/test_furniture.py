@@ -43,6 +43,15 @@ def test_the_lidar_sees_everything_the_robot_can_touch(check):
     assert fc.lidar_gate(sim.model, sim.data, top, plane) == []
 
 
+def test_every_stocked_rack_is_where_its_load_is_drawn(check):
+    """The rack loads are one world-frame model (tools/proc_props.py RACKS): a rack moved or added
+    in build_world without RACKS following would leave its cartons in the air or missing."""
+    fc, _ = check
+    props = _tool("proc_props")
+    racked = sorted(fc.build_world.racked_units)
+    assert racked and racked == sorted((tuple(c), tuple(h)) for c, h, _ in props.RACKS)
+
+
 def test_every_furniture_mesh_agrees_with_its_members(check):
     fc, sim = check
     top, _ = fc.robot_top_and_plane(sim.model, sim.data)

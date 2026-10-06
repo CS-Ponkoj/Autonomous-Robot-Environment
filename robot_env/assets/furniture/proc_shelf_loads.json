@@ -1,0 +1,79 @@
+{
+ "id": "proc_shelf_loads",
+ "name": "Cartons and totes on the racks (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  9.8311,
+  7.3066,
+  1.7105
+ ],
+ "parts": [
+  {
+   "mesh": "proc_shelf_loads_0.msh",
+   "material": "carton",
+   "texture": "proc_shelf_loads_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.06,
+   "shininess": 0.1,
+   "reflectance": 0.0,
+   "faces": 840,
+   "vertices": 1680
+  },
+  {
+   "mesh": "proc_shelf_loads_1.msh",
+   "material": "tote_blue",
+   "texture": null,
+   "rgba": [
+    0.18,
+    0.42,
+    0.78,
+    1.0
+   ],
+   "specular": 0.35,
+   "shininess": 0.4,
+   "reflectance": 0.0,
+   "faces": 2448,
+   "vertices": 4896
+  },
+  {
+   "mesh": "proc_shelf_loads_2.msh",
+   "material": "tote_grey",
+   "texture": null,
+   "rgba": [
+    0.42,
+    0.44,
+    0.46,
+    1.0
+   ],
+   "specular": 0.35,
+   "shininess": 0.4,
+   "reflectance": 0.0,
+   "faces": 1020,
+   "vertices": 2040
+  },
+  {
+   "mesh": "proc_shelf_loads_3.msh",
+   "material": "tote_hold",
+   "texture": null,
+   "rgba": [
+    0.04,
+    0.04,
+    0.05,
+    1.0
+   ],
+   "specular": 0.1,
+   "shininess": 0.1,
+   "reflectance": 0.0,
+   "faces": 408,
+   "vertices": 816
+  }
+ ],
+ "note": "visual only, on the rack decks (world coordinates)"
+}

@@ -5,7 +5,7 @@
   "procedural_tool": "tools/proc_furniture.py",
   "procedural_tool_sha256": "94779c0fe3d9d1101b58b7355e84d699987954fd0a00833c713e47c07596a026",
   "props_tool": "tools/proc_props.py",
-  "props_tool_sha256": "48b8f4a459599567f6c1901146db877c70356fe54a905d9647a381dbeddecfde",
+  "props_tool_sha256": "9abe016dd48ffee00bc960a365de97e7d7179b6aeb805a661e83ac0762096cc0",
   "python": "3.11.5",
   "packages": {
    "numpy": "2.4.6",
@@ -196,6 +196,10 @@
    "source": "tools/proc_furniture.py"
   },
   {
+   "id": "proc_shelf_loads",
+   "source": "tools/proc_furniture.py"
+  },
+  {
    "id": "proc_smoke_detector",
    "source": "tools/proc_furniture.py"
   },
@@ -249,6 +253,10 @@
   },
   {
    "id": "proc_waste_bin",
+   "source": "tools/proc_furniture.py"
+  },
+  {
+   "id": "proc_water_cooler",
    "source": "tools/proc_furniture.py"
   },
   {
@@ -1045,6 +1053,30 @@
    "sha256": "0390799ef58d2f91c6b3afe641e2882cb9bc24b96d4a7b76c9cfe031390ab0d6",
    "bytes": 148748
   },
+  "proc_shelf_loads.json": {
+   "sha256": "ada5c52fd7e9c2b7e3cd56f7262496f3e3de594cb7a447e441086ef052d9540d",
+   "bytes": 1334
+  },
+  "proc_shelf_loads_0.msh": {
+   "sha256": "6385639637f288dc31c18b02d5b63687f0417eabeccbac7481d659e7b61520d7",
+   "bytes": 63856
+  },
+  "proc_shelf_loads_0.png": {
+   "sha256": "d15149b080a1294f3d58b0825bd7d260d5cf46c2c354c8414d4893b70325609a",
+   "bytes": 892788
+  },
+  "proc_shelf_loads_1.msh": {
+   "sha256": "c0e60eae99514a180904cb5b16ac6a3043000a375b543c75572a3c1e6dd7f60b",
+   "bytes": 186064
+  },
+  "proc_shelf_loads_2.msh": {
+   "sha256": "8aadab4c32352387edec3663bb2eee670f1271f7875787fe86672bb1ea8635b9",
+   "bytes": 77536
+  },
+  "proc_shelf_loads_3.msh": {
+   "sha256": "f435a47a2c41465ae67b529cab2fceb0bce007aeac985e6e6758fbe8c19f72e9",
+   "bytes": 31024
+  },
   "proc_smoke_detector.json": {
    "sha256": "814cc4a9e04026429cb9264631a373d9376289b9e5e9a1d40e81127381834475",
    "bytes": 538
@@ -1154,8 +1186,8 @@
    "bytes": 7312
   },
   "proc_storage_pallet_0.png": {
-   "sha256": "eac455ff7b5533a626fa2659f0f828342c3753390fb022d59648bacf5086aa55",
-   "bytes": 1935980
+   "sha256": "9abfe01feabeb0bc5bc397e59c0f4ee898dac449f57ab4ac162e5745e70ad4fe",
+   "bytes": 974542
   },
   "proc_storage_pallet_1.msh": {
    "sha256": "049b338b1283d96e828b45a271ad20c0bb4980fa6bac0db2e27231fc7e01a3eb",
@@ -1316,6 +1348,34 @@
   "proc_waste_bin_3.png": {
    "sha256": "54c308745c961ec13204e1ed35357adaaa05be8ea3e2cc105179191e33a2fb1b",
    "bytes": 295616
+  },
+  "proc_water_cooler.json": {
+   "sha256": "ceede3e6e13f27bf6f7a57cc6a1bd60874146789a8a03352d853dea67cb7a67b",
+   "bytes": 1804
+  },
+  "proc_water_cooler_0.msh": {
+   "sha256": "318da058f863ea14d4e9c5ce06e3ac2ab2024ca38b35298890c67711fcc09198",
+   "bytes": 33488
+  },
+  "proc_water_cooler_1.msh": {
+   "sha256": "c3b99bb97a56bfded7df3dda7d40fe3a1433ad2e7e2435ae81d794c221ed3c0f",
+   "bytes": 928
+  },
+  "proc_water_cooler_2.msh": {
+   "sha256": "140e86905a5ca07fecf85ff56d07033b376df47497847198fe3df3ea842b8daf",
+   "bytes": 11392
+  },
+  "proc_water_cooler_3.msh": {
+   "sha256": "3d7b8aa4f107840d8a032dd60ef54a03965a062a0e4ca8ce7c9113956275f409",
+   "bytes": 928
+  },
+  "proc_water_cooler_4.msh": {
+   "sha256": "8f1becf816d4025b0b7744daa6ce7c18615e82860142abcbaf79c8e810e330de",
+   "bytes": 9296
+  },
+  "proc_water_cooler_5.msh": {
+   "sha256": "188f38d3fba21d6970c97192ac73af018736897010959079e39ca182d2aee6e1",
+   "bytes": 15520
   },
   "proc_whiteboard.json": {
    "sha256": "699e789d27ef77007f64342dfa67356c43f08a9369acfa84c9ecdd4bec704e8a",

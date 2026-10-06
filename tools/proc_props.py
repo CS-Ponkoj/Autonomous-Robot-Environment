@@ -267,9 +267,10 @@ PALLET_STACK = {  # a half-height pallet load: 2 x 2 cartons in 2 layers
 }
 
 
-def atlas(tiles, cols):
+def atlas(tiles, cols, scale=1.0):
     """Pack carton textures (image, uv rects) into one image, `cols` per row; returns the image and
-    each tile's rects remapped into it (one material and one texture for a whole load)."""
+    each tile's rects remapped into it (one material and one texture for a whole load). `scale`
+    shrinks the packed image (the rects are fractions, so they hold) to keep texture memory in budget."""
     tw = max(img.width for img, _ in tiles)
     th = max(img.height for img, _ in tiles)
     rows = math.ceil(len(tiles) / cols)
@@ -281,6 +282,8 @@ def atlas(tiles, cols):
         sx, sy = img.width / out.width, img.height / out.height
         mapped.append({n: (ox / out.width + r[0] * sx, oy / out.height + r[1] * sy,
                            ox / out.width + r[2] * sx, oy / out.height + r[3] * sy) for n, r in rects.items()})
+    if scale != 1.0:
+        out = out.resize((round(out.width * scale), round(out.height * scale)), Image.LANCZOS)
     return out, mapped
 
 
@@ -292,7 +295,7 @@ def storage_pallet() -> dict:
     L, W, H = PALLET_STACK["carton"]
     rnd = np.random.default_rng(31)
     tiles = [carton_texture(L, W, H, 100 + k, label=(k % 3 == 0), fragile=(k == 5)) for k in range(8)]
-    img, rects = atlas(tiles, 4)
+    img, rects = atlas(tiles, 4, scale=0.7)
     for layer in range(2):
         for i, sx in enumerate((-1, 1)):
             for j, sy in enumerate((-1, 1)):
@@ -1264,12 +1267,129 @@ def lab_island_set() -> dict:
                    {"paper": notepad_texture(), "glove_box": img})
 
 
+# ----- what stands on the steel racks: cartons and plastic totes -----
+pf.MATERIALS.update({
+    "tote_blue": ((0.18, 0.42, 0.78, 1.0), 0.35, 0.4, 0.0),
+    "tote_hold": ((0.04, 0.04, 0.05, 1.0), 0.1, 0.1, 0.0),
+    "tote_grey": ((0.42, 0.44, 0.46, 1.0), 0.35, 0.4, 0.0),
+})
+SHELF_TOPS = (0.16, 0.61, 1.06, 1.51)  # deck surfaces of the 2.0 m, 4-level racks (build_world shelving_unit)
+
+
+def _tote(m, mat, cx, cy, z0, L, W, H):
+    """A stacking plastic tote: straight walls with a rim all round, a rib band 4 cm under the rim,
+    three vertical ribs on each long side, a dark hand hold on each end, a floor; open top."""
+    t = 0.006
+    m.box(mat, (cx, cy, z0 + 0.003), (L / 2 - 0.01, W / 2 - 0.01, 0.003))  # floor
+    for sx, sy, hx, hy in ((0, -1, L / 2, t), (0, 1, L / 2, t), (-1, 0, t, W / 2), (1, 0, t, W / 2)):
+        m.box(mat, (cx + sx * (L / 2 - t), cy + sy * (W / 2 - t), z0 + H / 2), (hx, hy, H / 2))
+    for sy in (-1, 1):  # rim and rib band on the long sides, vertical ribs
+        m.box(mat, (cx, cy + sy * (W / 2 + 0.003), z0 + H - 0.008), (L / 2 + 0.003, 0.003, 0.008))
+        m.box(mat, (cx, cy + sy * (W / 2 + 0.002), z0 + H - 0.045), (L / 2, 0.002, 0.004))
+        for k in (-1, 0, 1):
+            m.box(mat, (cx + k * L / 4, cy + sy * (W / 2 + 0.002), z0 + H / 2 - 0.02), (0.004, 0.002, H / 2 - 0.03))
+    for sx in (-1, 1):  # rim and hand hold on the ends
+        m.box(mat, (cx + sx * (L / 2 + 0.003), cy, z0 + H - 0.008), (0.003, W / 2 + 0.003, 0.008))
+        m.box("tote_hold", (cx + sx * (L / 2 + 0.0005), cy, z0 + H - 0.035), (0.0012, 0.05, 0.012))
+
+
+# the racks with cartons (as build_world.build_floor places shelving_unit: centre, half size, seed)
+RACKS = (((4.7, 1.9), (0.25, 0.7), 1), ((-4.75, -3.0), (0.25, 1.2), 2), ((-2.9, -3.6), (0.25, 1.2), 3),
+         ((-1.15, -3.5), (0.25, 1.2), 4))
+
+
+def shelf_loads() -> dict:
+    """Cartons and totes on every steel rack's four decks, in world coordinates (one model, one
+    carton atlas shared by all racks): packed along each rack with gaps, within the deck's depth and
+    the clear height to the deck above, some cartons stacked two high."""
+    sizes = [(0.3, 0.3, 0.22), (0.4, 0.3, 0.25), (0.25, 0.25, 0.18), (0.35, 0.3, 0.3), (0.2, 0.3, 0.15),
+             (0.3, 0.35, 0.28)]
+    tiles = [carton_texture(L, min(W, 0.42), H, 300 + k, label=(k % 2 == 0), fragile=(k == 3))
+             for k, (L, W, H) in enumerate(sizes)]
+    img, rects = atlas(tiles, 3, scale=0.9)
+    m = pf.Mesh()
+    for (cx, cy), (hx, hy), seed in RACKS:
+        rng = np.random.default_rng(seed)
+        along_y = hy >= hx
+        span, depth = max(hx, hy) - 0.04, min(hx, hy) - 0.03
+        rack = pf.Mesh()
+        for k, z0 in enumerate(SHELF_TOPS):
+            clear = (SHELF_TOPS[k + 1] - z0 - 0.04) if k + 1 < len(SHELF_TOPS) else 0.4
+            x = -span + rng.uniform(0.0, 0.05)
+            while True:
+                if rng.random() < 0.25:  # a plastic tote
+                    L, W, H = 0.4, min(0.3, 2 * depth - 0.02), 0.17
+                    if x + L > span:
+                        break
+                    _tote(rack, "tote_blue" if rng.random() < 0.6 else "tote_grey", x + L / 2,
+                          rng.uniform(-0.01, 0.01), z0 + 0.0005, L, W, H)
+                else:
+                    j = int(rng.integers(len(sizes)))
+                    L, W, H = sizes[j]
+                    W = min(W, 2 * depth - 0.02)
+                    if H > clear:
+                        j = 4
+                        L, W, H = sizes[j]
+                        W = min(W, 2 * depth - 0.02)
+                    if x + L > span:
+                        break
+                    y = rng.uniform(-(depth - W / 2) * 0.3, (depth - W / 2) * 0.3)
+                    carton(rack, (x + L / 2, y, z0 + 0.0005), (L, W, H), rng.uniform(-3.0, 3.0), rects[j])
+                    if H * 2 + 0.01 < clear and rng.random() < 0.3:  # a second one on top, turned a little
+                        carton(rack, (x + L / 2 + rng.uniform(-0.01, 0.01), y, z0 + H + 0.001), (L, W, H),
+                               rng.uniform(-5.0, 5.0), rects[(j + 2) % len(sizes)])
+                x += L + rng.uniform(0.02, 0.09)
+        c, s_ = (0.0, 1.0) if along_y else (1.0, 0.0)  # the rack's long axis along world y: turn 90 degrees
+        R = np.array([[c, -s_, 0.0], [s_, c, 0.0], [0.0, 0.0, 1.0]])
+        for mat, chunks in rack.parts.items():
+            for v, f, n, uv in chunks:
+                m.add(mat, v @ R.T + [cx, cy, 0.0], f, n @ R.T, uv)
+    return m.write("proc_shelf_loads", "Cartons and totes on the racks (procedural)",
+                   "visual only, on the rack decks (world coordinates)", {"carton": img}, base_at_zero=False)
+
+# ----- the corridor water cooler -----
+pf.MATERIALS.update({
+    "cooler_white": ((0.92, 0.92, 0.9, 1.0), 0.35, 0.45, 0.0),
+    "cooler_grey": ((0.3, 0.31, 0.33, 1.0), 0.3, 0.35, 0.0),
+    "cooler_cold": ((0.15, 0.4, 0.8, 1.0), 0.5, 0.6, 0.0),
+    "cooler_hot": ((0.8, 0.15, 0.12, 1.0), 0.5, 0.6, 0.0),
+    "bottle_blue": ((0.55, 0.72, 0.92, 0.38), 0.95, 0.95, 0.0),  # tinted clear plastic (alpha)
+    "cooler_water": ((0.35, 0.6, 0.9, 0.3), 0.6, 0.8, 0.0),
+})
+
+
+def water_cooler() -> dict:
+    """A top-loading water cooler: a white cabinet 31 cm square and 94 cm tall on a dark plinth, a
+    dark dispensing panel with a cold and a hot tap over a drip tray, and an upturned 19 litre blue
+    bottle (neck in the collar, ribbed, three quarters full); 1.38 m in all. Front faces -y."""
+    m = pf.Mesh()
+    m.box("cooler_grey", (0.0, 0.0, 0.015), (0.145, 0.145, 0.015))  # the plinth
+    m.rounded_box("cooler_white", (0.0, 0.0, 0.485), (0.155, 0.155, 0.455), 0.015, n_arc=2)
+    m.box("cooler_grey", (0.0, -0.1555, 0.72), (0.1, 0.002, 0.1))  # the dispensing panel
+    for x, mat in ((-0.045, "cooler_cold"), (0.045, "cooler_hot")):
+        m.box(mat, (x, -0.17, 0.785), (0.016, 0.014, 0.022))  # the tap paddles
+        m.cylinder("cooler_grey", (x, -0.168, 0.755), 0.006, 0.01, seg=10)  # their spouts
+    m.box("cooler_grey", (0.0, -0.18, 0.632), (0.09, 0.025, 0.008))  # the drip tray
+    m.box("cooler_white", (0.0, -0.18, 0.641), (0.08, 0.02, 0.0015))  # its grille
+    m.cylinder("cooler_grey", (0.0, 0.0, 0.955), 0.075, 0.015, seg=28)  # the bottle collar
+    m.cylinder("bottle_blue", (0.0, 0.0, 0.99), 0.03, 0.02, seg=20)  # the neck, upside down
+    m.cylinder("bottle_blue", (0.0, 0.0, 1.05), 0.03, 0.04, seg=28, radius_top=0.135)  # the shoulder
+    m.cylinder("bottle_blue", (0.0, 0.0, 1.215), 0.135, 0.125, seg=32)  # the body
+    m.cushion("bottle_blue", (0.0, 0.0, 1.34), (0.135, 0.135, 0.035), e=0.9, nu=32, nv=8)  # its base, now on top
+    for z in (1.14, 1.27):
+        m.cylinder("bottle_blue", (0.0, 0.0, z), 0.1375, 0.007, seg=32, caps=False)  # the ribs
+    m.cylinder("cooler_water", (0.0, 0.0, 1.02), 0.026, 0.03, seg=20, radius_top=0.125)  # the water
+    m.cylinder("cooler_water", (0.0, 0.0, 1.16), 0.13, 0.11, seg=32)
+    return m.write("proc_water_cooler", "Water cooler (procedural)",
+                   "members: the cabinet box and the bottle cylinder")
+
+
 def main() -> int:
     pf.OUT.mkdir(parents=True, exist_ok=True)
     for fn in (storage_pallet, storage_carton, storage_carton_top, wall_clock, desk_set, whiteboard, socket,
                light_switch, thermostat, exit_sign, first_aid_kit, notice_board, safety_poster, trunking,
                smoke_detector, print_corridor_a, print_corridor_b, print_reception, television, extinguisher,
-               fire_sign, call_point, dome_camera, lab_bench_set, lab_island_set):
+               fire_sign, call_point, dome_camera, lab_bench_set, lab_island_set, shelf_loads, water_cooler):
         rec = fn()
         faces = sum(p["faces"] for p in rec["parts"])
         print(f"{rec['id']:22s} {faces:5d} faces  size {rec['size_m']}")

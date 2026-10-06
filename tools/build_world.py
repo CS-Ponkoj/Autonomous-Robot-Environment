@@ -38,6 +38,7 @@ geoms: list[str] = []
 furniture_assets: list[str] = []  # <asset> entries (meshes, textures, materials) of the furniture meshes
 furniture_items: list[dict] = []  # every item(): its members and meshes (for tools/furniture_check.py)
 placed_models: list[dict] = []  # every model() placed, inside an item or not (owner: the item's name or None)
+racked_units: list[tuple] = []  # (centre, half) of each steel rack whose load is in proc_shelf_loads
 _assets_done: set = set()
 _item: dict | None = None  # the item being built
 
@@ -211,6 +212,9 @@ def shelving_unit(name, center, half, height, levels, seed, items="cartons"):
                     (cx + sx * (hx - 0.015), cy + sy * (hy - 0.015), height / 2), (0.015, 0.015, height / 2), "metal")
         for k, z in enumerate(tops[1:], 1):
             box(f"{name}_board_{k}", (cx, cy, z - 0.01), (hx, hy, 0.01), "metal")
+    if rack and items == "cartons":  # its cartons and totes are in proc_shelf_loads (placed once, below;
+        racked_units.append((tuple(center), tuple(half)))  # tools/proc_props.py RACKS must list it)
+        return
     span = (hy if along_y else hx) - 0.04
     depth = (hx if along_y else hy) - 0.03
     for k in range(len(tops) - 1):
@@ -560,6 +564,14 @@ def waste_bin(name, pos):
         members(name, pos, 0.0, [("cyl", "low", (0, 0, 0.055), 0.132, 0.055),
                                  ("cyl", "mid", (0, 0, 0.165), 0.139, 0.055),
                                  ("cyl", "top", (0, 0, 0.286), 0.151, 0.066)], "bin_dark")
+
+
+def water_cooler(name, pos):
+    """Top-loading water cooler (procedural), its front to the corridor (-x); 1.38 m tall."""
+    with item(name):
+        model("proc_water_cooler", pos, -90.0)
+        members(name, pos, -90.0, [("box", "cabinet", (0, 0, 0.47), (0.155, 0.155, 0.47)),
+                                   ("cyl", "bottle", (0, 0, 1.16), 0.135, 0.21)], "lab_white")
 
 
 def standing_lamp(name, pos):
@@ -981,6 +993,7 @@ def build_floor():
     shelving_unit("storage_shelf_west", (-4.75, -3.0), (0.25, 1.2), 2.0, 4, seed=2)
     shelving_unit("storage_shelf_mid", (-2.9, -3.6), (0.25, 1.2), 2.0, 4, seed=3)  # 0.72 m past the open door leaf into the west aisle
     shelving_unit("storage_shelf_east", (-1.15, -3.5), (0.25, 1.2), 2.0, 4, seed=4)
+    model("proc_shelf_loads", (0.0, 0.0, 0.0))  # cartons and totes on every rack (one model, one texture)
     carton_stack("storage_boxes", (-0.45, -4.55))
 
     comment("Reception furniture")
@@ -998,7 +1011,7 @@ def build_floor():
     planter("reception_plant", (4.6, -1.2))
 
     comment("Corridor")
-    box("corridor_water_cooler", (4.78, 0.4, 0.55), (0.17, 0.17, 0.55), "lab_white")
+    water_cooler("corridor_water_cooler", (4.78, 0.4, 0.0))
     snake_plant("corridor_plant", (-4.75, -0.42, 0.0))
     comment("Everyday clutter (solid, at least 0.2 m tall so the lidar sees it)")
     waste_bin("office_trash_bin", (-2.6, 4.75, 0.0))
@@ -1397,6 +1410,7 @@ def generate() -> str:
     furniture_assets.clear()
     furniture_items.clear()
     placed_models.clear()
+    racked_units.clear()
     _assets_done.clear()
     build_floor()
     header = HEADER.replace("  </asset>", "\n".join(furniture_assets + ["  </asset>"]), 1)
