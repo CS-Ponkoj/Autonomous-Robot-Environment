@@ -18,6 +18,7 @@ members and the mesh agree.
 """
 
 import json
+import contextlib
 import math
 from contextlib import contextmanager
 from pathlib import Path
@@ -189,14 +190,19 @@ def shelving_unit(name, center, half, height, levels, seed, items="cartons"):
     cx, cy = center
     hx, hy = half
     along_y = hy >= hx
-    box(f"{name}_plinth", (cx, cy, 0.08), (hx, hy, 0.08), "metal_dark")
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            box(f"{name}_post_{'n' if sy > 0 else 's'}{'e' if sx > 0 else 'w'}",
-                (cx + sx * (hx - 0.015), cy + sy * (hy - 0.015), height / 2), (0.015, 0.015, height / 2), "metal")
     tops = [0.16] + [0.16 + k * (height - 0.2) / levels for k in range(1, levels + 1)]
-    for k, z in enumerate(tops[1:], 1):
-        box(f"{name}_board_{k}", (cx, cy, z - 0.01), (hx, hy, 0.01), "metal")
+    racks = {(1.2, 0.25, 2.0, 4): "proc_storage_rack", (0.7, 0.25, 2.0, 4): "proc_lab_rack"}
+    rack = racks.get((max(hx, hy), min(hx, hy), height, levels))
+    with item(name) if rack else contextlib.nullcontext():  # tools/proc_furniture.py storage_rack
+        if rack:
+            model(rack, (cx, cy, 0.0), 90.0 if along_y else 0.0)
+        box(f"{name}_plinth", (cx, cy, 0.08), (hx, hy, 0.08), "metal_dark")
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                box(f"{name}_post_{'n' if sy > 0 else 's'}{'e' if sx > 0 else 'w'}",
+                    (cx + sx * (hx - 0.015), cy + sy * (hy - 0.015), height / 2), (0.015, 0.015, height / 2), "metal")
+        for k, z in enumerate(tops[1:], 1):
+            box(f"{name}_board_{k}", (cx, cy, z - 0.01), (hx, hy, 0.01), "metal")
     span = (hy if along_y else hx) - 0.04
     depth = (hx if along_y else hy) - 0.03
     for k in range(len(tops) - 1):

@@ -47,6 +47,9 @@ MATERIALS = {
     "worktop": ((0.17, 0.18, 0.19, 1.0), 0.4, 0.45, 0.02),
     "rubber": ((0.07, 0.07, 0.075, 1.0), 0.15, 0.2, 0.0),
     "vinyl": ((0.12, 0.13, 0.15, 1.0), 0.35, 0.4, 0.0),
+    "rack_blue": ((0.12, 0.27, 0.52, 1.0), 0.45, 0.4, 0.02),
+    "rack_orange": ((0.86, 0.42, 0.08, 1.0), 0.45, 0.4, 0.02),
+    "chipboard": ((0.7, 0.58, 0.42, 1.0), 0.1, 0.15, 0.0),
 }
 OAK_RGB = (0.6, 0.43, 0.26)
 
@@ -60,6 +63,7 @@ SURFACES = {
     "steel_dark": (0.3, "brushed"), "plastic": (0.25, "matte"), "shell": (0.25, "matte"), "bin_mesh": (0.06, "perforated"),
     "concrete": (0.3, "concrete"), "upholstery": (0.08, "weave"), "plinth": (0.25, "matte"),
     "melamine": (0.5, "matte"), "worktop": (0.4, "concrete"), "rubber": (0.2, "matte"), "vinyl": (0.2, "matte"),
+    "rack_blue": (0.5, "powder"), "rack_orange": (0.5, "powder"), "chipboard": (0.3, "concrete"),
 }
 
 
@@ -995,10 +999,30 @@ def lab_stool() -> dict:
     return m.write("proc_lab_stool", "Laboratory stool (procedural)", "members: base, column, seat")
 
 
+def storage_rack(model_id: str = "proc_storage_rack", hx: float = 1.2, hy: float = 0.25, height: float = 2.0,
+                 levels: int = 4, post: str = "rack_blue", beam: str = "rack_orange") -> dict:
+    """Steel storage racking 2 hx x 2 hy x height (long side along x): uprights (3 cm) at the
+    corners, step beams front and back under each chipboard deck (storage: blue and orange; lab:
+    grey), a dark steel kick plate from the floor to 0.16 m (a solid the lidar sees; the bottom deck
+    stands on it)."""
+    m = Mesh()
+    m.box("steel_dark", (0, 0, 0.08), (hx, hy, 0.08))  # kick plate
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            m.box(post, (sx * (hx - 0.015), sy * (hy - 0.015), height / 2), (0.015, 0.015, height / 2))
+    tops = [0.16 + k * (height - 0.2) / levels for k in range(1, levels + 1)]
+    for z in [0.16] + tops:
+        m.box("chipboard", (0, 0, z - 0.009), (hx - 0.03, hy - 0.03, 0.009))  # deck
+        for sy in (-1, 1):
+            m.box(beam, (0, sy * (hy - 0.015), z - 0.03), (hx - 0.03, 0.012, 0.03))  # step beams
+    return m.write(model_id, "Storage racking (procedural)", "members: plinth, posts, boards")
+
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     for fn in (office_chair, filing_cabinet, waste_bin, floor_lamp, plant_stand, shelf_feet, lambda: shelf_books(11),
-               armchair, sofa, ottoman, coffee_table, end_table, lab_stool,
+               armchair, sofa, ottoman, coffee_table, end_table, lab_stool, storage_rack,
+               lambda: storage_rack("proc_lab_rack", 0.7, 0.25, 2.0, 4, "steel_grey", "steel_grey"),
                lambda: lab_bench("proc_lab_bench_long", 1.2, 0.4, False, ("drawers", "door", "door", "drawers")),
                lambda: lab_bench("proc_lab_bench_island", 0.9, 0.4, True, ("drawers", "door", "drawers")),
                lambda: lab_bench("proc_lab_cabinet", 0.3, 0.25, False, ("drawers",))):

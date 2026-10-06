@@ -282,6 +282,15 @@
     <texture name="proc_lab_bench_island_t4" type="2d" file="proc_lab_bench_island_4.png"/>
     <material name="proc_lab_bench_island_m4" texture="proc_lab_bench_island_t4" specular="0.4" shininess="0.45" reflectance="0.02"/>
     <mesh name="proc_lab_bench_island_4" file="proc_lab_bench_island_4.msh" inertia="shell"/>
+    <texture name="proc_lab_rack_t0" type="2d" file="proc_lab_rack_0.png"/>
+    <material name="proc_lab_rack_m0" texture="proc_lab_rack_t0" specular="0.1" shininess="0.15" reflectance="0.0"/>
+    <mesh name="proc_lab_rack_0" file="proc_lab_rack_0.msh" inertia="shell"/>
+    <texture name="proc_lab_rack_t1" type="2d" file="proc_lab_rack_1.png"/>
+    <material name="proc_lab_rack_m1" texture="proc_lab_rack_t1" specular="0.4" shininess="0.5" reflectance="0.02"/>
+    <mesh name="proc_lab_rack_1" file="proc_lab_rack_1.msh" inertia="shell"/>
+    <texture name="proc_lab_rack_t2" type="2d" file="proc_lab_rack_2.png"/>
+    <material name="proc_lab_rack_m2" texture="proc_lab_rack_t2" specular="0.5" shininess="0.35" reflectance="0.02"/>
+    <mesh name="proc_lab_rack_2" file="proc_lab_rack_2.msh" inertia="shell"/>
     <material name="proc_lab_cabinet_m0" rgba="0.720 0.730 0.750 1.000" specular="0.9" shininess="0.9" reflectance="0.15"/>
     <mesh name="proc_lab_cabinet_0" file="proc_lab_cabinet_0.msh" inertia="shell"/>
     <texture name="proc_lab_cabinet_t1" type="2d" file="proc_lab_cabinet_1.png"/>
@@ -295,6 +304,18 @@
     <texture name="proc_lab_cabinet_t4" type="2d" file="proc_lab_cabinet_4.png"/>
     <material name="proc_lab_cabinet_m4" texture="proc_lab_cabinet_t4" specular="0.4" shininess="0.45" reflectance="0.02"/>
     <mesh name="proc_lab_cabinet_4" file="proc_lab_cabinet_4.msh" inertia="shell"/>
+    <texture name="proc_storage_rack_t0" type="2d" file="proc_storage_rack_0.png"/>
+    <material name="proc_storage_rack_m0" texture="proc_storage_rack_t0" specular="0.1" shininess="0.15" reflectance="0.0"/>
+    <mesh name="proc_storage_rack_0" file="proc_storage_rack_0.msh" inertia="shell"/>
+    <texture name="proc_storage_rack_t1" type="2d" file="proc_storage_rack_1.png"/>
+    <material name="proc_storage_rack_m1" texture="proc_storage_rack_t1" specular="0.45" shininess="0.4" reflectance="0.02"/>
+    <mesh name="proc_storage_rack_1" file="proc_storage_rack_1.msh" inertia="shell"/>
+    <texture name="proc_storage_rack_t2" type="2d" file="proc_storage_rack_2.png"/>
+    <material name="proc_storage_rack_m2" texture="proc_storage_rack_t2" specular="0.45" shininess="0.4" reflectance="0.02"/>
+    <mesh name="proc_storage_rack_2" file="proc_storage_rack_2.msh" inertia="shell"/>
+    <texture name="proc_storage_rack_t3" type="2d" file="proc_storage_rack_3.png"/>
+    <material name="proc_storage_rack_m3" texture="proc_storage_rack_t3" specular="0.4" shininess="0.5" reflectance="0.02"/>
+    <mesh name="proc_storage_rack_3" file="proc_storage_rack_3.msh" inertia="shell"/>
     <texture name="proc_storage_carton_t0" type="2d" file="proc_storage_carton_0.png"/>
     <material name="proc_storage_carton_m0" texture="proc_storage_carton_t0" specular="0.06" shininess="0.1" reflectance="0.0"/>
     <mesh name="proc_storage_carton_0" file="proc_storage_carton_0.msh" inertia="shell"/>
@@ -1082,15 +1103,18 @@
     <geom name="lab_bench_island_handle_s2" type="box" pos="3.5000 2.0880 0.3050" size="0.0700 0.0120 0.0060" material="lab_white" group="4"/>
     <geom name="lab_bench_island_handle_n0" type="box" pos="2.3000 2.9120 0.3050" size="0.0700 0.0120 0.0060" material="lab_white" group="4"/>
     <geom name="lab_bench_island_handle_n2" type="box" pos="3.5000 2.9120 0.3050" size="0.0700 0.0120 0.0060" material="lab_white" group="4"/>
-    <geom name="lab_shelving_plinth" type="box" pos="4.7000 1.9000 0.0800" size="0.2500 0.7000 0.0800" material="metal_dark"/>
-    <geom name="lab_shelving_post_sw" type="box" pos="4.4650 1.2150 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="lab_shelving_post_nw" type="box" pos="4.4650 2.5850 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="lab_shelving_post_se" type="box" pos="4.9350 1.2150 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="lab_shelving_post_ne" type="box" pos="4.9350 2.5850 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="lab_shelving_board_1" type="box" pos="4.7000 1.9000 0.6000" size="0.2500 0.7000 0.0100" material="metal"/>
-    <geom name="lab_shelving_board_2" type="box" pos="4.7000 1.9000 1.0500" size="0.2500 0.7000 0.0100" material="metal"/>
-    <geom name="lab_shelving_board_3" type="box" pos="4.7000 1.9000 1.5000" size="0.2500 0.7000 0.0100" material="metal"/>
-    <geom name="lab_shelving_board_4" type="box" pos="4.7000 1.9000 1.9500" size="0.2500 0.7000 0.0100" material="metal"/>
+    <geom name="lab_shelving_proc_lab_rack_0" class="visual" type="mesh" mesh="proc_lab_rack_0" material="proc_lab_rack_m0" pos="4.7000 1.9000 0.0000" euler="0 0 90.0"/>
+    <geom name="lab_shelving_proc_lab_rack_1" class="visual" type="mesh" mesh="proc_lab_rack_1" material="proc_lab_rack_m1" pos="4.7000 1.9000 0.0000" euler="0 0 90.0"/>
+    <geom name="lab_shelving_proc_lab_rack_2" class="visual" type="mesh" mesh="proc_lab_rack_2" material="proc_lab_rack_m2" pos="4.7000 1.9000 0.0000" euler="0 0 90.0"/>
+    <geom name="lab_shelving_plinth" type="box" pos="4.7000 1.9000 0.0800" size="0.2500 0.7000 0.0800" material="metal_dark" group="4"/>
+    <geom name="lab_shelving_post_sw" type="box" pos="4.4650 1.2150 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="lab_shelving_post_nw" type="box" pos="4.4650 2.5850 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="lab_shelving_post_se" type="box" pos="4.9350 1.2150 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="lab_shelving_post_ne" type="box" pos="4.9350 2.5850 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="lab_shelving_board_1" type="box" pos="4.7000 1.9000 0.6000" size="0.2500 0.7000 0.0100" material="metal" group="4"/>
+    <geom name="lab_shelving_board_2" type="box" pos="4.7000 1.9000 1.0500" size="0.2500 0.7000 0.0100" material="metal" group="4"/>
+    <geom name="lab_shelving_board_3" type="box" pos="4.7000 1.9000 1.5000" size="0.2500 0.7000 0.0100" material="metal" group="4"/>
+    <geom name="lab_shelving_board_4" type="box" pos="4.7000 1.9000 1.9500" size="0.2500 0.7000 0.0100" material="metal" group="4"/>
     <geom type="box" pos="4.7000 1.3121 0.2964" size="0.1973 0.0721 0.1364" material="cardboard_dark" class="visual"/>
     <geom type="box" pos="4.7000 1.5397 0.2580" size="0.1684 0.1285 0.0980" material="cardboard" class="visual"/>
     <geom type="box" pos="4.7000 1.7564 0.2633" size="0.1964 0.0626 0.1033" material="cardboard" class="visual"/>
@@ -1121,15 +1145,19 @@
     <geom name="lab_cart_handle_s0" type="box" pos="4.3000 3.7380 0.3050" size="0.0700 0.0120 0.0060" material="lab_white" group="4"/>
 
     <!-- Storage furniture: shelving rows with 1.2 m aisles -->
-    <geom name="storage_shelf_west_plinth" type="box" pos="-4.7500 -3.0000 0.0800" size="0.2500 1.2000 0.0800" material="metal_dark"/>
-    <geom name="storage_shelf_west_post_sw" type="box" pos="-4.9850 -4.1850 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="storage_shelf_west_post_nw" type="box" pos="-4.9850 -1.8150 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="storage_shelf_west_post_se" type="box" pos="-4.5150 -4.1850 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="storage_shelf_west_post_ne" type="box" pos="-4.5150 -1.8150 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="storage_shelf_west_board_1" type="box" pos="-4.7500 -3.0000 0.6000" size="0.2500 1.2000 0.0100" material="metal"/>
-    <geom name="storage_shelf_west_board_2" type="box" pos="-4.7500 -3.0000 1.0500" size="0.2500 1.2000 0.0100" material="metal"/>
-    <geom name="storage_shelf_west_board_3" type="box" pos="-4.7500 -3.0000 1.5000" size="0.2500 1.2000 0.0100" material="metal"/>
-    <geom name="storage_shelf_west_board_4" type="box" pos="-4.7500 -3.0000 1.9500" size="0.2500 1.2000 0.0100" material="metal"/>
+    <geom name="storage_shelf_west_proc_storage_rack_0" class="visual" type="mesh" mesh="proc_storage_rack_0" material="proc_storage_rack_m0" pos="-4.7500 -3.0000 0.0000" euler="0 0 90.0"/>
+    <geom name="storage_shelf_west_proc_storage_rack_1" class="visual" type="mesh" mesh="proc_storage_rack_1" material="proc_storage_rack_m1" pos="-4.7500 -3.0000 0.0000" euler="0 0 90.0"/>
+    <geom name="storage_shelf_west_proc_storage_rack_2" class="visual" type="mesh" mesh="proc_storage_rack_2" material="proc_storage_rack_m2" pos="-4.7500 -3.0000 0.0000" euler="0 0 90.0"/>
+    <geom name="storage_shelf_west_proc_storage_rack_3" class="visual" type="mesh" mesh="proc_storage_rack_3" material="proc_storage_rack_m3" pos="-4.7500 -3.0000 0.0000" euler="0 0 90.0"/>
+    <geom name="storage_shelf_west_plinth" type="box" pos="-4.7500 -3.0000 0.0800" size="0.2500 1.2000 0.0800" material="metal_dark" group="4"/>
+    <geom name="storage_shelf_west_post_sw" type="box" pos="-4.9850 -4.1850 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="storage_shelf_west_post_nw" type="box" pos="-4.9850 -1.8150 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="storage_shelf_west_post_se" type="box" pos="-4.5150 -4.1850 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="storage_shelf_west_post_ne" type="box" pos="-4.5150 -1.8150 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="storage_shelf_west_board_1" type="box" pos="-4.7500 -3.0000 0.6000" size="0.2500 1.2000 0.0100" material="metal" group="4"/>
+    <geom name="storage_shelf_west_board_2" type="box" pos="-4.7500 -3.0000 1.0500" size="0.2500 1.2000 0.0100" material="metal" group="4"/>
+    <geom name="storage_shelf_west_board_3" type="box" pos="-4.7500 -3.0000 1.5000" size="0.2500 1.2000 0.0100" material="metal" group="4"/>
+    <geom name="storage_shelf_west_board_4" type="box" pos="-4.7500 -3.0000 1.9500" size="0.2500 1.2000 0.0100" material="metal" group="4"/>
     <geom type="box" pos="-4.7500 -4.0140 0.2257" size="0.2050 0.1460 0.0657" material="cardboard" class="visual"/>
     <geom type="box" pos="-4.7500 -3.7510 0.3054" size="0.1943 0.0752 0.1454" material="cardboard_dark" class="visual"/>
     <geom type="box" pos="-4.7500 -3.5048 0.2358" size="0.1768 0.1146 0.0758" material="bin_blue" class="visual"/>
@@ -1164,15 +1192,19 @@
     <geom type="box" pos="-4.7500 -2.5109 1.5951" size="0.1662 0.0809 0.0851" material="bin_grey" class="visual"/>
     <geom type="box" pos="-4.7500 -2.2650 1.6060" size="0.1800 0.1312 0.0960" material="bin_blue" class="visual"/>
     <geom type="box" pos="-4.7500 -1.9695 1.6085" size="0.1436 0.1276 0.0985" material="cardboard" class="visual"/>
-    <geom name="storage_shelf_mid_plinth" type="box" pos="-2.9000 -3.5000 0.0800" size="0.2500 1.2000 0.0800" material="metal_dark"/>
-    <geom name="storage_shelf_mid_post_sw" type="box" pos="-3.1350 -4.6850 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="storage_shelf_mid_post_nw" type="box" pos="-3.1350 -2.3150 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="storage_shelf_mid_post_se" type="box" pos="-2.6650 -4.6850 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="storage_shelf_mid_post_ne" type="box" pos="-2.6650 -2.3150 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="storage_shelf_mid_board_1" type="box" pos="-2.9000 -3.5000 0.6000" size="0.2500 1.2000 0.0100" material="metal"/>
-    <geom name="storage_shelf_mid_board_2" type="box" pos="-2.9000 -3.5000 1.0500" size="0.2500 1.2000 0.0100" material="metal"/>
-    <geom name="storage_shelf_mid_board_3" type="box" pos="-2.9000 -3.5000 1.5000" size="0.2500 1.2000 0.0100" material="metal"/>
-    <geom name="storage_shelf_mid_board_4" type="box" pos="-2.9000 -3.5000 1.9500" size="0.2500 1.2000 0.0100" material="metal"/>
+    <geom name="storage_shelf_mid_proc_storage_rack_0" class="visual" type="mesh" mesh="proc_storage_rack_0" material="proc_storage_rack_m0" pos="-2.9000 -3.5000 0.0000" euler="0 0 90.0"/>
+    <geom name="storage_shelf_mid_proc_storage_rack_1" class="visual" type="mesh" mesh="proc_storage_rack_1" material="proc_storage_rack_m1" pos="-2.9000 -3.5000 0.0000" euler="0 0 90.0"/>
+    <geom name="storage_shelf_mid_proc_storage_rack_2" class="visual" type="mesh" mesh="proc_storage_rack_2" material="proc_storage_rack_m2" pos="-2.9000 -3.5000 0.0000" euler="0 0 90.0"/>
+    <geom name="storage_shelf_mid_proc_storage_rack_3" class="visual" type="mesh" mesh="proc_storage_rack_3" material="proc_storage_rack_m3" pos="-2.9000 -3.5000 0.0000" euler="0 0 90.0"/>
+    <geom name="storage_shelf_mid_plinth" type="box" pos="-2.9000 -3.5000 0.0800" size="0.2500 1.2000 0.0800" material="metal_dark" group="4"/>
+    <geom name="storage_shelf_mid_post_sw" type="box" pos="-3.1350 -4.6850 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="storage_shelf_mid_post_nw" type="box" pos="-3.1350 -2.3150 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="storage_shelf_mid_post_se" type="box" pos="-2.6650 -4.6850 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="storage_shelf_mid_post_ne" type="box" pos="-2.6650 -2.3150 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="storage_shelf_mid_board_1" type="box" pos="-2.9000 -3.5000 0.6000" size="0.2500 1.2000 0.0100" material="metal" group="4"/>
+    <geom name="storage_shelf_mid_board_2" type="box" pos="-2.9000 -3.5000 1.0500" size="0.2500 1.2000 0.0100" material="metal" group="4"/>
+    <geom name="storage_shelf_mid_board_3" type="box" pos="-2.9000 -3.5000 1.5000" size="0.2500 1.2000 0.0100" material="metal" group="4"/>
+    <geom name="storage_shelf_mid_board_4" type="box" pos="-2.9000 -3.5000 1.9500" size="0.2500 1.2000 0.0100" material="metal" group="4"/>
     <geom type="box" pos="-2.9000 -4.5786 0.2570" size="0.1739 0.0814 0.0970" material="bin_grey" class="visual"/>
     <geom type="box" pos="-2.9000 -4.3364 0.3109" size="0.1786 0.1123 0.1509" material="bin_blue" class="visual"/>
     <geom type="box" pos="-2.9000 -4.1075 0.2670" size="0.2087 0.0811 0.1070" material="bin_grey" class="visual"/>
@@ -1208,15 +1240,19 @@
     <geom type="box" pos="-2.9000 -2.9524 1.6275" size="0.1964 0.0884 0.1175" material="cardboard_dark" class="visual"/>
     <geom type="box" pos="-2.9000 -2.6891 1.6319" size="0.1386 0.1345 0.1219" material="bin_grey" class="visual"/>
     <geom type="box" pos="-2.9000 -2.4406 1.5971" size="0.1931 0.0863 0.0871" material="cardboard_dark" class="visual"/>
-    <geom name="storage_shelf_east_plinth" type="box" pos="-1.1500 -3.5000 0.0800" size="0.2500 1.2000 0.0800" material="metal_dark"/>
-    <geom name="storage_shelf_east_post_sw" type="box" pos="-1.3850 -4.6850 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="storage_shelf_east_post_nw" type="box" pos="-1.3850 -2.3150 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="storage_shelf_east_post_se" type="box" pos="-0.9150 -4.6850 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="storage_shelf_east_post_ne" type="box" pos="-0.9150 -2.3150 1.0000" size="0.0150 0.0150 1.0000" material="metal"/>
-    <geom name="storage_shelf_east_board_1" type="box" pos="-1.1500 -3.5000 0.6000" size="0.2500 1.2000 0.0100" material="metal"/>
-    <geom name="storage_shelf_east_board_2" type="box" pos="-1.1500 -3.5000 1.0500" size="0.2500 1.2000 0.0100" material="metal"/>
-    <geom name="storage_shelf_east_board_3" type="box" pos="-1.1500 -3.5000 1.5000" size="0.2500 1.2000 0.0100" material="metal"/>
-    <geom name="storage_shelf_east_board_4" type="box" pos="-1.1500 -3.5000 1.9500" size="0.2500 1.2000 0.0100" material="metal"/>
+    <geom name="storage_shelf_east_proc_storage_rack_0" class="visual" type="mesh" mesh="proc_storage_rack_0" material="proc_storage_rack_m0" pos="-1.1500 -3.5000 0.0000" euler="0 0 90.0"/>
+    <geom name="storage_shelf_east_proc_storage_rack_1" class="visual" type="mesh" mesh="proc_storage_rack_1" material="proc_storage_rack_m1" pos="-1.1500 -3.5000 0.0000" euler="0 0 90.0"/>
+    <geom name="storage_shelf_east_proc_storage_rack_2" class="visual" type="mesh" mesh="proc_storage_rack_2" material="proc_storage_rack_m2" pos="-1.1500 -3.5000 0.0000" euler="0 0 90.0"/>
+    <geom name="storage_shelf_east_proc_storage_rack_3" class="visual" type="mesh" mesh="proc_storage_rack_3" material="proc_storage_rack_m3" pos="-1.1500 -3.5000 0.0000" euler="0 0 90.0"/>
+    <geom name="storage_shelf_east_plinth" type="box" pos="-1.1500 -3.5000 0.0800" size="0.2500 1.2000 0.0800" material="metal_dark" group="4"/>
+    <geom name="storage_shelf_east_post_sw" type="box" pos="-1.3850 -4.6850 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="storage_shelf_east_post_nw" type="box" pos="-1.3850 -2.3150 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="storage_shelf_east_post_se" type="box" pos="-0.9150 -4.6850 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="storage_shelf_east_post_ne" type="box" pos="-0.9150 -2.3150 1.0000" size="0.0150 0.0150 1.0000" material="metal" group="4"/>
+    <geom name="storage_shelf_east_board_1" type="box" pos="-1.1500 -3.5000 0.6000" size="0.2500 1.2000 0.0100" material="metal" group="4"/>
+    <geom name="storage_shelf_east_board_2" type="box" pos="-1.1500 -3.5000 1.0500" size="0.2500 1.2000 0.0100" material="metal" group="4"/>
+    <geom name="storage_shelf_east_board_3" type="box" pos="-1.1500 -3.5000 1.5000" size="0.2500 1.2000 0.0100" material="metal" group="4"/>
+    <geom name="storage_shelf_east_board_4" type="box" pos="-1.1500 -3.5000 1.9500" size="0.2500 1.2000 0.0100" material="metal" group="4"/>
     <geom type="box" pos="-1.1500 -4.5788 0.2596" size="0.1399 0.0812 0.0996" material="cardboard" class="visual"/>
     <geom type="box" pos="-1.1500 -4.4103 0.2489" size="0.1743 0.0618 0.0889" material="cardboard" class="visual"/>
     <geom type="box" pos="-1.1500 -4.2069 0.2373" size="0.1533 0.1083 0.0773" material="cardboard" class="visual"/>

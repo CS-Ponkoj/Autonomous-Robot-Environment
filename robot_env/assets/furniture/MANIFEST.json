@@ -3,7 +3,7 @@
   "tool": "tools/fetch_models.py",
   "tool_sha256": "f05450bc8e5d00985585074c173139e2dfa1c99bfb7c571a8d3bbb444d6ccb39",
   "procedural_tool": "tools/proc_furniture.py",
-  "procedural_tool_sha256": "b5a446f266d21c8ec78967b1db867ffecae13a226eb136bb2c0e222f22bc6654",
+  "procedural_tool_sha256": "c1efd6ab64f04c8bfc8f32e387c5d71fec3025064ed7dcdbac8115d6524199ea",
   "props_tool": "tools/proc_props.py",
   "props_tool_sha256": "aecaf126876e71e7db33227e41b2767c7d4a3cc1a52ffddaa47f28d180991d69",
   "python": "3.11.5",
@@ -136,6 +136,10 @@
    "source": "tools/proc_furniture.py"
   },
   {
+   "id": "proc_lab_rack",
+   "source": "tools/proc_furniture.py"
+  },
+  {
    "id": "proc_lab_stool",
    "source": "tools/proc_furniture.py"
   },
@@ -201,6 +205,10 @@
   },
   {
    "id": "proc_storage_pallet",
+   "source": "tools/proc_furniture.py"
+  },
+  {
+   "id": "proc_storage_rack",
    "source": "tools/proc_furniture.py"
   },
   {
@@ -657,6 +665,34 @@
    "sha256": "99be4e856eb8715e9422befcb88ec3c88b258604c3cb9d540d804f01f566bbf4",
    "bytes": 305141
   },
+  "proc_lab_rack.json": {
+   "sha256": "c3a2aa87e9777fd5563c428f5ca5fa5139ec16d45391d28b039bf88bf9735c62",
+   "bytes": 1050
+  },
+  "proc_lab_rack_0.msh": {
+   "sha256": "2746426e94ef6c9e457c6a7cd0b07cf4cc1868d99a6efabe1fde9e1d7c94ee4e",
+   "bytes": 4576
+  },
+  "proc_lab_rack_0.png": {
+   "sha256": "67d2f3c1b2b99431cd3de2954dae8a508fe89f7617dab075501f74264a4e1ac2",
+   "bytes": 461082
+  },
+  "proc_lab_rack_1.msh": {
+   "sha256": "7ec352daad699f8d7d638bb4c27211d5d603a5a6fa971df33ea662ce5fb5a0f1",
+   "bytes": 928
+  },
+  "proc_lab_rack_1.png": {
+   "sha256": "54c308745c961ec13204e1ed35357adaaa05be8ea3e2cc105179191e33a2fb1b",
+   "bytes": 295616
+  },
+  "proc_lab_rack_2.msh": {
+   "sha256": "051e70a09a2682e20c822b4a999a5b73ec66ce8ec91cb23a51befc8954f88b66",
+   "bytes": 12784
+  },
+  "proc_lab_rack_2.png": {
+   "sha256": "0014e9cf3789541fbb1278ed5cf3b7226fcf77d7b23b35ba87029ebf4df8267c",
+   "bytes": 406868
+  },
   "proc_lab_stool.json": {
    "sha256": "be7be8951a62c22101f352933f60a03f9e364d355273d7534963be24364b9e77",
    "bytes": 1295
@@ -988,6 +1024,42 @@
   "proc_storage_pallet_2.png": {
    "sha256": "24a045b8736b40e1f120a7376f6626b02d5ebebaaaf71eb5b09e3aade0dcff37",
    "bytes": 381469
+  },
+  "proc_storage_rack.json": {
+   "sha256": "267aeaa55a08809664b6f5b3ef4c34a23c36dd15e78d0d508c4ab5ea0b8edfe4",
+   "bytes": 1349
+  },
+  "proc_storage_rack_0.msh": {
+   "sha256": "181842c7e3d8df5e984a0f44df8da3723eee5995bfe3f8cb41dcc3f0dc4ca7da",
+   "bytes": 4576
+  },
+  "proc_storage_rack_0.png": {
+   "sha256": "67d2f3c1b2b99431cd3de2954dae8a508fe89f7617dab075501f74264a4e1ac2",
+   "bytes": 461082
+  },
+  "proc_storage_rack_1.msh": {
+   "sha256": "926768806c13d830f8ed92655438e7680af1e0eef19d512373b46e32e5467302",
+   "bytes": 3664
+  },
+  "proc_storage_rack_1.png": {
+   "sha256": "435843ddc9b494927b0cff00364f09da0ee4a79e1f553ad79b2b5e98dafbf4aa",
+   "bytes": 390954
+  },
+  "proc_storage_rack_2.msh": {
+   "sha256": "0ae0fda8c222e4a672cf2eebc5d2d4c96177f82091645a5927ef2d9d3846a84d",
+   "bytes": 9136
+  },
+  "proc_storage_rack_2.png": {
+   "sha256": "b12b5549933e8f53a0c3e2794a0fff22cf5fe4ad4a7580722b103b18c3d22010",
+   "bytes": 460123
+  },
+  "proc_storage_rack_3.msh": {
+   "sha256": "7b1714e0ce540c968a3e880038b2cf3f7b8451b60d12107ed00c9cdd09cc8f5d",
+   "bytes": 928
+  },
+  "proc_storage_rack_3.png": {
+   "sha256": "54c308745c961ec13204e1ed35357adaaa05be8ea3e2cc105179191e33a2fb1b",
+   "bytes": 295616
   },
   "proc_switch.json": {
    "sha256": "f5d351042b67f5ffc8d9674afc4ab26d57e2480292e175834281598489193610",

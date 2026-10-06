@@ -1,0 +1,79 @@
+{
+ "id": "proc_storage_rack",
+ "name": "Storage racking (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  2.4,
+  0.5,
+  2.0
+ ],
+ "parts": [
+  {
+   "mesh": "proc_storage_rack_0.msh",
+   "material": "chipboard",
+   "texture": "proc_storage_rack_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.1,
+   "shininess": 0.15,
+   "reflectance": 0.0,
+   "faces": 60,
+   "vertices": 120
+  },
+  {
+   "mesh": "proc_storage_rack_1.msh",
+   "material": "rack_blue",
+   "texture": "proc_storage_rack_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.45,
+   "shininess": 0.4,
+   "reflectance": 0.02,
+   "faces": 48,
+   "vertices": 96
+  },
+  {
+   "mesh": "proc_storage_rack_2.msh",
+   "material": "rack_orange",
+   "texture": "proc_storage_rack_2.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.45,
+   "shininess": 0.4,
+   "reflectance": 0.02,
+   "faces": 120,
+   "vertices": 240
+  },
+  {
+   "mesh": "proc_storage_rack_3.msh",
+   "material": "steel_dark",
+   "texture": "proc_storage_rack_3.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.5,
+   "reflectance": 0.02,
+   "faces": 12,
+   "vertices": 24
+  }
+ ],
+ "note": "members: plinth, posts, boards"
+}
