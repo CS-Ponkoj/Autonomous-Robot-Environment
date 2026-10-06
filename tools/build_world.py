@@ -1227,7 +1227,10 @@ HEADER = """<!--
     <headlight ambient="0.28 0.28 0.28" diffuse="0.03 0.03 0.03" specular="0.1 0.1 0.1"/>
     <!-- Clip planes are fractions of the model extent; znear keeps cameras from seeing
          through walls they are close to. -->
-    <map znear="0.0005" zfar="3" shadowclip="1" shadowscale="1"/>
+    <!-- fog (drawn where a view turns it on): a faint haze from 8 m to 40 m, in units of the
+         model extent (20.6 m), so the corridor's far end softens as it does in a photograph -->
+    <map znear="0.0005" zfar="3" shadowclip="1" shadowscale="1" fogstart="0.389" fogend="1.944"/>
+    <rgba fog="0.6 0.6 0.6 1"/>
   </visual>
 
   <asset>
@@ -1251,7 +1254,6 @@ HEADER = """<!--
     <texture name="sign_lab" type="2d" file="label_lab.png"/>
     <texture name="sign_storage" type="2d" file="label_storage.png"/>
     <texture name="sign_reception" type="2d" file="label_reception.png"/>
-    <texture name="outdoor_view" type="2d" file="outdoor_view.png"/>
     <texture name="rug_red" type="2d" file="rug_red.png"/>
     <texture name="rug_blue" type="2d" file="rug_blue.png"/>
     <!-- floors and walls at their real-world scales (texrepeat: repeats per metre) -->
@@ -1307,7 +1309,6 @@ HEADER = """<!--
     <material name="bin_grey" rgba="0.5 0.52 0.55 1"/>
     <material name="seam" rgba="0.35 0.36 0.38 1"/>
     <material name="handle" rgba="0.7 0.71 0.73 1" emission="0.26" specular="0.8" shininess="0.7"/>
-    <material name="glass" texture="outdoor_view" emission="0.95" specular="0.6" shininess="0.9"/>
     <material name="window_frame" rgba="0.98 0.98 0.97 1" emission="0.27" specular="0.12" shininess="0.4"/>
     <material name="sill" rgba="0.8 0.8 0.79 1" emission="0.2" specular="0.08" shininess="0.45"/>
     <material name="blind" texture="tx_blind" texrepeat="14 14" texuniform="true" rgba="0.97 0.96 0.93 1" emission="0.56" specular="0"/>

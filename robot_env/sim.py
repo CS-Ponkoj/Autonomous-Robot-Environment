@@ -244,6 +244,7 @@ class RobotSim:
         self.lights.shadows(*ahead, CAMERA_SHADOW_LIGHTS if shadows else 0)
         self._camera_renderer.update_scene(self.data, camera="robot_cam", scene_option=self.camera_option)
         self._camera_renderer.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = reflections
+        self._camera_renderer.scene.flags[mujoco.mjtRndFlag.mjRND_FOG] = 1
 
     def render_prepared(self) -> np.ndarray:
         """The second half of render_camera: draw the scene prepare_camera made."""

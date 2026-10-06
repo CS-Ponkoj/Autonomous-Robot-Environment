@@ -75,6 +75,7 @@ def measure() -> list[dict]:
         r.update_scene(d, cam, opt)
         r.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = 1
         r.scene.flags[mujoco.mjtRndFlag.mjRND_SHADOW] = 1
+        r.scene.flags[mujoco.mjtRndFlag.mjRND_FOG] = 1
         rgb = r.render().astype(np.float64)
         r.enable_segmentation_rendering()
         r.update_scene(d, cam, opt)

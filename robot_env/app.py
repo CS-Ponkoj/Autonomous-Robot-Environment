@@ -997,6 +997,8 @@ class App:
         # the top view looks straight down on the whole floor: its faint floor reflections (4-6%)
         # are invisible from there, and the reflection pass re-draws the scene
         self.renderer.scene.flags[mujoco.mjtRndFlag.mjRND_REFLECTION] = VIEWS[self.view.mode] != "top"
+        # a faint haze far off, in the views from inside the rooms (from above it would grey the floor)
+        self.renderer.scene.flags[mujoco.mjtRndFlag.mjRND_FOG] = VIEWS[self.view.mode] != "top"
         vis.fovy = normal_fovy
         image = self.renderer.render()
         self.screen.blit(_surface(image), (0, 0))

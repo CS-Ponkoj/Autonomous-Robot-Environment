@@ -799,6 +799,7 @@ class CatHerd:
         r = self.rng
         cat.state = state
         cat.no_sit, cat.sit_probe = False, None
+        cat.escape = []  # a worked-out way out belongs to the state it was found in
         duration = {"walk": r.uniform(3.0, 8.0), "pause": r.uniform(1.0, 4.0), "sit": r.uniform(3.0, 8.0),
                     "dart": r.uniform(0.4, 0.8), "flee": 3.0, "travel": 60.0, "yield": 8.0}[state]
         if state != "sit":  # a sitting cat gets up first (the state's own time starts once it is up)
@@ -1313,6 +1314,7 @@ class CatHerd:
         cat.target_v, cat.target_yaw = float(v), float(yaw)
         cat.plan_at = self.time  # plans at once from here
         cat.sit_probe, cat.room = None, None
+        cat.escape = []  # any way out was worked out from where it was
         if state is not None:
             cat.state, cat.state_until, cat.no_sit = state, math.inf, False
         cat.animator.reset(cat.x, cat.y, cat.yaw)

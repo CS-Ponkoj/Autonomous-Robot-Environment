@@ -294,7 +294,10 @@ def main(argv: list[str]) -> int:
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:
             build(Path(tmp), list(TEXTURES))
-            same = all((Path(tmp) / p.name).read_bytes() == p.read_bytes() for p in OUT.glob("*.png"))
+            make_rugs(Path(tmp))
+            make_paint(Path(tmp))
+            made = sorted(Path(tmp).glob("*.png"))  # the view crops are fetch_view.py's
+            same = bool(made) and all((OUT / p.name).read_bytes() == p.read_bytes() for p in made)
         print("byte-identical" if same else "DIFFERENT")
         return 0 if same else 1
     wanted = [a for a in argv if not a.startswith("--")]
