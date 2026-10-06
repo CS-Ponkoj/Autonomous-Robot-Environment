@@ -500,8 +500,8 @@ Most failures are timeouts at the slowest level; seed 4002 still traps it at lev
 Benchmarks (each writes its result, with the exact command, commit, and versions, to `--out`):
 
 ```powershell
-.venv\Scripts\python tools\eval_baseline.py --set heldout --levels 1 2 5 --out qa_outputaseline_heldout.json
-.venv\Scripts\python tools\eval_baseline.py --set unseen --levels 1 2 5 --no-strict --out qa_outputaseline_unseen.json
+.venv\Scripts\python tools\eval_baseline.py --set heldout --levels 1 2 5 --out qa_output\baseline_heldout.json
+.venv\Scripts\python tools\eval_baseline.py --set unseen --levels 1 2 5 --no-strict --out qa_output\baseline_unseen.json
 .venv\Scripts\python tools\eval_baseline.py --set trapped --levels 1 2 5 --no-strict
 # seeded faults, each episode run clean and faulty side by side:
 .venv\Scripts\python tools\eval_baseline.py --set heldout --levels 2 --paired --dropout 0.05 --noise 0.02 --obstacle-on-path 0.10 --no-strict
