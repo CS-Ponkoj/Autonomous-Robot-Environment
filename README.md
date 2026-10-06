@@ -533,8 +533,8 @@ honestly. It sees only the observation, like any driver:
 - it integrates its own odometry from the encoder speeds;
 - it maps what the lidar hits, and the low things only the depth sensor sees; a cell seen only
   briefly (a passing cat) lapses after 2 s;
-- it plans to the goal on that map, and with no route known it explores toward the edge of what
-  it has seen;
+- it plans to the goal on that map (once more at its own half width if nothing is reachable at
+  full clearance), and with no route known it explores toward the edge of what it has seen;
 - when it cannot move it remembers that spot, plans around it, and backs up only into space the
   lidar shows clear (otherwise it turns toward the roomier side).
 
@@ -543,10 +543,10 @@ Results with ideal sensors, levels 1 / 2 / 5 (no collisions in any episode):
 | Seeds | Goals reached |
 |---|---|
 | held-out, 1000 to 1009 | 9 / 10 / 10 of 10 |
-| unseen, 5000 to 5029 (never used for tuning) | 21 / 27 / 26 of 30 |
-| trapped, 4002 and 4016 (from a QA report) | 1 / 1 / 2 of 2 |
+| unseen, 5000 to 5029 (never used for tuning) | 22 / 28 / 27 of 30 |
+| trapped, 4002 and 4016 (from a QA report) | 1 / 2 / 2 of 2 |
 
-Most failures are timeouts at the slowest level; seed 4002 still traps it at levels 1 and 2.
+Most failures are timeouts at the slowest level; seed 4002 still traps it at level 1.
 
 Benchmarks (each writes its result, with the exact command, commit, and versions, to `--out`):
 
