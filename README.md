@@ -1,5 +1,7 @@
 # Autonomous-Robot-Environment
 
+Developed by Ponkoj Shill ([ponkoj.com](https://ponkoj.com)).
+
 A 3D simulation of a two-wheeled robot on an indoor office floor (corridor,
 office, lab, storage, reception, doorways, furniture). It is built so that a
 rapid decision model
@@ -61,14 +63,37 @@ on the panels changes the number (0 to 4), and `--cats N` sets it at start.*
 
 ## 2. Setup
 
-Windows with Python 3.11 (from python.org, which installs the `py` launcher).
-In PowerShell, in this folder:
+Python 3.11 is required (the pinned packages are tested with 3.11.5). Run the setup once, in this
+folder.
+
+**Windows** (Python 3.11 from python.org, which installs the `py` launcher), in PowerShell:
 
 ```powershell
 .\setup.ps1
 ```
 
-This creates `.venv\` and installs the pinned packages from `requirements.txt`
+**macOS** (Intel or Apple silicon). Install Python 3.11 from python.org, or with Homebrew
+(`brew install python@3.11`). Then, in Terminal:
+
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+**Linux** (a desktop session: the simulator opens a window). Install Python 3.11 with venv support,
+for example on Ubuntu `sudo apt install python3.11 python3.11-venv` (on Ubuntu 24.04, add the
+`ppa:deadsnakes/ppa` repository first), plus the OpenGL libraries (`sudo apt install libgl1
+libglu1-mesa`). Then:
+
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+If Python 3.11 is installed under another name, point the script at it:
+`PYTHON=/path/to/python3.11 ./setup.sh`.
+
+Setup creates `.venv` and installs the pinned packages from `requirements.txt`
 (MuJoCo, Gymnasium, Pygame, NumPy, Numba, pytest), held to the exact versions tested by
 `requirements.lock` (every package they pull in). It ends with "Setup OK" and the
 installed versions. Numba compiles the cats' numeric code (their skeletons, clearance checks, and
@@ -78,11 +103,25 @@ slower (fine for tests, too slow for the window).
 
 ## 3. Starting the simulator
 
+Windows (PowerShell):
+
 ```powershell
 .venv\Scripts\python run_sim.py              # goal seed 1000
 .venv\Scripts\python run_sim.py --seed 1003  # another start and goal
 .venv\Scripts\python run_sim.py --view 3     # start in the robot-camera view
 ```
+
+macOS and Linux:
+
+```bash
+.venv/bin/python run_sim.py              # goal seed 1000
+.venv/bin/python run_sim.py --seed 1003  # another start and goal
+.venv/bin/python run_sim.py --view 3     # start in the robot-camera view
+```
+
+The commands elsewhere in this README are written for Windows; on macOS and Linux write
+`.venv/bin/python` for `.venv\Scripts\python` and use `/` in paths. The tests run the same way:
+`.venv/bin/python -m pytest`.
 
 | Option | Meaning |
 |---|---|
@@ -530,6 +569,7 @@ Logging never changes the robot's behavior, and a write failure only stops the l
 
 ### Credits
 
+- Developed by Ponkoj Shill ([ponkoj.com](https://ponkoj.com)).
 - "Cat" by [Vr-cvantorium](https://sketchfab.com/Vr-cvantorium)
   ([source](https://sketchfab.com/3d-models/cat-a503ae2a7bdd43ada7f3bea3ae0a523f)), licensed under
   [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Modified: converted to a MuJoCo
