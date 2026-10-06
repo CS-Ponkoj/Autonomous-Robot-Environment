@@ -578,7 +578,7 @@ class ViewCamera:
         keep, take = min(self.distance, self.MIN_VIEW), min(max(self.distance, self.MIN_VIEW), self.TILT_BACK)
         floor = self.PITCH[0]
 
-        def ok(el, need):  # the pitch for the pose being turned to now: judged with the current turn
+        def ok(el, need):  # judged with the current turn, candidates from _pose_sight too (their own turn drops a route below CLOSEST)
             return (self._clear_distance(sim, azimuth, el) >= need
                     and self._beam_room(sim, azimuth, el) >= need)
         # Start from last frame's answer for this pose (the scene changes little between frames):
@@ -707,7 +707,7 @@ class ViewCamera:
         current one by default; a candidate pose is judged with the turn toward it)."""
         turn = self._turn if turn is None else turn
         sweep = 0 if abs(turn) < self.SWEEP_DEG else (1 if turn > 0 else -1)
-        key = (round(azimuth, 2), round(elevation, 2), round(turn))
+        key = (round(azimuth, 2), round(elevation, 2), sweep, round(turn, 1))
         cache = getattr(self, "_beam_cache", None)
         if cache is not None and key in cache:
             return cache[key]

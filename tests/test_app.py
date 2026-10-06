@@ -615,7 +615,10 @@ def test_a_candidate_pose_is_judged_with_the_turn_toward_it():
     view._beam_room = spy
     view._clear_cache, view._beam_cache, view._sight_cache = {}, {}, {}
     view._pose_sight(sim, 40.0, None, view._targets)
-    assert any(t is not None and abs(t - (shown + 40.0 - shown)) < 1.0 for t in seen), seen
+    assert any(t is not None and abs(t - 40.0) < 1.0 for t in seen), seen
+    view._beam_cache = {}
+    az, el = shown + 40.0, view.elevation
+    assert original(sim, az, el, 40.0) <= original(sim, az, el, 0.0) + 1e-9
     sim.close()
 
 
