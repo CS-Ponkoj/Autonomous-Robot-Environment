@@ -184,13 +184,23 @@ class RobotSim:
         if self._depth_dirs is None:
             self._depth_dirs = depth_directions().reshape(-1, 3)
             self._depth_world = np.empty_like(self._depth_dirs)
+            # each row only as far as it stays within the floor and the robot's own height (a row
+            # aimed down meets the floor; one aimed up rises over anything the robot could hit):
+            # the same returns for less work
+            h0, top = C.DEPTH_BODY_Z + C.DEPTH_ORIGIN[2], C.ROBOT_TOP + 0.01
+            up = self._depth_dirs.reshape(C.DEPTH_ROWS, C.DEPTH_COLS, 3)[:, C.DEPTH_COLS // 2, 2]
+            self._depth_cut = [min(C.DEPTH_MAX, (h0 / -u if u < 0 else (top - h0) / u if u > 0 else C.DEPTH_MAX) + 0.05)
+                               for u in up]
             self._depth_geom = np.empty(len(self._depth_dirs), dtype=np.int32)
             self._depth_dist = np.empty(len(self._depth_dirs))
         rot = self.data.xmat[self.robot_body].reshape(3, 3)
         origin = self.data.xpos[self.robot_body] + rot @ np.array(C.DEPTH_ORIGIN)
         np.matmul(self._depth_dirs, rot.T, out=self._depth_world)
-        mujoco.mj_multiRay(self.model, self.data, origin, self._depth_world.ravel(), _RAY_GROUPS, 1,
-                           self.robot_body, self._depth_geom, self._depth_dist, None, len(self._depth_dist), C.DEPTH_MAX)
+        n = C.DEPTH_COLS
+        for i, cut in enumerate(self._depth_cut):
+            mujoco.mj_multiRay(self.model, self.data, origin, self._depth_world[i * n:(i + 1) * n].ravel(), _RAY_GROUPS, 1,
+                               self.robot_body, self._depth_geom[i * n:(i + 1) * n], self._depth_dist[i * n:(i + 1) * n],
+                               None, n, cut)
         d = np.where(self._depth_dist < 0.0, C.DEPTH_MAX, np.minimum(self._depth_dist, C.DEPTH_MAX))
         return (d.reshape(C.DEPTH_ROWS, C.DEPTH_COLS), (d >= C.DEPTH_MIN).reshape(C.DEPTH_ROWS, C.DEPTH_COLS),
                 rot[2].copy())

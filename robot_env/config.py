@@ -52,7 +52,9 @@ DEPTH_PITCH = math.radians(20.0)  # tilted down
 DEPTH_ORIGIN = (0.158, 0.0, 0.083)  # m in the robot body frame (the camera mount); the body is 0.0505 m up
 DEPTH_BODY_Z = 0.0505  # m: the body frame's height above the floor at rest
 DEPTH_MIN, DEPTH_MAX = 0.15, 3.0  # m: closer is invalid (blind), farther is no return
-DEPTH_PERIOD = 1.0 / 30.0  # s between frames
+DEPTH_PERIOD = 1.0 / 15.0  # s between frames (a frame costs about 2.6 ms in the furnished world with
+                           # cats; 15 Hz keeps the window at its frame rate, and a frame is never older
+                           # than DEPTH_MAX_AGE)
 DEPTH_MAX_AGE = 0.10  # s: older depth cannot authorise forward motion
 ROBOT_TOP = 0.1355  # m: the robot's collision height (its tallest solid part)
 DEPTH_FLOOR = 0.02  # m: returns lower than this are the floor
