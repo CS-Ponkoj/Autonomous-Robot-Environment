@@ -123,7 +123,7 @@ def test_drive_log_v2_records_provenance_and_v1_logs_still_read(tmp_path):
     s.close()
     recs = read_log(tmp_path / "run.jsonl")
     head = recs[0]
-    assert head["version"] == 2 and head["build_label"] == "label"
+    assert head["version"] == 3 and head["build_label"] == "label"  # 3: depth frames
     assert head["model_sha256"] == RobotSystem(cats=1, cat_seed=3).sim.model_sha256
     assert set(head["build"]) == {"commit", "working_tree", "source_sha256"}
     assert head["deps"]["kernels_compiled"] in (True, False) and head["deps"]["mujoco"]

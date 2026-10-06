@@ -234,10 +234,12 @@ def test_free_door_edges_are_never_hit_head_on(door):
 
 
 def test_obstacle_below_lidar_plane_is_recorded_by_contact_check():
-    """The lidar cannot see a low obstacle; the separate contact check must record the hit."""
-    s = RobotSystem(RobotSim(include_obstacles=False, extra_world_xml=LOW_BLOCK))
+    """Behind the robot neither the lidar (a plane above it) nor the depth sensor (forward only)
+    sees a low obstacle; reversing into it, the separate contact check must record the hit."""
+    behind = LOW_BLOCK.replace('pos="1.2 0 0.05"', 'pos="-1.2 0 0.05"')
+    s = RobotSystem(RobotSim(include_obstacles=False, extra_world_xml=behind))
     s.reset(0.0, 0.0, 0.0, (-2.5, -2.5))
-    hold(s, 0.3, 0.0, 6.0)
+    hold(s, -0.3, 0.0, 8.0)
     assert s.collisions >= 1
 
 

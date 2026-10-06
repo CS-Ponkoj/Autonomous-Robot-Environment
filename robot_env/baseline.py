@@ -93,7 +93,7 @@ class BaselineDriver:
         self._last = np.full((SIZE, SIZE), -np.inf)
         self._refused = np.full((SIZE, SIZE), -np.inf)  # blocked until this time (no progress there)
         self._turn_until = -1.0
-        self._last_v = 0.0  # the forward speed last commanded
+        self._last_v = 0.0  # the forward speed last commanded (or meant)
         self._turn_w = 0.0
         self.dist = None
         self._next_plan = 0.0
@@ -308,5 +308,6 @@ class BaselineDriver:
             left = float(np.mean(np.where(seen.lidar_valid, r, 0.0)[obs.lidar_angles > 0]))
             right = float(np.mean(np.where(seen.lidar_valid, r, 0.0)[obs.lidar_angles < 0]))
             w = self.w_max * (1.0 if left >= right else -1.0)
-        self._last_v = v
+        # what it meant to do: wanting to go forward but finding the lane blocked counts as trying
+        self._last_v = v if (room > 0.0 or lost) else V_CREEP
         return Decision(Command(v, w), obs.seq)

@@ -101,4 +101,22 @@ def remember(obs: Observation, state: tuple | None) -> tuple[np.ndarray, tuple]:
         wx, wy = x + c * current[:, 0] - s * current[:, 1], y + s * current[:, 0] + c * current[:, 1]
         pts = np.vstack((pts, np.column_stack((wx, wy))))
         born = np.concatenate((born, np.full(len(current), now)))
-    return np.vstack((current, local)), (now, pose, pts, born)
+    return _beyond_lidar(np.vstack((current, local)), obs), (now, pose, pts, born)
+
+
+LIDAR_COVERED = 0.05  # m: a depth point this close to a lidar return adds nothing the lidar misses
+
+
+def _beyond_lidar(pts: np.ndarray, obs: Observation) -> np.ndarray:
+    """The depth points the lidar does not already account for: those farther than LIDAR_COVERED
+    from every lidar return (a wall's skirting, a cabinet's plinth, just in front of what the lidar
+    sees, would only narrow tight spots by a centimetre or two)."""
+    if not len(pts):
+        return pts
+    hit = np.asarray(obs.lidar_valid, bool) & (obs.lidar < C.LIDAR_RANGE)
+    if not hit.any():
+        return pts
+    a = np.asarray(obs.lidar_angles)[hit]
+    lx, ly = obs.lidar[hit] * np.cos(a), obs.lidar[hit] * np.sin(a)
+    near = np.hypot(pts[:, 0, None] - lx[None, :], pts[:, 1, None] - ly[None, :]).min(axis=1)
+    return pts[near > LIDAR_COVERED]
