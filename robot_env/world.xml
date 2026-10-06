@@ -50,10 +50,6 @@
     <texture name="outdoor_view" type="2d" file="outdoor_view.png"/>
     <texture name="rug_red" type="2d" file="rug_red.png"/>
     <texture name="rug_blue" type="2d" file="rug_blue.png"/>
-    <texture name="painting_1" type="2d" file="painting_1.png"/>
-    <texture name="painting_2" type="2d" file="painting_2.png"/>
-    <texture name="whiteboard" type="2d" file="whiteboard.png"/>
-    <texture name="tv_screen" type="2d" file="tv_screen.png"/>
     <!-- floors and walls at their real-world scales (texrepeat: repeats per metre) -->
     <!-- reflectance renders only on the first reflective geom in the model, the base plane (the lab and
          corridor floor); on every other material it does nothing under the classic renderer -->
@@ -91,8 +87,6 @@
     <material name="metal_dark" rgba="0.36 0.38 0.41 1" specular="0.4"/>
     <material name="chair_base" rgba="0.12 0.12 0.13 1" specular="0.5" shininess="0.6"/>
     <material name="fabric_light" rgba="0.44 0.5 0.58 1"/>
-    <material name="monitor" rgba="0.08 0.08 0.09 1" specular="0.4"/>
-    <material name="screen_off" rgba="0.025 0.027 0.03 1" specular="0.7" shininess="0.9" reflectance="0.3"/>
     <material name="led_white" rgba="0.85 0.95 1 1" emission="1"/>
     <material name="sign_plate" rgba="0.72 0.73 0.74 1" specular="0.7" shininess="0.6"/>
     <material name="screen" rgba="0.12 0.2 0.3 1" emission="0.35" specular="0.8"/>
@@ -140,13 +134,8 @@
     <material name="rug_blue" texture="tx_rug_blue" emission="0" specular="0" shininess="0" rgba="0.7 0.7 0.7 1"/>
     <material name="rug_red_edge" rgba="0.119 0.028 0.025 1" specular="0"/>
     <material name="rug_blue_edge" rgba="0.028 0.042 0.091 1" specular="0"/>
-    <material name="painting_1" texture="painting_1" emission="0.1"/>
-    <material name="painting_2" texture="painting_2" emission="0.1"/>
-    <material name="whiteboard" texture="whiteboard" emission="0.15" specular="0.5"/>
-    <material name="tv_screen" texture="tv_screen" specular="0.9" shininess="0.9"/>
     <material name="bin_dark" rgba="0.22 0.23 0.25 1" specular="0.3"/>
     <material name="pallet_wood" rgba="0.62 0.5 0.34 1"/>
-    <material name="extinguisher" rgba="0.75 0.08 0.06 1" specular="0.6"/>
     <material name="lamp_shade" rgba="0.96 0.92 0.82 1" emission="0.5"/>
     <material name="sign_office" texture="sign_office"/>
     <material name="sign_lab" texture="sign_lab"/>
@@ -1420,8 +1409,8 @@
     <geom class="visual" type="mesh" mesh="proc_switch_0" material="proc_switch_m0" pos="0.0510 4.1325 1.0000" euler="0 0 90.0"/>
     <geom class="visual" type="mesh" mesh="proc_socket_0" material="proc_socket_m0" pos="0.0510 4.3900 0.2600" euler="0 0 90.0"/>
     <geom class="visual" type="mesh" mesh="proc_thermostat_0" material="proc_thermostat_m0" pos="-1.8675 0.8010 1.4200" euler="0 0 180.0"/>
-    <geom class="visual" type="mesh" mesh="proc_exit_sign_0" material="proc_exit_sign_m0" pos="-4.9990 0.0000 2.0500" euler="0 0 90.0"/>
-    <geom class="visual" type="mesh" mesh="proc_exit_sign_0" material="proc_exit_sign_m0" pos="4.9990 0.0000 2.0500" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_exit_sign_0" material="proc_exit_sign_m0" pos="-4.9990 0.0000 2.2000" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_exit_sign_0" material="proc_exit_sign_m0" pos="4.9990 0.0000 2.2000" euler="0 0 -90.0"/>
     <geom class="visual" type="mesh" mesh="proc_notice_board_0" material="proc_notice_board_m0" pos="-0.9000 0.6990 1.1500" euler="0 0 0.0"/>
     <geom class="visual" type="mesh" mesh="proc_first_aid_0" material="proc_first_aid_m0" pos="4.9990 4.6000 1.3000" euler="0 0 -90.0"/>
     <geom class="visual" type="mesh" mesh="proc_safety_poster_0" material="proc_safety_poster_m0" pos="0.0510 2.2000 1.3000" euler="0 0 90.0"/>

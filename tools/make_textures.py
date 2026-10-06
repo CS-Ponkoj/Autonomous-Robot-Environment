@@ -132,38 +132,6 @@ def rug(rng, w=512, h=320, base=(120, 40, 44), accent=(214, 180, 120)):
     return img
 
 
-def painting(rng, w=384, h=256):
-    img = np.ones((h, w, 3)) * np.array([238, 232, 220])
-    palette = [np.array(c) for c in ((196, 82, 60), (60, 104, 150), (230, 180, 70), (70, 120, 90), (40, 40, 48))]
-    for _ in range(9):
-        x0, y0 = rng.integers(0, w - 60), rng.integers(0, h - 40)
-        x1, y1 = x0 + rng.integers(40, w // 2), y0 + rng.integers(30, h // 2)
-        img[y0:y1, x0:x1] = palette[rng.integers(len(palette))] * rng.uniform(0.85, 1.05)
-    img[:10], img[-10:], img[:, :10], img[:, -10:] = 30, 30, 30, 30
-    return img
-
-
-def whiteboard(rng, w=512, h=256):
-    img = np.ones((h, w, 3)) * 246
-    for k in range(7):  # marker strokes
-        y = 30 + k * 28
-        x = 30
-        color = np.array((40, 60, 150) if k % 3 else (180, 40, 40))
-        while x < w - 60 - rng.integers(0, 200):
-            seg = int(rng.integers(12, 40))
-            img[y:y + 3, x:x + seg] = color
-            x += seg + int(rng.integers(6, 14))
-    img[:6], img[-6:], img[:, :6], img[:, -6:] = 170, 170, 170, 170
-    return img
-
-
-def tv_screen(rng, w=512, h=288):
-    y = np.linspace(0, 1, h)[:, None, None]
-    img = np.ones((h, w, 3)) * np.array([14, 16, 20]) + y * np.array([10, 12, 16])
-    img[: h // 3, : w // 2] += 18  # soft reflection
-    return img
-
-
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(7)
@@ -176,10 +144,6 @@ def main() -> None:
     save("outdoor_view.png", outdoor_view(rng))
     save("rug_red.png", rug(rng))
     save("rug_blue.png", rug(rng, base=(46, 70, 108), accent=(220, 210, 190)))
-    save("painting_1.png", painting(rng))
-    save("painting_2.png", painting(rng))
-    save("whiteboard.png", whiteboard(rng))
-    save("tv_screen.png", tv_screen(rng))
     for name in ("OFFICE", "LAB", "STORAGE", "RECEPTION"):
         save(f"label_{name.lower()}.png", label(name))
     print("textures written to", OUT)

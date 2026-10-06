@@ -256,9 +256,9 @@ continue; if a banner asks you to release a key, release it and press again.
   pictures, signs, the ceiling, and the light panels are visual only. The
   robot drives over rugs as if they were part of the floor.
 - **Furniture:** the office furniture is drawn by detailed models (a steel
-  desk, steel and wood shelving, a planter on a stand, a wall clock: CC0 models
-  from Poly Haven; an office chair, a filing cabinet, a waste bin, and a floor
-  lamp made in code). What collides and what the lidar sees are simple boxes and
+  desk, steel and wood shelving, a planter on a stand: CC0 models from Poly
+  Haven; an office chair, a filing cabinet, a waste bin, and a floor lamp made
+  in code). What collides and what the lidar sees are simple boxes and
   cylinders fitted to each model: never more than 2 cm from what you see, and
   nothing visible sticks out of them by more than 1 cm. Open frames are honest:
   the robot (0.1355 m tall) fits under the desk's pedestals, as it would under a
@@ -501,8 +501,7 @@ Logging never changes the robot's behavior, and a write failure only stops the l
 
 - Furniture models from [Poly Haven](https://polyhaven.com), licensed
   [CC0](https://polyhaven.com/license): "Metal Office Desk" by Ulan Cabanilla, "Steel Frame
-  Shelves 01" by James Ray Cock, "Potted Plant 01" by Rico Cilliers, and "Wall Clock" by
-  PierreB3D (source files and checksums in `robot_env/assets/furniture/MANIFEST.json`).
+  Shelves 01" by James Ray Cock, "Potted Plant 01" by Rico Cilliers (source files and checksums in `robot_env/assets/furniture/MANIFEST.json`).
   Converted to MuJoCo meshes and simplified by `tools/fetch_models.py`.
 
 ### Notes

@@ -451,15 +451,15 @@ def wall_items():
         on_wall("proc_switch", axis, line, into, c + latch + 0.0625, 1.0)
         on_wall("proc_socket", axis, line, into, c + latch + 0.32, 0.26)
     on_wall("proc_thermostat", "x", CORRIDOR + T / 2, +1, -2.5 + latch + 0.0625, 1.42)  # office
-    on_wall("proc_exit_sign", "y", -H - T / 2, +1, 0.0, 2.05)  # corridor ends
-    on_wall("proc_exit_sign", "y", H + T / 2, -1, 0.0, 2.05)
+    on_wall("proc_exit_sign", "y", -H - T / 2, +1, 0.0, 2.2)  # corridor ends, above the end windows' head rail
+    on_wall("proc_exit_sign", "y", H + T / 2, -1, 0.0, 2.2)
     on_wall("proc_notice_board", "x", CORRIDOR + T / 2, -1, -0.9, 1.15)  # corridor
     on_wall("proc_first_aid", "y", H + T / 2, -1, 4.6, 1.3)  # lab, east wall, beside the window
     on_wall("proc_safety_poster", "y", 0.0, +1, 2.2, 1.3)  # lab, divider
     on_wall("proc_trunking", "y", 0.0, -1, 2.25, 0.7)  # office divider, below the whiteboard
     for along in (1.85, 2.65):
         model("proc_socket", (-T / 2 - 0.0515, along, 0.71), -90.0)  # on the trunking's face
-    for x, y in ((-2.5, 2.0), (2.5, 2.0), (-2.5, -2.0), (2.5, -2.0), (0.0, 0.35)):  # corridor: off the axis, 0.15 m clear of the panels
+    for x, y in ((-2.5, 2.0), (2.5, 2.0), (-2.5, -2.0), (2.5, -2.0), (0.0, 0.35)):  # corridor: off the axis and the panels
         model("proc_smoke_detector", (x, y, WH - 0.001 - 0.035), 0.0, "ceiling")
 
 
@@ -876,13 +876,6 @@ def window(k, center, axis, facing, width, sill_z, height=1.2):
                  'castshadow="false"/>')
 
 
-def wall_picture(center, axis, facing, half_size, z, material, frame="window_frame"):
-    """A framed panel on a wall face (painting, whiteboard, TV); visual only."""
-    hw, hh = half_size
-    box(None, _on_wall(center, axis, facing, 0, 0.012, z), _half(axis, hw + 0.03, 0.012, hh + 0.03), frame, cls="visual")
-    box(None, _on_wall(center, axis, facing, 0, 0.026, z), _half(axis, hw, 0.002, hh), material, cls="visual")
-
-
 def floor_lamp(name, xy):
     """Solid base the lidar sees; the pole and shade are visual and stay above the base."""
     x, y = xy
@@ -1235,10 +1228,6 @@ HEADER = """<!--
     <texture name="outdoor_view" type="2d" file="outdoor_view.png"/>
     <texture name="rug_red" type="2d" file="rug_red.png"/>
     <texture name="rug_blue" type="2d" file="rug_blue.png"/>
-    <texture name="painting_1" type="2d" file="painting_1.png"/>
-    <texture name="painting_2" type="2d" file="painting_2.png"/>
-    <texture name="whiteboard" type="2d" file="whiteboard.png"/>
-    <texture name="tv_screen" type="2d" file="tv_screen.png"/>
     <!-- floors and walls at their real-world scales (texrepeat: repeats per metre) -->
     <!-- reflectance renders only on the first reflective geom in the model, the base plane (the lab and
          corridor floor); on every other material it does nothing under the classic renderer -->
@@ -1276,8 +1265,6 @@ HEADER = """<!--
     <material name="metal_dark" rgba="0.36 0.38 0.41 1" specular="0.4"/>
     <material name="chair_base" rgba="0.12 0.12 0.13 1" specular="0.5" shininess="0.6"/>
     <material name="fabric_light" rgba="0.44 0.5 0.58 1"/>
-    <material name="monitor" rgba="0.08 0.08 0.09 1" specular="0.4"/>
-    <material name="screen_off" rgba="0.025 0.027 0.03 1" specular="0.7" shininess="0.9" reflectance="0.3"/>
     <material name="led_white" rgba="0.85 0.95 1 1" emission="1"/>
     <material name="sign_plate" rgba="0.72 0.73 0.74 1" specular="0.7" shininess="0.6"/>
     <material name="screen" rgba="0.12 0.2 0.3 1" emission="0.35" specular="0.8"/>
@@ -1325,13 +1312,8 @@ HEADER = """<!--
     <material name="rug_blue" texture="tx_rug_blue" emission="0" specular="0" shininess="0" rgba="0.7 0.7 0.7 1"/>
     <material name="rug_red_edge" rgba="0.119 0.028 0.025 1" specular="0"/>
     <material name="rug_blue_edge" rgba="0.028 0.042 0.091 1" specular="0"/>
-    <material name="painting_1" texture="painting_1" emission="0.1"/>
-    <material name="painting_2" texture="painting_2" emission="0.1"/>
-    <material name="whiteboard" texture="whiteboard" emission="0.15" specular="0.5"/>
-    <material name="tv_screen" texture="tv_screen" specular="0.9" shininess="0.9"/>
     <material name="bin_dark" rgba="0.22 0.23 0.25 1" specular="0.3"/>
     <material name="pallet_wood" rgba="0.62 0.5 0.34 1"/>
-    <material name="extinguisher" rgba="0.75 0.08 0.06 1" specular="0.6"/>
     <material name="lamp_shade" rgba="0.96 0.92 0.82 1" emission="0.5"/>
     <material name="sign_office" texture="sign_office"/>
     <material name="sign_lab" texture="sign_lab"/>

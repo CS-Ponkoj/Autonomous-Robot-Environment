@@ -60,7 +60,7 @@ def test_nothing_drawn_passes_into_anything_else(check):
     import copy
     fc, sim = check
     items = fc.build_world.furniture_items
-    loose = [m for m in fc.build_world.placed_models if m["item"] is None]  # the wall clock
+    loose = [m for m in fc.build_world.placed_models if m["item"] is None]  # the wall and ceiling items
     assert loose and fc.overlap_gate(sim.model, sim.data, items, extra_models=loose) == []
     for name, model_id, axis, delta in (("office_lamp", "proc_floor_lamp", 0, -0.04),
                                         ("office_plant", "potted_plant_01", 2, -0.03)):
