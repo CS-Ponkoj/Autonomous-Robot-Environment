@@ -1,6 +1,17 @@
-# Autonomous-Robot-Environment
+<div align="center">
 
-Developed by Ponkoj Shill ([ponkoj.com](https://ponkoj.com)).
+# Autonomous Robot Environment
+
+**A MuJoCo simulation of a two-wheeled robot in a furnished office,<br>with wandering cats, a safety layer, and a Gymnasium interface.**
+
+Developed by [**Ponkoj Shill**](https://ponkoj.com)
+
+![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![MuJoCo 3.14](https://img.shields.io/badge/MuJoCo-3.14-0A5FAD)
+![Gymnasium 1.3](https://img.shields.io/badge/Gymnasium-1.3-0081A5)
+![Windows, macOS, Linux](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-555555)
+
+</div>
 
 A 3D simulation of a two-wheeled robot on an indoor office floor (corridor,
 office, lab, storage, reception, doorways, furniture). It is built so that a
