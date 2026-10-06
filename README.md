@@ -15,11 +15,16 @@ Developed by [**Ponkoj Shill**](https://ponkoj.com)
 </div>
 
 A 3D simulation of a two-wheeled robot on an indoor office floor (corridor,
-office, lab, storage, reception, doorways, furniture). It is built so that a
-rapid decision model
-can later drive it. This version is the static foundation: you
+office, lab, storage, reception, doorways, furniture). This version is the static foundation: you
 drive the robot to a goal by hand, through the same safety layer that any
 automatic driver will use later.
+
+It is an open project (MIT license): use the environment for your own work. Put
+your own robot type in it (the robot is defined in `tools/build_world.py`, which
+writes `robot_env/world.xml`), connect your own controller or learning agent
+through the Gymnasium interface (`RobotGoalEnv`, see
+[10. For developers](#10-for-developers)), and play: drive it by hand, race the
+cats to the goal, or train it.
 
 ![The robot drives itself to a goal past wandering cats](docs/demo.gif)
 
