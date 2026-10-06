@@ -10,6 +10,7 @@ Developed by [**Ponkoj Shill**](https://ponkoj.com)
 ![MuJoCo 3.14](https://img.shields.io/badge/MuJoCo-3.14-0A5FAD)
 ![Gymnasium 1.3](https://img.shields.io/badge/Gymnasium-1.3-0081A5)
 ![Windows, macOS, Linux](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-555555)
+![MIT license](https://img.shields.io/badge/license-MIT-2E7D32)
 
 </div>
 
@@ -591,6 +592,12 @@ Logging never changes the robot's behavior, and a write failure only stops the l
   [CC0](https://polyhaven.com/license): "Metal Office Desk" by Ulan Cabanilla, "Steel Frame
   Shelves 01" by James Ray Cock, "Potted Plant 01" by Rico Cilliers (source files and checksums in `robot_env/assets/furniture/MANIFEST.json`).
   Converted to MuJoCo meshes and simplified by `tools/fetch_models.py`.
+
+### License
+
+The code is released under the [MIT License](LICENSE). The third-party assets listed under
+Credits keep their own licenses: the cat model is CC BY 4.0 (credit required), the Poly Haven and
+ambientCG models and textures are CC0.
 
 ### Notes
 

@@ -1,11 +1,13 @@
 # Project metadata. The simulator runs from this folder (run_sim.py); setup.ps1 installs the
-# pinned requirements against requirements.lock. No license is declared yet: the owner chooses it.
+# pinned requirements against requirements.lock. The code is MIT licensed (LICENSE).
 [build-system]
 requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "autonomous-robot-environment"
+license = { text = "MIT" }
+authors = [{ name = "Ponkoj Shill" }]
 version = "0.1.0"
 description = "A MuJoCo office floor with a differential-drive robot, a safety layer, wandering cats, and a Gymnasium interface"
 readme = "README.md"
