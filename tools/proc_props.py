@@ -1117,8 +1117,8 @@ pf.MATERIALS.update({
     "liquid_amber": ((0.85, 0.55, 0.15, 0.7), 0.6, 0.8, 0.0),
     "rack": ((0.85, 0.85, 0.82, 1.0), 0.3, 0.35, 0.0),
     "analyzer_face": ((1.0, 1.0, 1.0, 1.0), 0.4, 0.5, 0.0),
-    "goggle_lens": ((0.75, 0.85, 0.9, 0.45), 0.9, 0.9, 0.0),
-    "goggle_band": ((0.1, 0.25, 0.55, 1.0), 0.2, 0.3, 0.0),
+    "glove_box": ((1.0, 1.0, 1.0, 1.0), 0.15, 0.2, 0.0),
+    "glove_blue": ((0.25, 0.45, 0.85, 1.0), 0.25, 0.35, 0.0),
 })
 
 
@@ -1178,16 +1178,21 @@ def lab_bench_set() -> dict:
     m.rounded_box("lab_body", (mx, my + 0.1, 0.14), (0.03, 0.025, 0.12), 0.01, n_arc=1)  # the pillar
     m.rounded_box("lab_body", (mx, my + 0.04, 0.27), (0.035, 0.085, 0.024), 0.008, n_arc=1)  # the head, over the stage
     m.box("lab_black", (mx, my - 0.01, 0.1), (0.07, 0.065, 0.005))  # the stage
+    m.box("lab_body", (mx, my + 0.065, 0.0925), (0.02, 0.015, 0.0075))  # its bracket on the pillar
+    m.cylinder("lab_chrome", (mx, my - 0.01, 0.032), 0.018, 0.002, seg=20)  # the light under the stage
     m.cylinder("lab_body", (mx, my - 0.01, 0.21), 0.015, 0.04, seg=16)  # the nosepiece
     m.cylinder("lab_chrome", (mx, my - 0.01, 0.16), 0.022, 0.012, seg=20)  # the turret
-    for dx in (-0.012, 0.0, 0.012):
-        m.cylinder("lab_chrome", (mx + dx, my - 0.01, 0.135), 0.005, 0.015, seg=10)  # objectives
+    for k in range(3):  # objectives on a ring, tilted out
+        a = math.radians(90 + 120 * k)
+        _place(m, "lab_chrome", lambda q: q.cylinder("_tmp", (0, 0, -0.015), 0.005, 0.015, seg=10),
+               (mx + 0.013 * math.cos(a), my - 0.01 + 0.013 * math.sin(a), 0.152), yaw=math.degrees(a) - 90,
+               pitch=-10.0)
     for dx in (-0.018, 0.018):
         _place(m, "lab_black", lambda q: q.cylinder("_tmp", (0, 0, 0), 0.009, 0.03, seg=14),
                (mx + dx, my + 0.0, 0.31), pitch=35.0)  # eyepieces on the head, tilted to the user
     for sx in (-1, 1):
         _place(m, "lab_black", lambda q: q.cylinder("_tmp", (0, 0, 0), 0.02, 0.008, seg=18),
-               (mx + sx * 0.04, my + 0.1, 0.09), roll=90.0)  # focus knobs
+               (mx + sx * 0.037, my + 0.1, 0.09), roll=90.0)  # focus knobs, against the pillar
     # glassware (x -0.25 to 0.05): two beakers (one with blue liquid), a flask with amber liquid,
     # a graduated cylinder
     _beaker(m, (-0.25, -0.1), 0.035, 0.09, "liquid_blue", 0.45)
@@ -1195,8 +1200,8 @@ def lab_bench_set() -> dict:
     m.cylinder("glass", (-0.06, -0.08, 0.04), 0.045, 0.04, seg=24, radius_top=0.016)  # flask body
     m.cylinder("glass", (-0.06, -0.08, 0.1), 0.014, 0.02, seg=16)  # its neck
     m.cylinder("liquid_amber", (-0.06, -0.08, 0.02), 0.04, 0.018, seg=24, radius_top=0.03)
-    m.cylinder("glass", (0.02, 0.02, 0.012), 0.03, 0.006, seg=20)  # graduated cylinder: foot
-    m.cylinder("glass", (0.02, 0.02, 0.13), 0.013, 0.115, seg=16, caps=False)
+    m.cylinder("glass", (0.02, 0.02, 0.006), 0.03, 0.006, seg=20)  # graduated cylinder: foot on the top
+    m.cylinder("glass", (0.02, 0.02, 0.125), 0.013, 0.115, seg=16, caps=False)
     # test tube rack with six tubes (x 0.2)
     rx, ry = 0.22, -0.02
     m.box("rack", (rx, ry, 0.05), (0.09, 0.03, 0.004))
@@ -1227,13 +1232,28 @@ def lab_bench_set() -> dict:
 
 
 def lab_island_set() -> dict:
-    """On the island bench (worktop frame, z = 0 on the top): safety goggles and a lab notebook."""
+    """On the island bench (worktop frame, z = 0 on the top): a box of gloves and a lab notebook."""
     m = pf.Mesh()
     gx, gy = -0.3, -0.05
-    for sx in (-1, 1):
-        m.cushion("goggle_lens", (gx + sx * 0.04, gy, 0.025), (0.038, 0.012, 0.025), e=0.7, nu=20, nv=10)
-    m.box("goggle_band", (gx, gy + 0.015, 0.025), (0.085, 0.004, 0.012))
-    m.box("goggle_band", (gx, gy, 0.045), (0.012, 0.012, 0.004))  # the bridge
+    # a box of nitrile gloves (24 x 12 x 9 cm, printed carton) with a blue cuff out of its slot
+    img = Image.new("RGB", (480, 360), (236, 238, 240))  # rows 0-239: the sides; 240-359: the top
+    d = ImageDraw.Draw(img)
+    d.ellipse([170, 277, 310, 323], outline=(170, 175, 182), width=3)  # the perforated tear ring
+    d.ellipse([180, 286, 300, 314], fill=(28, 30, 34))  # the open slot
+    d.rectangle([0, 0, 479, 70], fill=(30, 90, 170))  # the brand band
+    d.rectangle([20, 100, 140, 210], fill=(60, 120, 200))  # a glove pictogram block
+    d.polygon([(40, 205), (40, 140), (55, 110), (70, 140), (85, 105), (100, 140), (115, 115), (125, 205)],
+              fill=(240, 244, 248))
+    for k in range(4):  # print lines, no words
+        d.rectangle([170, 110 + 24 * k, 170 + 260 - 40 * k, 120 + 24 * k], fill=(120, 130, 145))
+    side = (0.0, 1.0, 1.0, 1.0 / 3.0)  # OpenGL v: the image's top two thirds
+    lid = (0.0, 1.0 / 3.0, 1.0, 0.0)  # its bottom third
+    m.textured_box("glove_box", (gx - 0.12, gy - 0.06, 0.0), (gx + 0.12, gy + 0.06, 0.09),
+                   {"-y": side, "+y": side, "-x": (0.0, 1.0, 0.5, 1.0 / 3.0), "+x": (0.0, 1.0, 0.5, 1.0 / 3.0),
+                    "+z": lid, "-z": lid})
+    for k, (dy, tilt) in enumerate(((-0.004, 35.0), (0.005, 50.0))):  # two layers of a glove's cuff
+        _place(m, "glove_blue", lambda q: q.cushion("_tmp", (0, 0, 0), (0.032, 0.004, 0.022), e=0.8, nu=16, nv=8),
+               (gx + 0.006 * k, gy + dy, 0.098 + 0.004 * k), pitch=tilt)
     c, s_ = math.cos(math.radians(-6)), math.sin(math.radians(-6))
     rot = np.array([[c, -s_, 0], [s_, c, 0], [0, 0, 1.0]])
     side = (0.0, 0.0, 0.02, 0.02)
@@ -1241,7 +1261,7 @@ def lab_island_set() -> dict:
                    {"+z": (0.0, 1.0, 1.0, 0.0), "-z": side, "-x": side, "+x": side, "-y": side, "+y": side},
                    rot=rot, pivot=(0.2, 0.0, 0.0))
     return m.write("proc_lab_island_set", "Lab island props (procedural)", "visual only, on the lab worktop",
-                   {"paper": notepad_texture()})
+                   {"paper": notepad_texture(), "glove_box": img})
 
 
 def main() -> int:

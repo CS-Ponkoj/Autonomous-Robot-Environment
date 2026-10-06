@@ -71,8 +71,8 @@
    "specular": 0.35,
    "shininess": 0.4,
    "reflectance": 0.0,
-   "faces": 832,
-   "vertices": 666
+   "faces": 844,
+   "vertices": 690
   },
   {
    "mesh": "proc_lab_bench_set_4.msh",
@@ -87,8 +87,8 @@
    "specular": 0.85,
    "shininess": 0.85,
    "reflectance": 0.08,
-   "faces": 200,
-   "vertices": 208
+   "faces": 280,
+   "vertices": 290
   },
   {
    "mesh": "proc_lab_bench_set_5.msh",

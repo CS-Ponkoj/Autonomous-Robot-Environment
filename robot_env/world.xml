@@ -91,8 +91,6 @@
     <material name="fabric_light" rgba="0.44 0.5 0.58 1"/>
     <material name="led_white" rgba="0.85 0.95 1 1" emission="1"/>
     <material name="sign_plate" rgba="0.72 0.73 0.74 1" specular="0.7" shininess="0.6"/>
-    <material name="screen" rgba="0.12 0.2 0.3 1" emission="0.35" specular="0.8"/>
-    <material name="glass_ware" rgba="0.75 0.85 0.9 0.45" specular="0.9" shininess="0.9"/>
     <material name="cardboard_dark" rgba="0.6 0.47 0.32 1"/>
     <material name="book_red" rgba="0.55 0.16 0.14 1"/>
     <material name="book_blue" rgba="0.16 0.26 0.46 1"/>
@@ -270,7 +268,7 @@
     <material name="proc_lab_bench_long_m4" texture="proc_lab_bench_long_t4" specular="0.4" shininess="0.45" reflectance="0.02"/>
     <mesh name="proc_lab_bench_long_4" file="proc_lab_bench_long_4.msh" inertia="shell"/>
     <texture name="proc_lab_bench_set_t0" type="2d" file="proc_lab_bench_set_0.png"/>
-    <material name="proc_lab_bench_set_m0" texture="proc_lab_bench_set_t0" specular="0.4" shininess="0.5" reflectance="0.0"/>
+    <material name="proc_lab_bench_set_m0" texture="proc_lab_bench_set_t0" specular="0.4" shininess="0.5" reflectance="0.0" emission="0.5"/>
     <mesh name="proc_lab_bench_set_0" file="proc_lab_bench_set_0.msh" inertia="shell"/>
     <material name="proc_lab_bench_set_m1" rgba="0.820 0.900 0.950 0.320" specular="0.95" shininess="0.95" reflectance="0.0"/>
     <mesh name="proc_lab_bench_set_1" file="proc_lab_bench_set_1.msh" inertia="shell"/>
@@ -299,9 +297,10 @@
     <texture name="proc_lab_bench_island_t4" type="2d" file="proc_lab_bench_island_4.png"/>
     <material name="proc_lab_bench_island_m4" texture="proc_lab_bench_island_t4" specular="0.4" shininess="0.45" reflectance="0.02"/>
     <mesh name="proc_lab_bench_island_4" file="proc_lab_bench_island_4.msh" inertia="shell"/>
-    <material name="proc_lab_island_set_m0" rgba="0.100 0.250 0.550 1.000" specular="0.2" shininess="0.3" reflectance="0.0"/>
+    <material name="proc_lab_island_set_m0" rgba="0.250 0.450 0.850 1.000" specular="0.25" shininess="0.35" reflectance="0.0"/>
     <mesh name="proc_lab_island_set_0" file="proc_lab_island_set_0.msh" inertia="shell"/>
-    <material name="proc_lab_island_set_m1" rgba="0.750 0.850 0.900 0.450" specular="0.9" shininess="0.9" reflectance="0.0"/>
+    <texture name="proc_lab_island_set_t1" type="2d" file="proc_lab_island_set_1.png"/>
+    <material name="proc_lab_island_set_m1" texture="proc_lab_island_set_t1" specular="0.15" shininess="0.2" reflectance="0.0"/>
     <mesh name="proc_lab_island_set_1" file="proc_lab_island_set_1.msh" inertia="shell"/>
     <texture name="proc_lab_island_set_t2" type="2d" file="proc_lab_island_set_2.png"/>
     <material name="proc_lab_island_set_m2" texture="proc_lab_island_set_t2" specular="0.05" shininess="0.1" reflectance="0.0"/>

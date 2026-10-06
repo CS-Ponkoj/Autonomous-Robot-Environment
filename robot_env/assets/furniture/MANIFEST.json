@@ -5,7 +5,7 @@
   "procedural_tool": "tools/proc_furniture.py",
   "procedural_tool_sha256": "c1efd6ab64f04c8bfc8f32e387c5d71fec3025064ed7dcdbac8115d6524199ea",
   "props_tool": "tools/proc_props.py",
-  "props_tool_sha256": "18ce0bced0476fd27a2b5fe4005923d2d28509dc30d7ba9c2ce413d0749568b8",
+  "props_tool_sha256": "48b8f4a459599567f6c1901146db877c70356fe54a905d9647a381dbeddecfde",
   "python": "3.11.5",
   "packages": {
    "numpy": "2.4.6",
@@ -638,7 +638,7 @@
    "bytes": 305141
   },
   "proc_lab_bench_set.json": {
-   "sha256": "5b39bd604d510d9008503d2fef8548b680af5f80ae55b19f56b4ccaaed41a82d",
+   "sha256": "dc121329987cb11fbe0afc92fb63a49bf9f2ce67181bfa83a431a66e3db89fa7",
    "bytes": 2312
   },
   "proc_lab_bench_set_0.msh": {
@@ -650,20 +650,20 @@
    "bytes": 863
   },
   "proc_lab_bench_set_1.msh": {
-   "sha256": "3fdf69bf7d367a5951e649618f5f1a8ed66cc2670ff487c68cf0fa8f8c3ad21b",
+   "sha256": "c49e66b91a33320ec6ae1bb27466e376a73d9b891a8e74ad4ed178cefe23197f",
    "bytes": 37904
   },
   "proc_lab_bench_set_2.msh": {
-   "sha256": "224c703fec9aaeeb5da1c588457e00d171b56ea1119d04544441e696ef3060aa",
+   "sha256": "0bc57bdc2eae7fbd03dda2bf67fc5ede3d29accc9058a076004d29447f57528b",
    "bytes": 19888
   },
   "proc_lab_bench_set_3.msh": {
-   "sha256": "4cbda6f9170c047bb5a3fecf57f07df4a374d2f77f02b5a6cd1f619e37252e23",
-   "bytes": 31312
+   "sha256": "eeea5f0b0a78b98b9ffa698288e960e6fdbaee5c35ff9a62d2592f611452104b",
+   "bytes": 32224
   },
   "proc_lab_bench_set_4.msh": {
-   "sha256": "4d541cd565a7a0837e948887bd4d5df0e5177eb5171ffb9da88d9becbdb1a900",
-   "bytes": 9072
+   "sha256": "e0f95935d51af019465cad7d7f4d3b630630c7ad89bd8b66503d60cb27ea635a",
+   "bytes": 12656
   },
   "proc_lab_bench_set_5.msh": {
    "sha256": "aeb2b1abc29d02353ad7d842817d992bfd0a6b8e3d5c729a23d2cef9221d93c9",
@@ -714,16 +714,20 @@
    "bytes": 305141
   },
   "proc_lab_island_set.json": {
-   "sha256": "d48acb90e31bb297955a7c156d856b3a80b6be4dd0d4e7580e1c0a866afae09f",
-   "bytes": 1054
+   "sha256": "670373b4f653af2151e4d408e56094dc77e4e2b82df7ac53a96e1e482503349a",
+   "bytes": 1077
   },
   "proc_lab_island_set_0.msh": {
-   "sha256": "1cf1a49fd853c46599b8b1e518e1fa1fdaf115efc1119ceaad877409e39b107d",
-   "bytes": 1840
+   "sha256": "628f2f1d218cc80bd37647b904d3b2cbbdaf3fa4ce7e199769aaf5519a1b50d6",
+   "bytes": 13584
   },
   "proc_lab_island_set_1.msh": {
-   "sha256": "848dbff9eef2773a83ce5b2dc16d5713241fe7ea7f3f5e88b23b168a02cc4059",
-   "bytes": 21456
+   "sha256": "111f7978cfd896008d5c8517926eaaa352c6b9d56f71b6e3164de5846fd6df91",
+   "bytes": 928
+  },
+  "proc_lab_island_set_1.png": {
+   "sha256": "8168be15c7286f9a4ef15f3fca68284ed4c8ae2aff4a617d21053dedf95ca34c",
+   "bytes": 1712
   },
   "proc_lab_island_set_2.msh": {
    "sha256": "994e357f909015f60709e703c8cd12508faec95e1ebc09ac0c7f74b9f376098d",

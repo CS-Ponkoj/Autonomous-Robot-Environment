@@ -56,7 +56,15 @@ def item(name, support=0.0):
         _item = None
 
 
-EMISSIVE = {"proc_exit_sign": 0.25}  # lit signs: their material glows a little (not a light source)
+# lit faces glow a little (not light sources): a model id with one value, or with {material: value}
+EMISSIVE = {"proc_exit_sign": 0.25, "proc_lab_bench_set": {"analyzer_face": 0.5}}
+
+
+def _emission(model_id, material):
+    e = EMISSIVE.get(model_id)
+    if isinstance(e, dict):
+        e = e.get(material)
+    return f' emission="{e}"' if e else ""
 
 
 def model(model_id, pos, yaw=0.0, cls="visual"):
@@ -73,7 +81,7 @@ def model(model_id, pos, yaw=0.0, cls="visual"):
                 look = 'rgba="' + " ".join(f"{c:.3f}" for c in part["rgba"]) + '"'
             furniture_assets.append(f'    <material name="{model_id}_m{k}" {look} specular="{part["specular"]}" '
                                     f'shininess="{part["shininess"]}" reflectance="{part["reflectance"]}"'
-                                    + (f' emission="{EMISSIVE[model_id]}"' if model_id in EMISSIVE else "") + "/>")
+                                    + _emission(model_id, part["material"]) + "/>")
             furniture_assets.append(f'    <mesh name="{model_id}_{k}" file="{part["mesh"]}" inertia="shell"/>')
     for k in range(len(rec["parts"])):
         name = f'name="{_item["name"]}_{model_id}_{k}" ' if _item is not None else ""
@@ -980,7 +988,7 @@ def build_floor():
     model("proc_lab_bench_set", (2.6, 4.55, LAB_TOP + 0.0005))  # microscope, glassware, rack, analyzer
     lab_bench("lab_bench_island", "proc_lab_bench_island", (2.9, 2.5, 0.0), (0.9, 0.4), True,
               ("drawers", "door", "drawers"))  # fronts on both sides
-    model("proc_lab_island_set", (2.9, 2.5, LAB_TOP + 0.0005))  # safety goggles and a lab notebook
+    model("proc_lab_island_set", (2.9, 2.5, LAB_TOP + 0.0005))  # a box of gloves and a lab notebook
     shelving_unit("lab_shelving", (4.7, 1.9), (0.25, 0.7), 2.0, 4, seed=1)
     lab_bench("lab_cart", "proc_lab_cabinet", (4.3, 4.0, 0.0), (0.3, 0.25), False, ("drawers",))  # a drawer cabinet
 
@@ -1298,8 +1306,6 @@ HEADER = """<!--
     <material name="fabric_light" rgba="0.44 0.5 0.58 1"/>
     <material name="led_white" rgba="0.85 0.95 1 1" emission="1"/>
     <material name="sign_plate" rgba="0.72 0.73 0.74 1" specular="0.7" shininess="0.6"/>
-    <material name="screen" rgba="0.12 0.2 0.3 1" emission="0.35" specular="0.8"/>
-    <material name="glass_ware" rgba="0.75 0.85 0.9 0.45" specular="0.9" shininess="0.9"/>
     <material name="cardboard_dark" rgba="0.6 0.47 0.32 1"/>
     <material name="book_red" rgba="0.55 0.16 0.14 1"/>
     <material name="book_blue" rgba="0.16 0.26 0.46 1"/>
