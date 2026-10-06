@@ -1317,16 +1317,23 @@ def _herd_one(x, y, yaw, cats=1):
 
 
 def test_a_move_whose_ends_are_clear_but_passes_too_close_is_refused():
-    """Past the corner of the reception coffee table's south-east leg (1.649, -3.665): both ends of
-    a 12 cm move keep the 3 cm wall gap, but the straight path between them cuts to about 1.7 cm
-    from the corner. The swept proof refuses it (an end-point check would not); the same move in
-    open space is accepted. (The move once passed the old box table's corner at (0.8, -3.75); it is
-    mirrored across x about the new corner, the cat being symmetric.)"""
-    from robot_env.cats import Sample
-    s, herd, cat = _herd_one(2.149, -3.815, 0.0)
-    start = herd._finish(Sample(2.049, -3.515, 0.3927, cat.next.pos, cat.next.rot))
-    end = (1.989, -3.6189, 0.3927)
-    path = [herd.gaps(cat, start.x + (end[0] - start.x) * f, start.y + (end[1] - start.y) * f, end[2], start)[0]
+    """Past the corner of a low table: both ends of a 12 cm move keep the 3 cm wall gap, but the
+    straight path between them cuts to about 1.7 cm from the corner. The swept proof refuses it
+    (an end-point check would not); the same move in open space is accepted. The table is the
+    test's own (the old reception table, in an otherwise empty floor), so furniture changes in the
+    world cannot move the corner."""
+    from robot_env.cats import CatHerd, Sample, cat_world
+    from robot_env.sim import RobotSim
+    table = '<geom name="test_table" type="box" pos="1.3 -3.45 0.22" size="0.5 0.3 0.22"/>'
+    sim = RobotSim(include_obstacles=False, extra_world_xml=table, extra=cat_world(1))
+    s = RobotSystem(sim=sim)
+    s.cats = CatHerd(sim, 1, 2)
+    s.reset(-4.3, 4.3, 0.0, (4.0, -4.0))
+    s.cats.place(0, 0.3, -3.9, 0.0, state="pause")
+    herd, cat = s.cats, s.cats.cats[0]
+    start = herd._finish(Sample(0.4, -3.6, 2.7489, cat.next.pos, cat.next.rot))
+    end = (0.46, -3.7039, 2.7489)
+    path = [herd.gaps(cat, 0.4 + (end[0] - 0.4) * f, -3.6 + (end[1] + 3.6) * f, end[2], start)[0]
             for f in np.linspace(0.0, 1.0, 25)]
     assert path[0] >= WALL_GAP and path[-1] >= WALL_GAP and min(path) < WALL_GAP - 0.01  # a real dip
     assert herd.pose_ok(cat, *end, pose=start)  # an end-point check alone would allow it
