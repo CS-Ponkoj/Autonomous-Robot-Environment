@@ -33,10 +33,9 @@ WINDOW = (1280, 720)  # initial window size; the window can be resized
 FPS = 60
 MAX_FRAME_DT = 0.05
 SHADOW_LIGHTS = 3  # room lights casting shadows in the chase, orbit, and robot-camera views
-# The top view shows the whole floor: a fixed set (no light switching as the robot moves), one
-# light per room; the corridor is lit but casts no shadows there (each shadow light re-draws the
-# whole scene, about 1 ms)
-TOP_SHADOW_LIGHTS = ("light_office", "light_lab", "light_storage", "light_reception")
+# The top view shows the whole floor: shadows from the 2 room lights nearest the robot only (from
+# above a shadow is a small dark patch, and each shadow light re-draws the whole scene, about 1 ms)
+TOP_SHADOW_LIGHTS = 2
 INSET_PERIOD = 1 / 10  # s of simulated time between robot-camera inset renders
 VIEWS = ("chase", "top", "orbit", "robot camera")
 HUD_MODES = ("compact", "full", "none")
@@ -1084,7 +1083,7 @@ class App:
         """The lights drawn (the renderer draws only eight): those of the room the camera is in,
         faded over a change so nothing pops; the top view, which shows every room, a fixed set.
         Shadows from the SHADOW_LIGHTS drawn room lights nearest the robot (the rooms in view), or
-        the fixed TOP_SHADOW_LIGHTS from above. Each shadow-casting light re-draws the whole scene
+        the TOP_SHADOW_LIGHTS nearest it from above. Each shadow-casting light re-draws the whole scene
         (about 1 ms each), so this is the main rendering cost."""
         sim = self.system.sim
         m = sim.model
@@ -1103,13 +1102,7 @@ class App:
             self._light_view = self.view.mode
         else:
             sim.lights.fade(x, y, self._frame_dt, top, look)
-        if top:
-            names = [mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_LIGHT, k) for k in range(m.nlight)]
-            fixed = [k for k, n in enumerate(names) if n in TOP_SHADOW_LIGHTS and m.light_active[k]]
-            m.light_castshadow[:] = 0
-            m.light_castshadow[fixed if fixed else np.flatnonzero(sim.lights.shadowing & (m.light_active > 0))] = 1
-            return
-        sim.lights.shadows(rx, ry, SHADOW_LIGHTS)
+        sim.lights.shadows(rx, ry, TOP_SHADOW_LIGHTS if top else SHADOW_LIGHTS)
 
     def draw_banners(self) -> None:
         obs = self.system.observe()
