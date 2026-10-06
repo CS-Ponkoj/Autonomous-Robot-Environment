@@ -333,6 +333,9 @@ def _seating(hw, seats):
     return parts
 
 
+LAB_TOP = 0.93  # the lab worktops' surface (tools/proc_furniture.py lab_bench)
+
+
 def lab_bench(name, model_id, pos, half, back, sections, yaw=0.0):
     """Laboratory bench (procedural, tools/proc_furniture.py lab_bench): carcass on a recessed
     plinth, fronts with bar handles (the lowest, at 0.30 m, are members), worktop at 0.93 m. Front
@@ -974,16 +977,10 @@ def build_floor():
     comment("Lab furniture")
     lab_bench("lab_bench_north", "proc_lab_bench_long", (2.6, 4.55, 0.0), (1.2, 0.4), False,
               ("drawers", "door", "door", "drawers"))  # against the north wall
-    box(None, (2.0, 4.65, 0.96), (0.09, 0.12, 0.03), "lab_white", cls="visual")  # microscope base
-    box(None, (2.0, 4.72, 1.08), (0.025, 0.03, 0.12), "lab_white", cls="visual")
-    box(None, (2.0, 4.66, 1.17), (0.03, 0.07, 0.03), "robot_dark", cls="visual")
-    cyl(None, (2.0, 4.6, 1.11), 0.012, 0.05, "robot_dark", cls="visual")
-    for k, bx in enumerate((2.6, 2.7, 2.78)):  # glassware
-        cyl(None, (bx, 4.5, 0.98 + 0.02 * k), 0.03 - 0.005 * k, 0.05 + 0.02 * k, "glass_ware", cls="visual")
-    box(None, (3.3, 4.6, 1.02), (0.2, 0.17, 0.09), "lab_white", cls="visual")  # analyzer
-    box(None, (3.3, 4.43, 1.04), (0.12, 0.001, 0.05), "screen", cls="visual")
+    model("proc_lab_bench_set", (2.6, 4.55, LAB_TOP + 0.0005))  # microscope, glassware, rack, analyzer
     lab_bench("lab_bench_island", "proc_lab_bench_island", (2.9, 2.5, 0.0), (0.9, 0.4), True,
               ("drawers", "door", "drawers"))  # fronts on both sides
+    model("proc_lab_island_set", (2.9, 2.5, LAB_TOP + 0.0005))  # safety goggles and a lab notebook
     shelving_unit("lab_shelving", (4.7, 1.9), (0.25, 0.7), 2.0, 4, seed=1)
     lab_bench("lab_cart", "proc_lab_cabinet", (4.3, 4.0, 0.0), (0.3, 0.25), False, ("drawers",))  # a drawer cabinet
 

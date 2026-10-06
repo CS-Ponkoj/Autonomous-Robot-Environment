@@ -269,6 +269,23 @@
     <texture name="proc_lab_bench_long_t4" type="2d" file="proc_lab_bench_long_4.png"/>
     <material name="proc_lab_bench_long_m4" texture="proc_lab_bench_long_t4" specular="0.4" shininess="0.45" reflectance="0.02"/>
     <mesh name="proc_lab_bench_long_4" file="proc_lab_bench_long_4.msh" inertia="shell"/>
+    <texture name="proc_lab_bench_set_t0" type="2d" file="proc_lab_bench_set_0.png"/>
+    <material name="proc_lab_bench_set_m0" texture="proc_lab_bench_set_t0" specular="0.4" shininess="0.5" reflectance="0.0"/>
+    <mesh name="proc_lab_bench_set_0" file="proc_lab_bench_set_0.msh" inertia="shell"/>
+    <material name="proc_lab_bench_set_m1" rgba="0.820 0.900 0.950 0.320" specular="0.95" shininess="0.95" reflectance="0.0"/>
+    <mesh name="proc_lab_bench_set_1" file="proc_lab_bench_set_1.msh" inertia="shell"/>
+    <material name="proc_lab_bench_set_m2" rgba="0.070 0.070 0.080 1.000" specular="0.4" shininess="0.5" reflectance="0.0"/>
+    <mesh name="proc_lab_bench_set_2" file="proc_lab_bench_set_2.msh" inertia="shell"/>
+    <material name="proc_lab_bench_set_m3" rgba="0.900 0.900 0.880 1.000" specular="0.35" shininess="0.4" reflectance="0.0"/>
+    <mesh name="proc_lab_bench_set_3" file="proc_lab_bench_set_3.msh" inertia="shell"/>
+    <material name="proc_lab_bench_set_m4" rgba="0.700 0.710 0.730 1.000" specular="0.85" shininess="0.85" reflectance="0.08"/>
+    <mesh name="proc_lab_bench_set_4" file="proc_lab_bench_set_4.msh" inertia="shell"/>
+    <material name="proc_lab_bench_set_m5" rgba="0.850 0.550 0.150 0.700" specular="0.6" shininess="0.8" reflectance="0.0"/>
+    <mesh name="proc_lab_bench_set_5" file="proc_lab_bench_set_5.msh" inertia="shell"/>
+    <material name="proc_lab_bench_set_m6" rgba="0.200 0.450 0.850 0.700" specular="0.6" shininess="0.8" reflectance="0.0"/>
+    <mesh name="proc_lab_bench_set_6" file="proc_lab_bench_set_6.msh" inertia="shell"/>
+    <material name="proc_lab_bench_set_m7" rgba="0.850 0.850 0.820 1.000" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_lab_bench_set_7" file="proc_lab_bench_set_7.msh" inertia="shell"/>
     <material name="proc_lab_bench_island_m0" rgba="0.720 0.730 0.750 1.000" specular="0.9" shininess="0.9" reflectance="0.15"/>
     <mesh name="proc_lab_bench_island_0" file="proc_lab_bench_island_0.msh" inertia="shell"/>
     <texture name="proc_lab_bench_island_t1" type="2d" file="proc_lab_bench_island_1.png"/>
@@ -282,6 +299,13 @@
     <texture name="proc_lab_bench_island_t4" type="2d" file="proc_lab_bench_island_4.png"/>
     <material name="proc_lab_bench_island_m4" texture="proc_lab_bench_island_t4" specular="0.4" shininess="0.45" reflectance="0.02"/>
     <mesh name="proc_lab_bench_island_4" file="proc_lab_bench_island_4.msh" inertia="shell"/>
+    <material name="proc_lab_island_set_m0" rgba="0.100 0.250 0.550 1.000" specular="0.2" shininess="0.3" reflectance="0.0"/>
+    <mesh name="proc_lab_island_set_0" file="proc_lab_island_set_0.msh" inertia="shell"/>
+    <material name="proc_lab_island_set_m1" rgba="0.750 0.850 0.900 0.450" specular="0.9" shininess="0.9" reflectance="0.0"/>
+    <mesh name="proc_lab_island_set_1" file="proc_lab_island_set_1.msh" inertia="shell"/>
+    <texture name="proc_lab_island_set_t2" type="2d" file="proc_lab_island_set_2.png"/>
+    <material name="proc_lab_island_set_m2" texture="proc_lab_island_set_t2" specular="0.05" shininess="0.1" reflectance="0.0"/>
+    <mesh name="proc_lab_island_set_2" file="proc_lab_island_set_2.msh" inertia="shell"/>
     <texture name="proc_lab_rack_t0" type="2d" file="proc_lab_rack_0.png"/>
     <material name="proc_lab_rack_m0" texture="proc_lab_rack_t0" specular="0.1" shininess="0.15" reflectance="0.0"/>
     <mesh name="proc_lab_rack_0" file="proc_lab_rack_0.msh" inertia="shell"/>
@@ -1082,15 +1106,14 @@
     <geom name="lab_bench_north_top" type="box" pos="2.6000 4.5500 0.9150" size="1.2200 0.4200 0.0150" material="lab_white" group="4"/>
     <geom name="lab_bench_north_handle_s0" type="box" pos="1.7000 4.1380 0.3050" size="0.0700 0.0120 0.0060" material="lab_white" group="4"/>
     <geom name="lab_bench_north_handle_s3" type="box" pos="3.5000 4.1380 0.3050" size="0.0700 0.0120 0.0060" material="lab_white" group="4"/>
-    <geom type="box" pos="2.0000 4.6500 0.9600" size="0.0900 0.1200 0.0300" material="lab_white" class="visual"/>
-    <geom type="box" pos="2.0000 4.7200 1.0800" size="0.0250 0.0300 0.1200" material="lab_white" class="visual"/>
-    <geom type="box" pos="2.0000 4.6600 1.1700" size="0.0300 0.0700 0.0300" material="robot_dark" class="visual"/>
-    <geom type="cylinder" pos="2.0000 4.6000 1.1100" size="0.0120 0.0500" material="robot_dark" class="visual"/>
-    <geom type="cylinder" pos="2.6000 4.5000 0.9800" size="0.0300 0.0500" material="glass_ware" class="visual"/>
-    <geom type="cylinder" pos="2.7000 4.5000 1.0000" size="0.0250 0.0700" material="glass_ware" class="visual"/>
-    <geom type="cylinder" pos="2.7800 4.5000 1.0200" size="0.0200 0.0900" material="glass_ware" class="visual"/>
-    <geom type="box" pos="3.3000 4.6000 1.0200" size="0.2000 0.1700 0.0900" material="lab_white" class="visual"/>
-    <geom type="box" pos="3.3000 4.4300 1.0400" size="0.1200 0.0010 0.0500" material="screen" class="visual"/>
+    <geom class="visual" type="mesh" mesh="proc_lab_bench_set_0" material="proc_lab_bench_set_m0" pos="2.6000 4.5500 0.9305" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_lab_bench_set_1" material="proc_lab_bench_set_m1" pos="2.6000 4.5500 0.9305" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_lab_bench_set_2" material="proc_lab_bench_set_m2" pos="2.6000 4.5500 0.9305" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_lab_bench_set_3" material="proc_lab_bench_set_m3" pos="2.6000 4.5500 0.9305" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_lab_bench_set_4" material="proc_lab_bench_set_m4" pos="2.6000 4.5500 0.9305" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_lab_bench_set_5" material="proc_lab_bench_set_m5" pos="2.6000 4.5500 0.9305" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_lab_bench_set_6" material="proc_lab_bench_set_m6" pos="2.6000 4.5500 0.9305" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_lab_bench_set_7" material="proc_lab_bench_set_m7" pos="2.6000 4.5500 0.9305" euler="0 0 0.0"/>
     <geom name="lab_bench_island_proc_lab_bench_island_0" class="visual" type="mesh" mesh="proc_lab_bench_island_0" material="proc_lab_bench_island_m0" pos="2.9000 2.5000 0.0000" euler="0 0 0.0"/>
     <geom name="lab_bench_island_proc_lab_bench_island_1" class="visual" type="mesh" mesh="proc_lab_bench_island_1" material="proc_lab_bench_island_m1" pos="2.9000 2.5000 0.0000" euler="0 0 0.0"/>
     <geom name="lab_bench_island_proc_lab_bench_island_2" class="visual" type="mesh" mesh="proc_lab_bench_island_2" material="proc_lab_bench_island_m2" pos="2.9000 2.5000 0.0000" euler="0 0 0.0"/>
@@ -1103,6 +1126,9 @@
     <geom name="lab_bench_island_handle_s2" type="box" pos="3.5000 2.0880 0.3050" size="0.0700 0.0120 0.0060" material="lab_white" group="4"/>
     <geom name="lab_bench_island_handle_n0" type="box" pos="2.3000 2.9120 0.3050" size="0.0700 0.0120 0.0060" material="lab_white" group="4"/>
     <geom name="lab_bench_island_handle_n2" type="box" pos="3.5000 2.9120 0.3050" size="0.0700 0.0120 0.0060" material="lab_white" group="4"/>
+    <geom class="visual" type="mesh" mesh="proc_lab_island_set_0" material="proc_lab_island_set_m0" pos="2.9000 2.5000 0.9305" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_lab_island_set_1" material="proc_lab_island_set_m1" pos="2.9000 2.5000 0.9305" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_lab_island_set_2" material="proc_lab_island_set_m2" pos="2.9000 2.5000 0.9305" euler="0 0 0.0"/>
     <geom name="lab_shelving_proc_lab_rack_0" class="visual" type="mesh" mesh="proc_lab_rack_0" material="proc_lab_rack_m0" pos="4.7000 1.9000 0.0000" euler="0 0 90.0"/>
     <geom name="lab_shelving_proc_lab_rack_1" class="visual" type="mesh" mesh="proc_lab_rack_1" material="proc_lab_rack_m1" pos="4.7000 1.9000 0.0000" euler="0 0 90.0"/>
     <geom name="lab_shelving_proc_lab_rack_2" class="visual" type="mesh" mesh="proc_lab_rack_2" material="proc_lab_rack_m2" pos="4.7000 1.9000 0.0000" euler="0 0 90.0"/>

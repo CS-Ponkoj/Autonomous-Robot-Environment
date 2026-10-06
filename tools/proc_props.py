@@ -1107,12 +1107,149 @@ def dome_camera() -> dict:
     return m.write("proc_dome_camera", "Dome camera (procedural)", "visual only, on the ceiling", {"plate": face})
 
 
+# ----- lab bench props -----
+pf.MATERIALS.update({
+    "lab_body": ((0.9, 0.9, 0.88, 1.0), 0.35, 0.4, 0.0),  # instrument white enamel
+    "lab_black": ((0.07, 0.07, 0.08, 1.0), 0.4, 0.5, 0.0),
+    "lab_chrome": ((0.7, 0.71, 0.73, 1.0), 0.85, 0.85, 0.08),
+    "glass": ((0.82, 0.9, 0.95, 0.32), 0.95, 0.95, 0.0),  # thin clear glass (alpha)
+    "liquid_blue": ((0.2, 0.45, 0.85, 0.7), 0.6, 0.8, 0.0),
+    "liquid_amber": ((0.85, 0.55, 0.15, 0.7), 0.6, 0.8, 0.0),
+    "rack": ((0.85, 0.85, 0.82, 1.0), 0.3, 0.35, 0.0),
+    "analyzer_face": ((1.0, 1.0, 1.0, 1.0), 0.4, 0.5, 0.0),
+    "goggle_lens": ((0.75, 0.85, 0.9, 0.45), 0.9, 0.9, 0.0),
+    "goggle_band": ((0.1, 0.25, 0.55, 1.0), 0.2, 0.3, 0.0),
+})
+
+
+def _rot3(v, n, yaw=0.0, pitch=0.0, roll=0.0):
+    """Rotate points and normals: roll about y, then pitch about x, then yaw about z."""
+    r, p, y = (math.radians(a) for a in (roll, pitch, yaw))
+    Ry = np.array([[math.cos(r), 0, math.sin(r)], [0, 1, 0], [-math.sin(r), 0, math.cos(r)]])
+    Rx = np.array([[1, 0, 0], [0, math.cos(p), -math.sin(p)], [0, math.sin(p), math.cos(p)]])
+    Rz = np.array([[math.cos(y), -math.sin(y), 0], [math.sin(y), math.cos(y), 0], [0, 0, 1]])
+    R = Rz @ Rx @ Ry
+    return v @ R.T, n @ R.T
+
+
+def _place(m, mat, build, at, yaw=0.0, pitch=0.0, roll=0.0):
+    """Build a part at the origin with `build(m)` under a temporary material, then rotate and move it."""
+    build(m)
+    v, f, n, uv = m.parts["_tmp"].pop()
+    del m.parts["_tmp"]
+    v, n = _rot3(v, n, yaw, pitch, roll)
+    m.add(mat, v + np.asarray(at, float), f, n, uv)
+
+
+def _beaker(m, at, r, h, liquid=None, fill=0.5):
+    """An open glass beaker (wall in and out, a base, a rim), optionally with liquid."""
+    x, y = at[0], at[1]
+    m.cylinder("glass", (x, y, h / 2), r, h / 2, seg=24, caps=False)
+    m.cylinder("glass", (x, y, h / 2), r - 0.0015, h / 2 - 0.001, seg=24, caps=False, inward=True)
+    m.annulus("glass", 0.0, 0.0, r, seg=24, up=False)
+    v, f, n, uv = m.parts["glass"].pop()
+    m.add("glass", v + [x, y, 0.0], f, n, uv)
+    if liquid:
+        m.cylinder(liquid, (x, y, 0.002 + fill * h / 2), r - 0.002, fill * h / 2, seg=24)
+
+
+def analyzer_screen(w=320, h=180):
+    """The analyzer's display: a dark panel with a plotted trace, a few status blocks, no words."""
+    img = Image.new("RGB", (w, h), (18, 30, 40))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, w, 18], fill=(30, 70, 110))
+    pts = [(10 + k * 3, 120 - 40 * math.exp(-((k - 50) / 9.0) ** 2) - 12 * math.exp(-((k - 22) / 5.0) ** 2))
+           for k in range(95)]
+    d.line(pts, fill=(90, 220, 140), width=2)
+    d.line([(10, 125), (300, 125)], fill=(80, 100, 110), width=1)
+    for k in range(3):
+        d.rectangle([220, 40 + 22 * k, 300, 54 + 22 * k], fill=(40, 60, 76))
+        d.rectangle([224, 44 + 22 * k, 224 + 20 + 18 * k, 50 + 22 * k], fill=(150, 170, 180))
+    return img
+
+
+def lab_bench_set() -> dict:
+    """On the long lab bench (frame: the worktop's centre, z = 0 on the top, front at y = -0.42): a
+    microscope, glassware with liquids, a test tube rack, and a benchtop analyzer with a display."""
+    m = pf.Mesh()
+    # microscope (at x -0.6): base, C-arm, stage, objective turret, two eyepieces, focus knobs
+    mx, my = -0.6, 0.08
+    m.rounded_box("lab_body", (mx, my, 0.015), (0.1, 0.13, 0.015), 0.01, n_arc=1)
+    m.rounded_box("lab_body", (mx, my + 0.1, 0.14), (0.03, 0.025, 0.12), 0.01, n_arc=1)  # the pillar
+    m.rounded_box("lab_body", (mx, my + 0.04, 0.27), (0.035, 0.085, 0.024), 0.008, n_arc=1)  # the head, over the stage
+    m.box("lab_black", (mx, my - 0.01, 0.1), (0.07, 0.065, 0.005))  # the stage
+    m.cylinder("lab_body", (mx, my - 0.01, 0.21), 0.015, 0.04, seg=16)  # the nosepiece
+    m.cylinder("lab_chrome", (mx, my - 0.01, 0.16), 0.022, 0.012, seg=20)  # the turret
+    for dx in (-0.012, 0.0, 0.012):
+        m.cylinder("lab_chrome", (mx + dx, my - 0.01, 0.135), 0.005, 0.015, seg=10)  # objectives
+    for dx in (-0.018, 0.018):
+        _place(m, "lab_black", lambda q: q.cylinder("_tmp", (0, 0, 0), 0.009, 0.03, seg=14),
+               (mx + dx, my + 0.0, 0.31), pitch=35.0)  # eyepieces on the head, tilted to the user
+    for sx in (-1, 1):
+        _place(m, "lab_black", lambda q: q.cylinder("_tmp", (0, 0, 0), 0.02, 0.008, seg=18),
+               (mx + sx * 0.04, my + 0.1, 0.09), roll=90.0)  # focus knobs
+    # glassware (x -0.25 to 0.05): two beakers (one with blue liquid), a flask with amber liquid,
+    # a graduated cylinder
+    _beaker(m, (-0.25, -0.1), 0.035, 0.09, "liquid_blue", 0.45)
+    _beaker(m, (-0.16, -0.05), 0.028, 0.07)
+    m.cylinder("glass", (-0.06, -0.08, 0.04), 0.045, 0.04, seg=24, radius_top=0.016)  # flask body
+    m.cylinder("glass", (-0.06, -0.08, 0.1), 0.014, 0.02, seg=16)  # its neck
+    m.cylinder("liquid_amber", (-0.06, -0.08, 0.02), 0.04, 0.018, seg=24, radius_top=0.03)
+    m.cylinder("glass", (0.02, 0.02, 0.012), 0.03, 0.006, seg=20)  # graduated cylinder: foot
+    m.cylinder("glass", (0.02, 0.02, 0.13), 0.013, 0.115, seg=16, caps=False)
+    # test tube rack with six tubes (x 0.2)
+    rx, ry = 0.22, -0.02
+    m.box("rack", (rx, ry, 0.05), (0.09, 0.03, 0.004))
+    m.box("rack", (rx, ry, 0.002), (0.09, 0.03, 0.002))
+    for sx in (-1, 1):
+        m.box("rack", (rx + sx * 0.087, ry, 0.026), (0.003, 0.03, 0.026))
+    for k in range(6):
+        tx = rx - 0.07 + k * 0.028
+        m.cylinder("glass", (tx, ry, 0.06), 0.007, 0.055, seg=12)
+        if k % 2 == 0:
+            m.cylinder("liquid_blue" if k != 4 else "liquid_amber", (tx, ry, 0.025), 0.0062, 0.018, seg=12)
+    # benchtop analyzer (x 0.7): a rounded white case, a display, buttons, a sample drawer
+    ax, ay = 0.7, 0.05
+    m.rounded_box("lab_body", (ax, ay, 0.1), (0.2, 0.17, 0.1), 0.012, n_arc=1)
+    q = np.array([(ax - 0.12, ay - 0.1705, 0.17), (ax + 0.04, ay - 0.1705, 0.17), (ax + 0.04, ay - 0.1705, 0.08),
+                  (ax - 0.12, ay - 0.1705, 0.08)])
+    m.add("analyzer_face", q, [(0, 2, 1), (0, 3, 2)], np.tile([0.0, -1.0, 0.0], (4, 1)),
+          np.array([(0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)]))
+    for k in range(3):
+        m.cylinder("lab_black", (ax + 0.09 + 0.03 * (k % 2), ay - 0.171, 0.15 - 0.03 * (k // 2)), 0.008, 0.002,
+                   seg=12)
+        v, f, n, uv = m.parts["lab_black"].pop()
+        v2, n2 = _rot3(v - [ax + 0.09 + 0.03 * (k % 2), ay - 0.171, 0.15 - 0.03 * (k // 2)], n, pitch=90.0)
+        m.add("lab_black", v2 + [ax + 0.09 + 0.03 * (k % 2), ay - 0.171, 0.15 - 0.03 * (k // 2)], f, n2, uv)
+    m.box("lab_black", (ax, ay - 0.171, 0.035), (0.12, 0.002, 0.012))  # the sample drawer's slot
+    return m.write("proc_lab_bench_set", "Lab bench props (procedural)", "visual only, on the lab worktop",
+                   {"analyzer_face": analyzer_screen()})
+
+
+def lab_island_set() -> dict:
+    """On the island bench (worktop frame, z = 0 on the top): safety goggles and a lab notebook."""
+    m = pf.Mesh()
+    gx, gy = -0.3, -0.05
+    for sx in (-1, 1):
+        m.cushion("goggle_lens", (gx + sx * 0.04, gy, 0.025), (0.038, 0.012, 0.025), e=0.7, nu=20, nv=10)
+    m.box("goggle_band", (gx, gy + 0.015, 0.025), (0.085, 0.004, 0.012))
+    m.box("goggle_band", (gx, gy, 0.045), (0.012, 0.012, 0.004))  # the bridge
+    c, s_ = math.cos(math.radians(-6)), math.sin(math.radians(-6))
+    rot = np.array([[c, -s_, 0], [s_, c, 0], [0, 0, 1.0]])
+    side = (0.0, 0.0, 0.02, 0.02)
+    m.textured_box("paper", (0.1, -0.12, 0.0), (0.31, 0.15, 0.012),
+                   {"+z": (0.0, 1.0, 1.0, 0.0), "-z": side, "-x": side, "+x": side, "-y": side, "+y": side},
+                   rot=rot, pivot=(0.2, 0.0, 0.0))
+    return m.write("proc_lab_island_set", "Lab island props (procedural)", "visual only, on the lab worktop",
+                   {"paper": notepad_texture()})
+
+
 def main() -> int:
     pf.OUT.mkdir(parents=True, exist_ok=True)
     for fn in (storage_pallet, storage_carton, storage_carton_top, wall_clock, desk_set, whiteboard, socket,
                light_switch, thermostat, exit_sign, first_aid_kit, notice_board, safety_poster, trunking,
                smoke_detector, print_corridor_a, print_corridor_b, print_reception, television, extinguisher,
-               fire_sign, call_point, dome_camera):
+               fire_sign, call_point, dome_camera, lab_bench_set, lab_island_set):
         rec = fn()
         faces = sum(p["faces"] for p in rec["parts"])
         print(f"{rec['id']:22s} {faces:5d} faces  size {rec['size_m']}")

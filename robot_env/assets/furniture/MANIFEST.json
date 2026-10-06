@@ -5,7 +5,7 @@
   "procedural_tool": "tools/proc_furniture.py",
   "procedural_tool_sha256": "c1efd6ab64f04c8bfc8f32e387c5d71fec3025064ed7dcdbac8115d6524199ea",
   "props_tool": "tools/proc_props.py",
-  "props_tool_sha256": "aecaf126876e71e7db33227e41b2767c7d4a3cc1a52ffddaa47f28d180991d69",
+  "props_tool_sha256": "18ce0bced0476fd27a2b5fe4005923d2d28509dc30d7ba9c2ce413d0749568b8",
   "python": "3.11.5",
   "packages": {
    "numpy": "2.4.6",
@@ -132,7 +132,15 @@
    "source": "tools/proc_furniture.py"
   },
   {
+   "id": "proc_lab_bench_set",
+   "source": "tools/proc_furniture.py"
+  },
+  {
    "id": "proc_lab_cabinet",
+   "source": "tools/proc_furniture.py"
+  },
+  {
+   "id": "proc_lab_island_set",
    "source": "tools/proc_furniture.py"
   },
   {
@@ -629,6 +637,46 @@
    "sha256": "99be4e856eb8715e9422befcb88ec3c88b258604c3cb9d540d804f01f566bbf4",
    "bytes": 305141
   },
+  "proc_lab_bench_set.json": {
+   "sha256": "5b39bd604d510d9008503d2fef8548b680af5f80ae55b19f56b4ccaaed41a82d",
+   "bytes": 2312
+  },
+  "proc_lab_bench_set_0.msh": {
+   "sha256": "301255a956486ba1950af79fa3c5a7c2382a006a9d27fe13e7e7cbfe9ae20490",
+   "bytes": 168
+  },
+  "proc_lab_bench_set_0.png": {
+   "sha256": "f81dbe4967bb09f0031887f5954047ef12d0487a6b9eb28dffe4cdfac93614ab",
+   "bytes": 863
+  },
+  "proc_lab_bench_set_1.msh": {
+   "sha256": "3fdf69bf7d367a5951e649618f5f1a8ed66cc2670ff487c68cf0fa8f8c3ad21b",
+   "bytes": 37904
+  },
+  "proc_lab_bench_set_2.msh": {
+   "sha256": "224c703fec9aaeeb5da1c588457e00d171b56ea1119d04544441e696ef3060aa",
+   "bytes": 19888
+  },
+  "proc_lab_bench_set_3.msh": {
+   "sha256": "4cbda6f9170c047bb5a3fecf57f07df4a374d2f77f02b5a6cd1f619e37252e23",
+   "bytes": 31312
+  },
+  "proc_lab_bench_set_4.msh": {
+   "sha256": "4d541cd565a7a0837e948887bd4d5df0e5177eb5171ffb9da88d9becbdb1a900",
+   "bytes": 9072
+  },
+  "proc_lab_bench_set_5.msh": {
+   "sha256": "aeb2b1abc29d02353ad7d842817d992bfd0a6b8e3d5c729a23d2cef9221d93c9",
+   "bytes": 6480
+  },
+  "proc_lab_bench_set_6.msh": {
+   "sha256": "d8305a16846b4397e3dde2631c86b022ad2ca3d2f7c92a6bf68f7e461b83ebd9",
+   "bytes": 8656
+  },
+  "proc_lab_bench_set_7.msh": {
+   "sha256": "33d05d64da99c1f5db9bd1a34c963c51688d68b4194a7e198507a3c588784574",
+   "bytes": 3664
+  },
   "proc_lab_cabinet.json": {
    "sha256": "4d63ebe6748da7cc02d4b14da2137d03c999baff98ca5250538a9ac6d10f1d0a",
    "bytes": 1565
@@ -664,6 +712,26 @@
   "proc_lab_cabinet_4.png": {
    "sha256": "99be4e856eb8715e9422befcb88ec3c88b258604c3cb9d540d804f01f566bbf4",
    "bytes": 305141
+  },
+  "proc_lab_island_set.json": {
+   "sha256": "d48acb90e31bb297955a7c156d856b3a80b6be4dd0d4e7580e1c0a866afae09f",
+   "bytes": 1054
+  },
+  "proc_lab_island_set_0.msh": {
+   "sha256": "1cf1a49fd853c46599b8b1e518e1fa1fdaf115efc1119ceaad877409e39b107d",
+   "bytes": 1840
+  },
+  "proc_lab_island_set_1.msh": {
+   "sha256": "848dbff9eef2773a83ce5b2dc16d5713241fe7ea7f3f5e88b23b168a02cc4059",
+   "bytes": 21456
+  },
+  "proc_lab_island_set_2.msh": {
+   "sha256": "994e357f909015f60709e703c8cd12508faec95e1ebc09ac0c7f74b9f376098d",
+   "bytes": 928
+  },
+  "proc_lab_island_set_2.png": {
+   "sha256": "1dbaad0c6dc855f704263c379bb51125576df195a975d02272468815551c571c",
+   "bytes": 1230
   },
   "proc_lab_rack.json": {
    "sha256": "c3a2aa87e9777fd5563c428f5ca5fa5139ec16d45391d28b039bf88bf9735c62",

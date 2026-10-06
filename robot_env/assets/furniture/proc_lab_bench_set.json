@@ -1,0 +1,143 @@
+{
+ "id": "proc_lab_bench_set",
+ "name": "Lab bench props (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  1.6,
+  0.355,
+  0.3396
+ ],
+ "parts": [
+  {
+   "mesh": "proc_lab_bench_set_0.msh",
+   "material": "analyzer_face",
+   "texture": "proc_lab_bench_set_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.5,
+   "reflectance": 0.0,
+   "faces": 2,
+   "vertices": 4
+  },
+  {
+   "mesh": "proc_lab_bench_set_1.msh",
+   "material": "glass",
+   "texture": null,
+   "rgba": [
+    0.82,
+    0.9,
+    0.95,
+    0.32
+   ],
+   "specular": 0.95,
+   "shininess": 0.95,
+   "reflectance": 0.0,
+   "faces": 848,
+   "vertices": 866
+  },
+  {
+   "mesh": "proc_lab_bench_set_2.msh",
+   "material": "lab_black",
+   "texture": null,
+   "rgba": [
+    0.07,
+    0.07,
+    0.08,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.5,
+   "reflectance": 0.0,
+   "faces": 424,
+   "vertices": 462
+  },
+  {
+   "mesh": "proc_lab_bench_set_3.msh",
+   "material": "lab_body",
+   "texture": null,
+   "rgba": [
+    0.9,
+    0.9,
+    0.88,
+    1.0
+   ],
+   "specular": 0.35,
+   "shininess": 0.4,
+   "reflectance": 0.0,
+   "faces": 832,
+   "vertices": 666
+  },
+  {
+   "mesh": "proc_lab_bench_set_4.msh",
+   "material": "lab_chrome",
+   "texture": null,
+   "rgba": [
+    0.7,
+    0.71,
+    0.73,
+    1.0
+   ],
+   "specular": 0.85,
+   "shininess": 0.85,
+   "reflectance": 0.08,
+   "faces": 200,
+   "vertices": 208
+  },
+  {
+   "mesh": "proc_lab_bench_set_5.msh",
+   "material": "liquid_amber",
+   "texture": null,
+   "rgba": [
+    0.85,
+    0.55,
+    0.15,
+    0.7
+   ],
+   "specular": 0.6,
+   "shininess": 0.8,
+   "reflectance": 0.0,
+   "faces": 144,
+   "vertices": 148
+  },
+  {
+   "mesh": "proc_lab_bench_set_6.msh",
+   "material": "liquid_blue",
+   "texture": null,
+   "rgba": [
+    0.2,
+    0.45,
+    0.85,
+    0.7
+   ],
+   "specular": 0.6,
+   "shininess": 0.8,
+   "reflectance": 0.0,
+   "faces": 192,
+   "vertices": 198
+  },
+  {
+   "mesh": "proc_lab_bench_set_7.msh",
+   "material": "rack",
+   "texture": null,
+   "rgba": [
+    0.85,
+    0.85,
+    0.82,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.35,
+   "reflectance": 0.0,
+   "faces": 48,
+   "vertices": 96
+  }
+ ],
+ "note": "visual only, on the lab worktop"
+}

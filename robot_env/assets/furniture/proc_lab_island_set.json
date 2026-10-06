@@ -1,0 +1,63 @@
+{
+ "id": "proc_lab_island_set",
+ "name": "Lab island props (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.7101,
+  0.2905,
+  0.05
+ ],
+ "parts": [
+  {
+   "mesh": "proc_lab_island_set_0.msh",
+   "material": "goggle_band",
+   "texture": null,
+   "rgba": [
+    0.1,
+    0.25,
+    0.55,
+    1.0
+   ],
+   "specular": 0.2,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 24,
+   "vertices": 48
+  },
+  {
+   "mesh": "proc_lab_island_set_1.msh",
+   "material": "goggle_lens",
+   "texture": null,
+   "rgba": [
+    0.75,
+    0.85,
+    0.9,
+    0.45
+   ],
+   "specular": 0.9,
+   "shininess": 0.9,
+   "reflectance": 0.0,
+   "faces": 720,
+   "vertices": 400
+  },
+  {
+   "mesh": "proc_lab_island_set_2.msh",
+   "material": "paper",
+   "texture": "proc_lab_island_set_2.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.05,
+   "shininess": 0.1,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  }
+ ],
+ "note": "visual only, on the lab worktop"
+}
