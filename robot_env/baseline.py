@@ -45,6 +45,9 @@ STOP_COMMAND = Command(0.0, 0.0)
 CELL = 0.1  # m
 SIZE = 220  # cells per side (22 m): the start is at the center, so any goal on a 10 x 10 m floor fits
 INFLATE = int(math.ceil((C.CIRCUMSCRIBED_RADIUS + 0.06) / CELL))  # cells of clearance around obstacles
+# with nothing reachable at that clearance (a low door stop by a hinge can close a doorway on the
+# map), the planner tries once with the robot's half width; the safety layer keeps the real gap
+INFLATE_TIGHT = int(math.ceil((C.FOOTPRINT_HALF_WIDTH + 0.01) / CELL))
 REPLAN_PERIOD = 0.5  # s
 STUCK_AFTER = 1.0  # s of commanded but absent motion
 BACKUP_TIME = 0.6  # s of reversing to get out (only when the space behind is seen clear)
@@ -59,6 +62,8 @@ LOOKAHEAD = 5  # cells (0.5 m)
 HALF_WIDTH = C.FOOTPRINT_HALF_WIDTH + 0.04
 _DISK = [(dx, dy) for dx in range(-INFLATE, INFLATE + 1) for dy in range(-INFLATE, INFLATE + 1)
          if dx * dx + dy * dy <= INFLATE * INFLATE]
+_DISK_TIGHT = [(dx, dy) for dx in range(-INFLATE_TIGHT, INFLATE_TIGHT + 1) for dy in range(-INFLATE_TIGHT, INFLATE_TIGHT + 1)
+         if dx * dx + dy * dy <= INFLATE_TIGHT * INFLATE_TIGHT]
 _APART = [(dx, dy) for dx in range(-DEPTH_APART, DEPTH_APART + 1) for dy in range(-DEPTH_APART, DEPTH_APART + 1)]
 _STEPS = [(-1, 0, 1.0), (1, 0, 1.0), (0, -1, 1.0), (0, 1, 1.0),
           (-1, -1, 1.414), (-1, 1, 1.414), (1, -1, 1.414), (1, 1, 1.414)]
@@ -173,9 +178,9 @@ class BaselineDriver:
         self.occupied[cx[ok], cy[ok]] = True
 
     # ----- planning -----
-    def _plan(self) -> None:
+    def _plan(self, tight: bool = False) -> None:
         blocked = self.occupied.copy()
-        for dx, dy in _DISK:
+        for dx, dy in (_DISK_TIGHT if tight else _DISK):
             blocked |= _shift(self.occupied, dx, dy, False)
         rx, ry = self._cell(self.pose[0], self.pose[1])
         gx, gy = (int(np.clip(c, 0, SIZE - 1)) for c in self._cell(*self._goal))  # far goals: plan to the edge
@@ -202,7 +207,9 @@ class BaselineDriver:
                 # nothing reachable at all: the refused space may be what closed it; forget it
                 self._refused[:] = -np.inf
                 self.occupied = (self._last - self._first >= CONFIRM_SPAN) | (self._now - self._last < DYNAMIC_TTL)
-                return self._plan()
+                return self._plan(tight)
+            if not np.isfinite(dist[rx, ry]) and not tight:
+                return self._plan(tight=True)
         self.dist = dist
 
     @staticmethod
