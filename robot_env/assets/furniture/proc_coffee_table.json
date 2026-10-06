@@ -1,0 +1,31 @@
+{
+ "id": "proc_coffee_table",
+ "name": "Coffee table (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  1.1,
+  0.55,
+  0.42
+ ],
+ "parts": [
+  {
+   "mesh": "proc_coffee_table_0.msh",
+   "material": "oak",
+   "texture": "proc_oak.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.2,
+   "shininess": 0.25,
+   "reflectance": 0.0,
+   "faces": 108,
+   "vertices": 216
+  }
+ ],
+ "note": "members: top, apron, four legs"
+}

@@ -1,0 +1,63 @@
+{
+ "id": "proc_sofa",
+ "name": "Three-seat sofa (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  2.106,
+  0.846,
+  0.8
+ ],
+ "parts": [
+  {
+   "mesh": "proc_sofa_0.msh",
+   "material": "piping_oat",
+   "texture": null,
+   "rgba": [
+    0.48,
+    0.44,
+    0.38,
+    1.0
+   ],
+   "specular": 0.1,
+   "shininess": 0.2,
+   "reflectance": 0.0,
+   "faces": 3456,
+   "vertices": 1728
+  },
+  {
+   "mesh": "proc_sofa_1.msh",
+   "material": "plinth",
+   "texture": "proc_sofa_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.2,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  },
+  {
+   "mesh": "proc_sofa_2.msh",
+   "material": "upholstery",
+   "texture": "proc_sofa_2.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.1,
+   "shininess": 0.2,
+   "reflectance": 0.0,
+   "faces": 7680,
+   "vertices": 4860
+  }
+ ],
+ "note": "members: plinth, base, back, arms, seat cushions"
+}

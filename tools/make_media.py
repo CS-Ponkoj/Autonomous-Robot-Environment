@@ -41,7 +41,7 @@ GIF_FPS = 8
 GIF_COLORS = 64
 VIDEO_FPS = 30
 DOOR = (2.5, 0.75)  # the lab doorway on the corridor's north side
-OUT_OF_THE_WAY = ((-4.0, 1.4, 0.5), (-3.2, -3.4, 2.0), (3.4, -3.0, -2.4))  # office, storage, reception
+OUT_OF_THE_WAY = ((-4.0, 1.4, 0.5), (-3.2, -3.4, 2.0), (3.9, -3.4, -2.4))  # office, storage, reception
 ROAM_SECONDS = 90.0  # simulated time in the roaming time-lapse
 ROAM_SAMPLE = 0.5  # s of simulated time between time-lapse frames (shown at 12 per second: 6x)
 

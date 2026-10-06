@@ -307,6 +307,70 @@ def planter(name, xy, yaw=0.0):
                                  for k, (z0, z1, r) in enumerate(PLANTER_BANDS)], "pot")
 
 
+def _seating(hw, seats):
+    """Members of tools/proc_furniture.py _box_seating (model frame): plinth, base, back, arms, seat
+    cushions (2 cm into the base), back cushions (above 0.43 m)."""
+    parts = [("box", "plinth", (0, 0, 0.03), (hw - 0.02, 0.40, 0.03)),
+             ("box", "base", (0, 0, 0.18), (hw, 0.42, 0.12)),
+             ("box", "back", (0, 0.3415, 0.43), (hw + 0.003, 0.0815, 0.37)),
+             ("box", "arm_l", (-(hw - 0.0785), -0.0815, 0.34), (0.0815, 0.3415, 0.28)),
+             ("box", "arm_r", (hw - 0.0785, -0.0815, 0.34), (0.0815, 0.3415, 0.28))]
+    inner = hw - 0.16
+    for k in range(seats):
+        x, w = -inner + (2 * k + 1) * inner / seats, inner / seats - 0.005
+        parts += [("box", f"seat_{k}", (x, -0.075, 0.355), (w, 0.335, 0.075)),
+                  ("box", f"cushion_{k}", (x, 0.19, 0.59), (w, 0.087, 0.165))]
+    return parts
+
+
+def box_sofa(name, pos, yaw=0.0):
+    """Three-seat box-arm sofa (procedural, 2.10 x 0.84 x 0.80 m) on a recessed plinth: its
+    upholstered base crosses the lidar plane, nothing under it. Front -y at yaw 0."""
+    with item(name):
+        model("proc_sofa", pos, yaw)
+        members(name, pos, yaw, _seating(1.05, 3), "desk_wood")
+
+
+def cube_ottoman(name, pos, yaw=0.0):
+    """Upholstered cube ottoman (procedural, 0.60 x 0.60 x 0.42 m) on a recessed plinth."""
+    with item(name):
+        model("proc_ottoman", pos, yaw)
+        members(name, pos, yaw, [("box", "plinth", (0, 0, 0.03), (0.28, 0.28, 0.03)),
+                                 ("box", "base", (0, 0, 0.18), (0.30, 0.30, 0.12)),
+                                 ("box", "cushion", (0, 0, 0.35), (0.30, 0.30, 0.07))], "desk_wood")
+
+
+def lounge_armchair(name, pos, yaw=0.0):
+    """Box-arm lounge chair (procedural, 0.82 x 0.84 x 0.80 m) on a recessed plinth: its
+    upholstered base crosses the lidar plane, nothing under it. Front -y at yaw 0."""
+    with item(name):
+        model("proc_armchair", pos, yaw)
+        members(name, pos, yaw, _seating(0.41, 1), "desk_wood")
+
+
+def coffee_table(name, pos, yaw=0.0):
+    """Oak coffee table (procedural, 1.10 x 0.55 x 0.42 m): four 5 cm legs from the floor (they
+    cross the lidar plane; the robot fits under the top between them), and the apron, a frame of
+    four rails, as one solid: nothing can get inside it."""
+    with item(name):
+        model("proc_coffee_table", pos, yaw)
+        parts = [("box", "top", (0, 0, 0.405), (0.55, 0.275, 0.015)),
+                 ("box", "apron", (0, 0, 0.36), (0.515, 0.24, 0.03))]  # the apron's frame closes it
+        parts += [("box", f"leg_{i}", (sx * 0.5, sy * 0.225, 0.195), (0.025, 0.025, 0.195))
+                  for i, (sx, sy) in enumerate(((-1, -1), (1, -1), (-1, 1), (1, 1)))]
+        members(name, pos, yaw, parts, "desk_wood")
+
+
+def end_table(name, pos, yaw=0.0):
+    """Closed oak end table (procedural, 0.45 x 0.45 x 0.55 m) with a drawer, on a recessed plinth:
+    nothing under it. Front -y at yaw 0."""
+    with item(name):
+        model("proc_end_table", pos, yaw)
+        members(name, pos, yaw, [("box", "plinth", (0, 0, 0.015), (0.205, 0.205, 0.015)),
+                                 ("box", "body", (0, 0, 0.28), (0.22, 0.22, 0.25)),
+                                 ("box", "top", (0, 0, 0.54), (0.23, 0.23, 0.01))], "desk_wood")
+
+
 def office_chair(name, pos, yaw=0.0):
     """Four-legged office chair (procedural, tools/proc_furniture.py): legs from the floor to the
     seat (they cross the lidar plane), back posts, seat pan and seat, the reclined back (two boxes,
@@ -804,10 +868,14 @@ def build_floor():
     box("reception_counter", (3.5, -2.2, 0.55), (0.9, 0.3, 0.55), "desk_wood")
     cabinet_seams((3.5, -2.2, 0.55), (0.9, 0.3, 0.55), "y", -1, 3)
     box(None, (3.5, -2.2, 1.115), (0.95, 0.35, 0.015), "lab_top", cls="visual")
-    sofa("reception_sofa", (1.3, -4.5), 1.8, facing_y=+1, seats=2)
-    box("reception_table", (1.3, -3.45, 0.22), (0.5, 0.3, 0.22), "desk_wood")
-    sofa("reception_armchair", (3.2, -4.5), 0.8, facing_y=+1, seats=1)
-    plant("reception_plant", 4.6, -1.2, seed=22)
+    box_sofa("reception_sofa", (1.124, -4.56, 0.0), 180.0)  # against the south wall, facing north
+    coffee_table("reception_table", (1.124, -3.415, 0.0))  # 0.45 m in front of the sofa
+    end_table("reception_side_table", (2.429, -4.755, 0.0), 180.0)  # at the sofa's east end, drawer to the room
+    lounge_armchair("reception_armchair", (3.094, -4.56, 0.0), 180.0)  # beside it, facing north
+    cube_ottoman("reception_ottoman", (3.834, -4.68, 0.0))  # the row ends 0.52 m from the lamp
+    # (the seating keeps 0.5 m from the frozen held-out starts and goals at (2.555, -3.523) and
+    # (3.881, -3.186): robot_env/config.py HELDOUT_TASKS)
+    planter("reception_plant", (4.6, -1.2))
 
     comment("Corridor")
     box("corridor_water_cooler", (4.78, 0.4, 0.55), (0.17, 0.17, 0.55), "lab_white")
@@ -818,9 +886,8 @@ def build_floor():
     cyl("lab_trash_bin", (0.4, 4.62, 0.17), 0.13, 0.17, "bin_dark")
     cyl("lab_stool_1", (3.32, 1.83, 0.25), 0.17, 0.25, "bin_dark")
     cyl("lab_stool_2", (3.72, 1.83, 0.25), 0.17, 0.25, "bin_dark")
-    cyl("reception_side_table", (0.3, -4.5, 0.25), 0.2, 0.25, "desk_wood")
-    floor_lamp("reception_lamp", (4.68, -4.68))
-    cyl("reception_trash_bin", (4.66, -3.0, 0.17), 0.13, 0.17, "bin_dark")
+    standing_lamp("reception_lamp", (4.78, -4.78, 0.0))  # in the south-east corner, 9 cm to both walls
+    waste_bin("reception_trash_bin", (4.75, -3.0, 0.0))  # 10 cm to the east wall
     box("storage_pallet", (-0.5, -1.6, 0.35), (0.4, 0.35, 0.35), "cardboard")
     box(None, (-0.5, -1.6, 0.06), (0.402, 0.352, 0.06), "pallet_wood", cls="visual")
     for i, (dx, dy) in enumerate(((-0.2, -0.17), (0.2, -0.17), (-0.2, 0.17), (0.2, 0.17))):

@@ -40,6 +40,9 @@ MATERIALS = {
     "oak": ((1.0, 1.0, 1.0, 1.0), 0.2, 0.25, 0.0),
     "book_cloth": ((1.0, 1.0, 1.0, 1.0), 0.12, 0.15, 0.0),
     "book_cover": ((1.0, 1.0, 1.0, 1.0), 0.12, 0.15, 0.0),
+    "upholstery": ((0.56, 0.52, 0.45, 1.0), 0.1, 0.2, 0.0),
+    "piping_oat": ((0.48, 0.44, 0.38, 1.0), 0.1, 0.2, 0.0),
+    "plinth": ((0.08, 0.07, 0.06, 1.0), 0.2, 0.3, 0.0),
 }
 OAK_RGB = (0.6, 0.43, 0.26)
 
@@ -51,7 +54,7 @@ OAK_RGB = (0.6, 0.43, 0.26)
 SURFACES = {
     "fabric": (0.08, "weave"), "shade": (0.12, "linen"), "steel_grey": (0.6, "powder"),
     "steel_dark": (0.3, "brushed"), "plastic": (0.25, "matte"), "shell": (0.25, "matte"), "bin_mesh": (0.06, "perforated"),
-    "concrete": (0.3, "concrete"),
+    "concrete": (0.3, "concrete"), "upholstery": (0.08, "weave"), "plinth": (0.25, "matte"),
 }
 
 
@@ -378,6 +381,8 @@ class Mesh:
             rgba, spec, shin, refl = MATERIALS[mat]
             texture = None
             image = textures.get(mat) if textures else None
+            if isinstance(image, str):  # a texture file shared by several models (written once)
+                texture, image, rgba = image, None, (1.0, 1.0, 1.0, 1.0)
             if image is None and surface is not None:
                 seed = int.from_bytes(f"{model_id}/{mat}".encode()[:8].ljust(8, b"0"), "little") % (2 ** 31)
                 image = surface_texture(surface[1], rgba, seed)
@@ -592,11 +597,27 @@ def oak_atlas(seed: int = 5):
     return Image.fromarray(np.clip(img, 0, 255).astype(np.uint8))
 
 
+def oak_texture() -> str:
+    """The oak atlas as one file shared by every oak model (written on first use in a build)."""
+    name = "proc_oak.png"
+    if name not in _SHARED:
+        import io
+        buf = io.BytesIO()
+        oak_atlas().save(buf, "PNG", optimize=True)
+        (OUT / name).write_bytes(buf.getvalue())
+        _SHARED.add(name)
+    return name
+
+
+_SHARED: set[str] = set()
+
+
 def _oak(L, H, region, rnd):
     """A texture rectangle for an oak face L m along the grain and H m across it, from an atlas
     region (OAK_REGIONS), at a random place in it."""
     c, r = OAK_REGIONS[region]
     su, sv = OAK_PX / (3 * OAK_PX) / 0.5, OAK_PX / (2 * OAK_PX) / 0.5  # atlas units per metre
+    L = min(L, 0.5)  # a face longer than a region takes all of it, its grain stretched along its length
     du, dv = rnd.uniform(0, 0.5 - L), rnd.uniform(0, 0.5 - H)
     u0, v0 = c / 3 + du * su, r / 2 + dv * sv
     return (u0, v0, u0 + L * su, v0 + H * sv)
@@ -625,7 +646,7 @@ def plant_stand() -> dict:
             m.box("shadow", (sx * b, sy * b, 0.115), (0.0007, 0.0007, 0.085), yaw_deg=45.0)
     m.box("steel_dark", (0, 0, 0.015), (0.205, 0.205, 0.015))  # plinth, set back 1.5 cm
     return m.write("proc_plant_stand", "Plant stand (procedural)", "members: body, top board, plinth",
-                   {"oak": oak_atlas()})
+                   {"oak": oak_texture()})
 
 
 def shelf_feet() -> dict:
@@ -791,9 +812,137 @@ def shelf_books(seed: int, tops=(0.64, 1.147, 1.653), clear=0.45) -> dict:
                    {"book_cloth": spines, "book_cover": covers}, base_at_zero=False)
 
 
+def _oak_leg(m, rnd, cx, cy, half, height, region="quarter_a"):
+    """A square oak leg from the floor, the grain running up it: built lying along x (the atlas's
+    grain direction) and stood up about y."""
+    L, w = height, 2 * half
+    m.textured_box("oak", (cx, cy - half, -half), (cx + L, cy + half, half),
+                   {"-y": _oak(L, w, region, rnd), "+y": _oak(L, w, region, rnd),
+                    "-z": _oak(L, w, region, rnd), "+z": _oak(L, w, region, rnd),
+                    "-x": _oak(w, w, "end", rnd), "+x": _oak(w, w, "end", rnd)},
+                   rot=_rot_y(-90.0), pivot=(cx, cy, 0.0))
+
+
+def _box_seating(m: Mesh, hw: float, seats: int) -> None:
+    """Box-arm seating 2 hw wide, 0.84 deep, 0.80 tall, upholstered in a woven oatmeal fabric: an
+    upholstered base (0.06 to 0.30 m: it crosses the lidar plane) on a recessed dark plinth, so
+    there is no space under it; rounded arms (0.16 m) and back with piped rims; between the arms
+    `seats` loose piped seat cushions (seat 0.43 m) and back cushions reclined 10 degrees. Front -y."""
+    m.box("plinth", (0, 0, 0.03), (hw - 0.02, 0.40, 0.03))
+    m.rounded_box("upholstery", (0, 0, 0.18), (hw, 0.42, 0.12), 0.012)  # base
+    # the back and the arms stand on the plinth beside the base, the cushions sit 2 cm into it, so
+    # nothing below 0.40 m is rounded by more than 1.2 cm (its members are plain boxes); they stand
+    # 3 mm proud of the base, so no face of theirs lies in one of its faces
+    m.rounded_box("upholstery", (0, 0.3415, 0.43), (hw + 0.003, 0.0815, 0.37), 0.035, piping=("+z",),
+                  pipe_mat="piping_oat")
+    for sx in (-1, 1):  # arms
+        m.rounded_box("upholstery", (sx * (hw - 0.0785), -0.0815, 0.34), (0.0815, 0.3415, 0.28), 0.035, piping=("+z",),
+                      pipe_mat="piping_oat")
+    inner = hw - 0.16
+    for k in range(seats):
+        x = -inner + (2 * k + 1) * inner / seats
+        w = inner / seats - 0.005
+        m.rounded_box("upholstery", (x, -0.075, 0.355), (w, 0.335, 0.075), 0.03, piping=("+z",),
+                      pipe_mat="piping_oat")  # seat cushion
+        m.rounded_box("upholstery", (x, 0.19, 0.59), (w, 0.06, 0.16), 0.03, pitch_deg=-10.0, piping=("-y",),
+                      pipe_mat="piping_oat")  # back cushion
+
+
+def armchair() -> dict:
+    """Box-arm lounge chair, 0.82 x 0.84 x 0.80 m (_box_seating, one seat)."""
+    m = Mesh()
+    _box_seating(m, 0.41, 1)
+    return m.write("proc_armchair", "Lounge armchair (procedural)", "members: plinth, base, back, arms, seat cushions")
+
+
+def sofa() -> dict:
+    """Three-seat box-arm sofa, 2.10 x 0.84 x 0.80 m (_box_seating, three seats), the armchair's pair."""
+    m = Mesh()
+    _box_seating(m, 1.05, 3)
+    return m.write("proc_sofa", "Three-seat sofa (procedural)", "members: plinth, base, back, arms, seat cushions")
+
+
+def ottoman() -> dict:
+    """Upholstered cube ottoman, 0.60 x 0.60 x 0.42 m, the sofa's fabric: a base on a recessed dark
+    plinth (nothing under it) and a piped top cushion."""
+    m = Mesh()
+    m.box("plinth", (0, 0, 0.03), (0.28, 0.28, 0.03))
+    m.rounded_box("upholstery", (0, 0, 0.18), (0.30, 0.30, 0.12), 0.012)
+    m.rounded_box("upholstery", (0, 0, 0.35), (0.30, 0.30, 0.07), 0.03, piping=("+z",), pipe_mat="piping_oat")
+    return m.write("proc_ottoman", "Ottoman (procedural)", "members: plinth, base, back, arms, seat cushions")
+
+
+COFFEE = {"w": 0.55, "d": 0.275, "h": 0.42, "top": 0.03, "leg": 0.025, "inset": 0.025}
+
+
+def coffee_table() -> dict:
+    """Oak coffee table, 1.10 x 0.55 x 0.42 m: a 3 cm flat-sawn top, a 6 cm apron set 3.5 cm in,
+    four square 5 cm legs from the floor (set 2.5 cm in, 0.40 m apart front to back; nothing else
+    below the apron). Long side along x."""
+    import random
+    rnd = random.Random(11)
+    m = Mesh()
+    c = COFFEE
+    w, d, h, t = c["w"], c["d"], c["h"], c["top"]
+    m.textured_box("oak", (-w, -d, h - t), (w, d, h),
+                   {"+z": _oak(2 * w, 2 * d, "flat_a", rnd), "-z": _oak(2 * w, 2 * d, "flat_b", rnd),
+                    "-y": _oak(2 * w, t, "edge", rnd), "+y": _oak(2 * w, t, "edge", rnd),
+                    "-x": _oak(2 * d, t, "end", rnd), "+x": _oak(2 * d, t, "end", rnd)})
+    ax, ay = w - 0.035, d - 0.035  # the apron's outer faces
+    for sy in (-1, 1):  # long rails
+        y0 = sy * ay - (0.02 if sy > 0 else 0.0)
+        m.textured_box("oak", (-ax, y0, h - t - 0.06), (ax, y0 + 0.02, h - t),
+                       {"-y": _oak(2 * ax, 0.06, "quarter_a", rnd), "+y": _oak(2 * ax, 0.06, "quarter_a", rnd),
+                        "-z": _oak(2 * ax, 0.02, "quarter_a", rnd), "+z": _oak(2 * ax, 0.02, "quarter_a", rnd),
+                        "-x": _oak(0.02, 0.06, "end", rnd), "+x": _oak(0.02, 0.06, "end", rnd)})
+    for sx in (-1, 1):  # short rails
+        x0 = sx * ax - (0.02 if sx > 0 else 0.0)
+        m.textured_box("oak", (x0, -ay, h - t - 0.06), (x0 + 0.02, ay, h - t),
+                       {"-x": _oak(2 * ay, 0.06, "quarter_b", rnd), "+x": _oak(2 * ay, 0.06, "quarter_b", rnd),
+                        "-z": _oak(2 * ay, 0.02, "quarter_b", rnd), "+z": _oak(2 * ay, 0.02, "quarter_b", rnd),
+                        "-y": _oak(0.02, 0.06, "end", rnd), "+y": _oak(0.02, 0.06, "end", rnd)})
+    lx, ly = w - c["inset"] - c["leg"], d - c["inset"] - c["leg"]
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            _oak_leg(m, rnd, sx * lx, sy * ly, c["leg"], h - t)
+    return m.write("proc_coffee_table", "Coffee table (procedural)", "members: top, apron, four legs",
+                   {"oak": oak_texture()})
+
+
+def end_table() -> dict:
+    """Closed oak end table, 0.45 x 0.45 x 0.55 m: a quarter-sawn body on a recessed dark plinth
+    (no space under it), a 2 cm flat-sawn top with a 1 cm overhang, a drawer at the front over a
+    dark gap with a small brass knob. Front faces -y."""
+    import random
+    rnd = random.Random(12)
+    m = Mesh()
+    b, t = 0.22, 0.23
+    m.box("steel_dark", (0, 0, 0.015), (0.205, 0.205, 0.015))  # plinth
+    m.textured_box("oak", (-b, -b, 0.03), (b, b, 0.53),
+                   {"-y": _oak(2 * b, 0.5, "flat_b", rnd), "+y": _oak(2 * b, 0.5, "flat_a", rnd),
+                    "-x": _oak(2 * b, 0.5, "quarter_a", rnd), "+x": _oak(2 * b, 0.5, "quarter_b", rnd),
+                    "+z": _oak(2 * b, 2 * b, "flat_b", rnd), "-z": _oak(2 * b, 2 * b, "flat_b", rnd)})
+    m.textured_box("oak", (-t, -t, 0.53), (t, t, 0.55),
+                   {"+z": _oak(2 * t, 2 * t, "flat_a", rnd), "-z": _oak(2 * t, 2 * t, "flat_a", rnd),
+                    "-y": _oak(2 * t, 0.02, "edge", rnd), "+y": _oak(2 * t, 0.02, "edge", rnd),
+                    "-x": _oak(2 * t, 0.02, "end", rnd), "+x": _oak(2 * t, 0.02, "end", rnd)})
+    m.box("shadow", (0, -b - 0.0005, 0.45), (0.193, 0.0005, 0.053))  # the drawer's gap
+    m.textured_box("oak", (-0.19, -b - 0.004, 0.4), (0.19, -b - 0.001, 0.5),
+                   {"-y": _oak(0.38, 0.1, "flat_a", rnd), "+y": _oak(0.38, 0.1, "flat_a", rnd),
+                    "-z": _oak(0.38, 0.003, "edge", rnd), "+z": _oak(0.38, 0.003, "edge", rnd),
+                    "-x": _oak(0.1, 0.003, "end", rnd), "+x": _oak(0.1, 0.003, "end", rnd)})
+    m.cylinder("brass", (0, -b - 0.004 - 0.008, 0.45), 0.011, 0.008, axis="y", seg=20)  # knob
+    for sx in (-1, 1):  # the mitre joints
+        for sy in (-1, 1):
+            m.box("shadow", (sx * b, sy * b, 0.28), (0.0007, 0.0007, 0.25), yaw_deg=45.0)
+    return m.write("proc_end_table", "End table (procedural)", "members: plinth, body, top",
+                   {"oak": oak_texture()})
+
+
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
-    for fn in (office_chair, filing_cabinet, waste_bin, floor_lamp, plant_stand, shelf_feet, lambda: shelf_books(11)):
+    for fn in (office_chair, filing_cabinet, waste_bin, floor_lamp, plant_stand, shelf_feet, lambda: shelf_books(11),
+               armchair, sofa, ottoman, coffee_table, end_table):
         rec = fn()
         faces = sum(p["faces"] for p in rec["parts"])
         print(f"{rec['id']:22s} {faces:5d} faces  size {rec['size_m']}")

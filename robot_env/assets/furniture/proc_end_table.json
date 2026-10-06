@@ -1,17 +1,33 @@
 {
- "id": "proc_plant_stand",
- "name": "Plant stand (procedural)",
+ "id": "proc_end_table",
+ "name": "End table (procedural)",
  "authors": [],
  "license": "procedural (this repository)",
  "source": "tools/proc_furniture.py",
  "size_m": [
   0.46,
-  0.46,
-  0.22
+  0.47,
+  0.55
  ],
  "parts": [
   {
-   "mesh": "proc_plant_stand_0.msh",
+   "mesh": "proc_end_table_0.msh",
+   "material": "brass",
+   "texture": null,
+   "rgba": [
+    0.72,
+    0.56,
+    0.3,
+    1.0
+   ],
+   "specular": 0.8,
+   "shininess": 0.7,
+   "reflectance": 0.1,
+   "faces": 80,
+   "vertices": 82
+  },
+  {
+   "mesh": "proc_end_table_1.msh",
    "material": "oak",
    "texture": "proc_oak.png",
    "rgba": [
@@ -23,11 +39,11 @@
    "specular": 0.2,
    "shininess": 0.25,
    "reflectance": 0.0,
-   "faces": 24,
-   "vertices": 48
+   "faces": 36,
+   "vertices": 72
   },
   {
-   "mesh": "proc_plant_stand_1.msh",
+   "mesh": "proc_end_table_2.msh",
    "material": "shadow",
    "texture": null,
    "rgba": [
@@ -39,13 +55,13 @@
    "specular": 0.0,
    "shininess": 0.0,
    "reflectance": 0.0,
-   "faces": 48,
-   "vertices": 96
+   "faces": 60,
+   "vertices": 120
   },
   {
-   "mesh": "proc_plant_stand_2.msh",
+   "mesh": "proc_end_table_3.msh",
    "material": "steel_dark",
-   "texture": "proc_plant_stand_2.png",
+   "texture": "proc_end_table_3.png",
    "rgba": [
     1.0,
     1.0,
@@ -59,5 +75,5 @@
    "vertices": 24
   }
  ],
- "note": "members: body, top board, plinth"
+ "note": "members: plinth, body, top"
 }

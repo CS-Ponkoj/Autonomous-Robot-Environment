@@ -147,11 +147,11 @@ def test_regression_the_level4_furnished_stress_contacts(start, target):
 MOVING = ("walk", "travel", "dart", "flee", "yield")  # as tools/roam_check.py
 
 
-def _longest_stall(pose, seconds=15.0):
+def _longest_stall(pose, seconds=15.0, robot=(4.0, -4.0, 0.0), goal=(3.0, -3.0)):
     """A cat placed walking at pose: the longest time it wanted to move (MOVING) without moving
     5 cm, sampled every 0.5 s like tools/roam_check.py; and its lowest wall, robot, cat gaps."""
     s = RobotSystem(cats=1, cat_seed=2)
-    s.reset(4.0, -4.0, 0.0, (3.0, -3.0))
+    s.reset(*robot, goal)
     herd = s.cats
     herd.place(0, pose[0], pose[1], math.radians(pose[2]), state="walk")
     cat = herd.cats[0]
@@ -195,6 +195,41 @@ def test_the_old_pockets_beside_the_chair_and_lamp_are_closed_to_cats(pose):
     from robot_env.cats import WALL_GAP
     s = RobotSystem(cats=1, cat_seed=2)
     s.reset(4.0, -4.0, 0.0, (3.0, -3.0))
+    s.cats.place(0, pose[0], pose[1], math.radians(pose[2]), state="pause")
+    assert s.cats.current_gaps()[0]["wall"] < WALL_GAP
+    s.close()
+
+
+OFFICE_OPEN = (-4.0, 1.4, 0.0)  # the robot parked in the office, far from the reception
+
+
+@pytest.mark.parametrize("pose", [(1.124, -3.90, 0.0),     # between the sofa and the coffee table (0.45 m)
+                                  (1.124, -3.415, 90.0),  # under the coffee table, between its legs
+                                  (4.39, -4.25, 270.0),   # into the gap between the ottoman and the lamp (0.52 m)
+                                  (3.00, -3.95, 0.0),     # in front of the side table and the armchair
+                                  (0.32, -3.40, 270.0)])  # between the coffee table and the west wall
+def test_a_cat_never_gets_stuck_by_the_reception_furniture(pose):
+    """The reception's tight places (gaps of 0.4 to 0.6 m, and the space under the coffee table): a
+    cat placed walking there never wants to move without moving for more than 5 s, the roam's
+    stall rule, and keeps every gap (the robot parked in the office)."""
+    from robot_env.cats import CAT_GAP, ROBOT_GAP, WALL_GAP
+    first, stall, low = _longest_stall(pose, robot=OFFICE_OPEN, goal=(-4.0, 2.4))
+    assert first >= WALL_GAP  # a pose a cat can really be in
+    assert stall <= 5.0, stall
+    assert low[0] >= WALL_GAP - 0.001 and low[1] >= ROBOT_GAP - 0.001 and low[2] >= CAT_GAP - 0.001
+
+
+@pytest.mark.parametrize("pose", [(2.669, -4.75, 90.0),   # between the side table and the armchair (3 cm)
+                                  (3.519, -4.70, 90.0),   # between the armchair and the ottoman (3 cm)
+                                  (4.93, -4.93, 45.0),    # behind the lamp in the corner
+                                  (4.93, -3.0, 90.0),     # between the bin and the east wall
+                                  (4.91, -1.2, 90.0)])    # between the plant stand and the east wall
+def test_the_reception_gaps_below_a_cat_are_closed(pose):
+    """The reception's gaps below 0.23 m are too small for a cat: none can stand there with its
+    wall gap."""
+    from robot_env.cats import WALL_GAP
+    s = RobotSystem(cats=1, cat_seed=2)
+    s.reset(*OFFICE_OPEN, (-4.0, 2.4))
     s.cats.place(0, pose[0], pose[1], math.radians(pose[2]), state="pause")
     assert s.cats.current_gaps()[0]["wall"] < WALL_GAP
     s.close()

@@ -1,6 +1,7 @@
-"""Eye-height views of the office (ceiling on), for realism reviews: qa_output/realism/office/.
+"""Eye-height views of the office, or of the reception (ceiling on), for realism reviews:
+qa_output/realism/office/ or qa_output/realism/reception/.
 
-    .venv\Scripts\python tools\office_views.py
+    .venv\Scripts\python tools\office_views.py [reception]
 """
 
 from __future__ import annotations
@@ -32,7 +33,18 @@ VIEWS = {  # name: (look-at, azimuth, elevation, distance)
 }
 
 
+RECEPTION = {  # (office_views.py reception): the reception's seating, from the door and close
+    "reception_from_door": ((2.0, -3.7, 0.5), -95.0, -16.0, 3.2),
+    "reception_seating": ((1.6, -4.0, 0.45), -60.0, -14.0, 2.6),
+    "reception_armchair": ((2.5, -3.6, 0.45), 200.0, -15.0, 1.5),
+    "reception_corner": ((4.1, -4.5, 0.4), -110.0, -15.0, 1.8),
+}
+
+
 def main() -> int:
+    global OUT, VIEWS
+    if sys.argv[1:] == ["reception"]:
+        OUT, VIEWS = OUT.parent / "reception", RECEPTION
     OUT.mkdir(parents=True, exist_ok=True)
     sim = RobotSim()
     sim.reset(-1.2, 2.0, 2.4, (2.0, 2.0))
@@ -51,9 +63,10 @@ def main() -> int:
         tiles.append(img)
     sheet = np.vstack([np.hstack(tiles[:2]), np.hstack(tiles[2:4])])
     Image.fromarray(sheet).save(OUT / "_sheet.png")
-    close = [Image.fromarray(t).resize((W // 2, H // 2), Image.LANCZOS) for t in tiles[4:]]
-    sheet = np.vstack([np.hstack([np.asarray(c) for c in close[k:k + 3]]) for k in (0, 3)])
-    Image.fromarray(sheet).save(OUT / "_close_sheet.png")
+    if len(tiles) > 4:
+        close = [Image.fromarray(t).resize((W // 2, H // 2), Image.LANCZOS) for t in tiles[4:]]
+        sheet = np.vstack([np.hstack([np.asarray(c) for c in close[k:k + 3]]) for k in (0, 3)])
+        Image.fromarray(sheet).save(OUT / "_close_sheet.png")
     r.close()
     sim.close()
     print("wrote", OUT)
