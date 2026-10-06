@@ -402,6 +402,21 @@ def comment(text):
     geoms.append(f"\n    <!-- {text} -->")
 
 
+def _pieces(a, b, openings):
+    """Rectangles (along from, along to, z from, z to) covering a wall from a to b, floor to
+    WH, less the openings (along centre, half width, bottom, top) that fall within it."""
+    inside = sorted(o for o in openings if a < o[0] < b)
+    out, start = [], a
+    for c, hw, z0, z1 in inside:
+        if c - hw > start:
+            out.append((start, c - hw, 0.0, WH))
+        out += [r for r in ((c - hw, c + hw, 0.0, z0), (c - hw, c + hw, z1, WH)) if r[3] - r[2] > 1e-6]
+        start = c + hw
+    if b > start:
+        out.append((start, b, 0.0, WH))
+    return out
+
+
 def skin(center, normal, half_along, half_up, material, out=0.001):
     """A visual-only face over a wall or door face whose normal is the world `normal` axis ('x'
     or 'y', pointing to the side the face is seen from, as a signed unit: +1 or -1). The classic
@@ -420,9 +435,12 @@ def skin(center, normal, half_along, half_up, material, out=0.001):
                  f'size="{half_along:.4f} {half_up:.4f} 0.0005" xyaxes="{xy}" material="{material}"/>')
 
 
-def wall(name, axis, fixed, a, b, doors=(), skirt_sides=(-1, 1)):
+def wall(name, axis, fixed, a, b, doors=(), skirt_sides=(-1, 1), openings=()):
     """A wall along `axis` ('x' or 'y') at coordinate `fixed`, from a to b, with door
-    openings centered at `doors`. Each door gets jambs, a header, and skirting gaps."""
+    openings centered at `doors`. Each door gets jambs, a header, and skirting gaps. With window
+    `openings` ((along centre, half width, bottom, top), an outer wall only), the solid stays
+    whole but hidden (group 4: planners, the lidar, and physics still meet a wall, as at glass)
+    and the wall is drawn as plaster pieces around the openings."""
     cuts = sorted(doors)
     edges = [a] + [e for c in cuts for e in (c - DOOR_GAP / 2, c + DOOR_GAP / 2)] + [b]
     for i in range(0, len(edges), 2):
@@ -430,14 +448,20 @@ def wall(name, axis, fixed, a, b, doors=(), skirt_sides=(-1, 1)):
         if e - s < 1e-6:
             continue
         mid, half = (s + e) / 2, (e - s) / 2
+        group = 4 if openings else None
         if axis == "x":
-            box(f"{name}_{i // 2}", (mid, fixed, WH / 2), (half, T / 2, WH / 2), "plaster")
+            box(f"{name}_{i // 2}", (mid, fixed, WH / 2), (half, T / 2, WH / 2), "plaster", group=group)
         else:
-            box(f"{name}_{i // 2}", (fixed, mid, WH / 2), (T / 2, half, WH / 2), "plaster")
-        for side in skirt_sides:  # the painted face on each side seen from a room
-            face = fixed + side * T / 2
-            centre = (mid, face, WH / 2) if axis == "x" else (face, mid, WH / 2)
-            skin(centre, ("y" if axis == "x" else "x", side), half, WH / 2, "plaster")
+            box(f"{name}_{i // 2}", (fixed, mid, WH / 2), (T / 2, half, WH / 2), "plaster", group=group)
+        for lo, hi, z0, z1 in _pieces(s, e, openings):  # drawn: the wall less its openings
+            pm, ph, zm, zh = (lo + hi) / 2, (hi - lo) / 2, (z0 + z1) / 2, (z1 - z0) / 2
+            if openings:
+                pos = (pm, fixed, zm) if axis == "x" else (fixed, pm, zm)
+                box(None, pos, _half(axis, ph, T / 2, zh), "plaster", cls="visual")
+            for side in skirt_sides:  # the painted face on each side seen from a room
+                face = fixed + side * T / 2
+                centre = (pm, face, zm) if axis == "x" else (face, pm, zm)
+                skin(centre, ("y" if axis == "x" else "x", side), ph, zh, "plaster")
         for side in skirt_sides:  # skirting board, solid, 1.2 cm proud of the wall
             off = fixed + side * (T / 2 + 0.006)
             if axis == "x":
@@ -593,7 +617,7 @@ WINDOWS = [((-3.8, H), "x", -1, 1.4, 0.9, 1.2), ((-1.6, H), "x", -1, 1.4, 0.9, 1
            ((1.6, H), "x", -1, 1.2, 1.0, 1.2), ((3.6, H), "x", -1, 1.2, 1.0, 1.2),
            ((H, 3.6), "y", -1, 1.2, 0.9, 1.2), ((1.3, -H), "x", +1, 1.4, 0.9, 1.2),
            ((3.9, -H), "x", +1, 1.0, 0.9, 1.2), ((H, -3.4), "y", -1, 1.2, 0.9, 1.2),
-           ((-H, -4.55), "y", +1, 0.6, 1.2, 1.2), ((H, 0.0), "y", -1, 1.0, 0.9, 1.2)]
+           ((-H, -4.55), "y", +1, 0.6, 1.05, 1.2), ((H, 0.0), "y", -1, 1.0, 0.9, 1.2)]
 
 
 def _view(center, axis, facing, width, sill, height):
@@ -611,41 +635,66 @@ def math_deg(v):
 WINDOW_VIEWS = [_view(*w) for w in WINDOWS]  # the view crops are made for these (tools/fetch_view.py)
 
 
+FRAME_W = 0.07  # m: a window's outer frame width
+GLASS_IN = 0.07  # m the glass is set back from the wall's inner face (the wall is T thick)
+
+
+def window_opening(center, axis, width, sill_z, height=1.2):
+    """(along centre, half width, bottom, top) of the hole a window needs in its wall."""
+    along = center[0] if axis == "x" else center[1]
+    return (along, width / 2 + FRAME_W, sill_z - FRAME_W - 0.01, sill_z + height + FRAME_W - 0.01)
+
+
 def window(k, center, axis, facing, width, sill_z, height=1.2):
-    """Window k on an outer wall's inner face (visual only): the glass showing its own crop of
-    the outdoor view (bright: the sky outshines the room), a 7 cm frame standing 5 cm out with a
-    sash and mullion at a second depth, a deep sill with a rounded front edge, a roller blind a
-    quarter down from its head box, and soft daylight into the room."""
+    """Window k set into an outer wall: the glass, 7 cm back from the inner face, showing its own
+    crop of the outdoor view (bright: the sky outshines the room); plaster reveals lining the
+    opening; a 7 cm frame inside the opening with a sash and mullion a step behind it; a sill
+    board from the frame into the room with a rounded front edge; a roller blind a quarter down
+    from the head; and soft daylight into the room. Visual only: the wall's hidden solid stays
+    whole, like glass to a robot."""
     zc = sill_z + height / 2
     normal = ("y" if axis == "x" else "x", facing)
-    skin(_on_wall(center, axis, facing, 0, 0.0, zc), normal, width / 2, height / 2, f"view_{k}", out=0.004)
-    fw, fd = 0.07, 0.025  # outer frame: width, half depth
-    for zz in (sill_z - fw / 2 + 0.01, sill_z + height + fw / 2 - 0.01):  # head and bottom rail
-        box(None, _on_wall(center, axis, facing, 0, fd, zz), _half(axis, width / 2 + fw, fd, fw / 2), "window_frame", cls="visual")
-    for a in (-1, 1):  # jambs
-        box(None, _on_wall(center, axis, facing, a * (width / 2 + fw / 2), fd, zc), _half(axis, fw / 2, fd, height / 2), "window_frame", cls="visual")
-    sw, sd = 0.035, 0.015  # sash rim and mullion, a step back from the frame
-    box(None, _on_wall(center, axis, facing, 0, 0.004 + sd, zc), _half(axis, sw / 2, sd, height / 2), "window_frame", cls="visual")
-    for zz in (sill_z + sw / 2, sill_z + height - sw / 2):
-        box(None, _on_wall(center, axis, facing, 0, 0.004 + sd, zz), _half(axis, width / 2, sd, sw / 2), "window_frame", cls="visual")
+    _, ow, zb, zt = window_opening(center, axis, width, sill_z, height)
+    fw = FRAME_W
+    skin(_on_wall(center, axis, facing, 0, -GLASS_IN, zc), normal, width / 2, height / 2, f"view_{k}", out=0.0)
+    # reveals: the opening's sides and head, plaster, from the glass to the room face (3 mm
+    # inside the opening, so no face lies on the wall pieces' own)
+    rd = GLASS_IN / 2
     for a in (-1, 1):
-        box(None, _on_wall(center, axis, facing, a * (width / 2 - sw / 2), 0.004 + sd, zc), _half(axis, sw / 2, sd, height / 2), "window_frame", cls="visual")
-    # sill: 4 cm thick, 18 cm deep, its front edge rounded
-    zs = sill_z - fw + 0.01
-    box(None, _on_wall(center, axis, facing, 0, 0.08, zs), _half(axis, width / 2 + fw + 0.04, 0.08, 0.02), "sill", cls="visual")
-    fx, fy, fz = _on_wall(center, axis, facing, 0, 0.16, zs)
+        box(None, _on_wall(center, axis, facing, a * (ow - 0.003), -rd, (zb + zt) / 2), _half(axis, 0.003, rd, (zt - zb) / 2),
+            "plaster_reveal", cls="visual")
+    box(None, _on_wall(center, axis, facing, 0, -rd, zt - 0.003), _half(axis, ow, rd, 0.003), "plaster_reveal", cls="visual")
+    # outer frame, just inside the glass
+    fd = 0.0125
+    fo = -GLASS_IN + fd
+    for zz in (sill_z - fw / 2 + 0.01, sill_z + height + fw / 2 - 0.01):  # head and bottom rail
+        box(None, _on_wall(center, axis, facing, 0, fo, zz), _half(axis, width / 2 + fw, fd, fw / 2), "window_frame", cls="visual")
+    for a in (-1, 1):  # jambs
+        box(None, _on_wall(center, axis, facing, a * (width / 2 + fw / 2), fo, zc), _half(axis, fw / 2, fd, height / 2), "window_frame", cls="visual")
+    sw, sd = 0.035, 0.012  # sash rim and mullion, a step into the room from the frame
+    so = fo + fd + sd
+    box(None, _on_wall(center, axis, facing, 0, so, zc), _half(axis, sw / 2, sd, height / 2), "window_frame", cls="visual")
+    for zz in (sill_z + sw / 2, sill_z + height - sw / 2):
+        box(None, _on_wall(center, axis, facing, 0, so, zz), _half(axis, width / 2, sd, sw / 2), "window_frame", cls="visual")
+    for a in (-1, 1):
+        box(None, _on_wall(center, axis, facing, a * (width / 2 - sw / 2), so, zc), _half(axis, sw / 2, sd, height / 2), "window_frame", cls="visual")
+    # sill board: 4 cm thick, from the frame to 5 cm proud of the wall, its front edge rounded
+    zs = zb + 0.02
+    s0, s1 = -GLASS_IN + 2 * fd, 0.05
+    box(None, _on_wall(center, axis, facing, 0, (s0 + s1) / 2, zs), _half(axis, ow + 0.04, (s1 - s0) / 2, 0.02), "sill", cls="visual")
+    fx, fy, fz = _on_wall(center, axis, facing, 0, s1, zs)
     za = "1 0 0" if axis == "x" else "0 1 0"
     geoms.append(f'    <geom class="visual" type="cylinder" pos="{fx:.4f} {fy:.4f} {fz:.4f}" '
-                 f'size="0.02 {width / 2 + fw + 0.04:.4f}" zaxis="{za}" material="sill"/>')
-    # roller blind: head box above the frame, the fabric a quarter down, a bottom rail
-    top = sill_z + height + fw - 0.01
-    box(None, _on_wall(center, axis, facing, 0, 0.05, top + 0.045), _half(axis, width / 2 + fw, 0.05, 0.045), "window_frame", cls="visual")
-    rx, ry, rz = _on_wall(center, axis, facing, 0, 0.06, top - 0.012)
+                 f'size="0.02 {ow + 0.04:.4f}" zaxis="{za}" material="sill"/>')
+    # roller blind under the head of the opening: the roller, the fabric a quarter down, a rail
+    bo = -0.012
+    rx, ry, rz = _on_wall(center, axis, facing, 0, bo, zt - 0.02)
     geoms.append(f'    <geom class="visual" type="cylinder" pos="{rx:.4f} {ry:.4f} {rz:.4f}" '
-                 f'size="0.018 {width / 2 + fw * 0.6:.4f}" zaxis="{za}" material="blind"/>')
+                 f'size="0.018 {ow - 0.01:.4f}" zaxis="{za}" material="blind"/>')
     drop = 0.28 * height
-    skin(_on_wall(center, axis, facing, 0, 0.06, top - drop / 2), normal, width / 2 + fw * 0.6, drop / 2, "blind", out=0.0)
-    box(None, _on_wall(center, axis, facing, 0, 0.06, top - drop - 0.01), _half(axis, width / 2 + fw * 0.6, 0.008, 0.012), "blind_rail", cls="visual")
+    top = zt - 0.02
+    skin(_on_wall(center, axis, facing, 0, bo, top - drop / 2), normal, ow - 0.01, drop / 2, "blind", out=0.0)
+    box(None, _on_wall(center, axis, facing, 0, bo, top - drop - 0.01), _half(axis, ow - 0.01, 0.008, 0.012), "blind_rail", cls="visual")
     # daylight: a cool spotlight just inside the glass, aimed into the room and down
     lx, ly, lz = _on_wall(center, axis, facing, 0, 0.1, zc + 0.3)
     dx, dy = (0.0, float(facing)) if axis == "x" else (float(facing), 0.0)
@@ -682,10 +731,13 @@ def build_floor():
         box(f"floor_{name}", ((x0 + x1) / 2, (y0 + y1) / 2, 0.0006), ((x1 - x0) / 2, (y1 - y0) / 2, 0.0005), mat, cls="visual")
 
     comment("Outer walls (inner faces at +/-5 m)")
-    wall("wall_north", "x", H + T / 2, -H - T, H + T, skirt_sides=(-1,))
-    wall("wall_south", "x", -H - T / 2, -H - T, H + T, skirt_sides=(1,))
-    wall("wall_east", "y", H + T / 2, -H, H, skirt_sides=(-1,))
-    wall("wall_west", "y", -H - T / 2, -H, H, skirt_sides=(1,))
+    def openings(axis, at):
+        return [window_opening(c, ax, w, sz, ht) for c, ax, _, w, sz, ht in WINDOWS
+                if ax == axis and abs((c[1] if ax == "x" else c[0]) - at) < 1e-9]
+    wall("wall_north", "x", H + T / 2, -H - T, H + T, skirt_sides=(-1,), openings=openings("x", H))
+    wall("wall_south", "x", -H - T / 2, -H - T, H + T, skirt_sides=(1,), openings=openings("x", -H))
+    wall("wall_east", "y", H + T / 2, -H, H, skirt_sides=(-1,), openings=openings("y", H))
+    wall("wall_west", "y", -H - T / 2, -H, H, skirt_sides=(1,), openings=openings("y", -H))
 
     geoms.append("    <!-- OBSTACLES: interior walls, doors, and furniture (removed for the empty test track) -->")
     comment("Corridor walls with doorways (clear width 0.9 m)")
@@ -785,7 +837,7 @@ def build_floor():
     wall_picture((T / 2, -3.9), "y", +1, (0.5, 0.28), 1.25, "tv_screen", frame="robot_dark")
     geoms.append("    <!-- /OBSTACLES -->")
 
-    comment("Windows on the outer walls (visual: the wall behind stays solid, like glass to a robot)")
+    comment("Windows set into the outer walls (visual: the wall's hidden solid stays whole, like glass to a robot)")
     for k, w in enumerate(WINDOWS):
         window(k, *w)
     comment("Fire extinguisher on the corridor's west end wall (visual, mounted above robot height)")
@@ -1022,6 +1074,7 @@ HEADER = """<!--
     <material name="tile_dark" texture="tx_concrete" texrepeat="0.25 0.25" texuniform="true" emission="0" specular="0.2" shininess="0.2" reflectance="0.05" rgba="0.7 0.7 0.7 1"/>
     <material name="carpet" texture="tx_carpet" texrepeat="1 1" texuniform="true" emission="0" specular="0" shininess="0" rgba="0.6 0.6 0.6 1"/>
     <material name="plaster" texture="tx_plaster" texrepeat="1 1" texuniform="true" rgba="0.97 0.95 0.91 1" emission="0.33" specular="0.1" shininess="0.1"/>
+    <material name="plaster_reveal" rgba="0.87 0.85 0.81 1" emission="0.33" specular="0.1" shininess="0.1"/>
     <material name="ceiling" texture="tx_ceiling" texrepeat="0.278 0.278" texuniform="true" rgba="0.97 0.96 0.94 1" emission="0.72"/>
     <material name="light_panel" rgba="1 0.98 0.92 1" emission="0.75"/>
     <material name="fitting_frame" rgba="0.95 0.95 0.94 1" emission="0.35" specular="0.3"/>
