@@ -103,8 +103,8 @@
    "specular": 0.35,
    "shininess": 0.45,
    "reflectance": 0.0,
-   "faces": 1536,
-   "vertices": 972
+   "faces": 960,
+   "vertices": 636
   },
   {
    "mesh": "proc_desk_set_6.msh",

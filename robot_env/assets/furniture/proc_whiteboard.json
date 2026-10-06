@@ -23,8 +23,8 @@
    "specular": 0.7,
    "shininess": 0.7,
    "reflectance": 0.02,
-   "faces": 3096,
-   "vertices": 1992
+   "faces": 792,
+   "vertices": 648
   },
   {
    "mesh": "proc_whiteboard_1.msh",

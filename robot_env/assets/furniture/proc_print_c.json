@@ -23,8 +23,8 @@
    "specular": 0.25,
    "shininess": 0.3,
    "reflectance": 0.0,
-   "faces": 3072,
-   "vertices": 1944
+   "faces": 768,
+   "vertices": 600
   },
   {
    "mesh": "proc_print_c_1.msh",

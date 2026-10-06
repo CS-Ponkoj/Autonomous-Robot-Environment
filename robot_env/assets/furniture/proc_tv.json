@@ -71,8 +71,8 @@
    "specular": 0.4,
    "shininess": 0.5,
    "reflectance": 0.0,
-   "faces": 1536,
-   "vertices": 972
+   "faces": 384,
+   "vertices": 300
   }
  ],
  "note": "visual only, on a wall"

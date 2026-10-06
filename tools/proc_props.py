@@ -502,7 +502,7 @@ def desk_set() -> dict:
     W, Hs, z0, fy = MONITOR["width"], MONITOR["height"], MONITOR["bottom"], MONITOR["front_y"]
     bez = 0.008
     zc = z0 + Hs / 2
-    m.rounded_box("monitor_body", (0.0, fy + 0.012, zc), (W / 2 + bez, 0.012, Hs / 2 + bez), 0.004)
+    m.rounded_box("monitor_body", (0.0, fy + 0.012, zc), (W / 2 + bez, 0.012, Hs / 2 + bez), 0.004, n_arc=1)
     m.rounded_box("monitor_body", (0.0, fy + 0.04, zc - 0.02), (0.17, 0.018, 0.11), 0.015)  # back housing
     m.box("monitor_logo", (0.0, fy - 0.0002, z0 - bez / 2), (0.02, 0.0004, 0.0018))  # a small logo on the chin
     # the switched-off screen: a textured quad just in front of the bezel (an off panel's dark glass
@@ -707,7 +707,8 @@ def whiteboard() -> dict:
                     "+x": (0, 0, 0.01, 0.01), "+z": (0, 0, 0.01, 0.01), "-z": (0, 0, 0.01, 0.01)})
     for x0, x1, za, zb in ((-W / 2 - fw, W / 2 + fw, z0 + H, z0 + H + fw), (-W / 2 - fw, W / 2 + fw, z0 - fw, z0),
                            (-W / 2 - fw, -W / 2, z0, z0 + H), (W / 2, W / 2 + fw, z0, z0 + H)):
-        m.rounded_box("alu", ((x0 + x1) / 2, -depth / 2, (za + zb) / 2), ((x1 - x0) / 2, depth / 2, (zb - za) / 2), 0.003)
+        m.rounded_box("alu", ((x0 + x1) / 2, -depth / 2, (za + zb) / 2), ((x1 - x0) / 2, depth / 2, (zb - za) / 2), 0.003,
+                      n_arc=1)  # one bevel segment: the same look at a quarter of the faces
     for sx in (-1, 1):
         for zz in (z0 - fw / 2, z0 + H + fw / 2):
             m.rounded_box("corner", (sx * (W / 2 + fw / 2), -depth / 2 - 0.001, zz), (0.014, depth / 2 + 0.001, 0.014), 0.004)
@@ -1006,7 +1007,7 @@ def framed_print(model_id, art_w, art_h, seed) -> dict:
     for x0, x1, z0, z1 in ((-W / 2, W / 2, H - fw, H), (-W / 2, W / 2, 0.0, fw), (-W / 2, -W / 2 + fw, fw, H - fw),
                            (W / 2 - fw, W / 2, fw, H - fw)):
         m.rounded_box("frame_oak", ((x0 + x1) / 2, -depth / 2, (z0 + z1) / 2), ((x1 - x0) / 2, depth / 2, (z1 - z0) / 2),
-                      0.004)
+                      0.004, n_arc=1)
     return m.write(model_id, "Framed print (procedural)", "visual only, on a wall", {"print": img, "frame_oak": oak})
 
 
@@ -1028,8 +1029,8 @@ def television() -> dict:
     on a flat wall bracket. Back at y = 0, facing -y, base at z = 0."""
     W, H, D = 1.04, 0.6, 0.03
     m = pf.Mesh()
-    m.rounded_box("tv_body", (0.0, -0.02 - D / 2, H / 2), (W / 2, D / 2, H / 2), 0.004)
-    m.rounded_box("tv_body", (0.0, -0.02 + 0.006, H / 2 - 0.03), (0.3, 0.014, 0.18), 0.01)  # back box
+    m.rounded_box("tv_body", (0.0, -0.02 - D / 2, H / 2), (W / 2, D / 2, H / 2), 0.004, n_arc=1)
+    m.rounded_box("tv_body", (0.0, -0.02 + 0.006, H / 2 - 0.03), (0.3, 0.014, 0.18), 0.01, n_arc=1)  # back box
     m.box("ext_steel", (0.0, -0.004, H / 2 - 0.03), (0.2, 0.004, 0.015))  # the bracket's rail
     bez = 0.009
     q = np.array([(-W / 2 + bez, -0.02 - D - 0.0004, H - bez), (W / 2 - bez, -0.02 - D - 0.0004, H - bez),

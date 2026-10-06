@@ -5,7 +5,7 @@
   "procedural_tool": "tools/proc_furniture.py",
   "procedural_tool_sha256": "ab73a8e2238971451c2caf1bfc239fb9ba348d0897321c6417c4cdf30ad68b9b",
   "props_tool": "tools/proc_props.py",
-  "props_tool_sha256": "274fb08012a756d7f5bf946f6471f648b547f21de73efd988645bd89c5b001a9",
+  "props_tool_sha256": "aecaf126876e71e7db33227e41b2767c7d4a3cc1a52ffddaa47f28d180991d69",
   "python": "3.11.5",
   "packages": {
    "numpy": "2.4.6",
@@ -294,8 +294,8 @@
    "bytes": 8224
   },
   "proc_desk_set.json": {
-   "sha256": "f136f8f72e4f76ad4ebfa3e677de92d3990aaab679af53e5d2dd4f2a8dafa382",
-   "bytes": 4030
+   "sha256": "a03e3f391807ea4b110ea0d37850e94243f5faf3fdc640093ad07c9735479430",
+   "bytes": 4029
   },
   "proc_desk_set_0.msh": {
    "sha256": "99c7e6a765f8dc85580cc9527ecf4aad4b034b67a7aa902c847f85826e6473f7",
@@ -350,8 +350,8 @@
    "bytes": 4326
   },
   "proc_desk_set_5.msh": {
-   "sha256": "94b728f987abd3dc9d61c452c189ba46d62917f412658c65dc155c473a345c6d",
-   "bytes": 49552
+   "sha256": "c48188293666b3108778fa4ba003271416075d2edb553ccbdd4db650e1e9b23c",
+   "bytes": 31888
   },
   "proc_desk_set_6.msh": {
    "sha256": "f3dcd09b155e2af57c96d44c30cc04db3d9c77c2b7d34fcc4c6d7777b92df0b8",
@@ -630,12 +630,12 @@
    "bytes": 295616
   },
   "proc_print_a.json": {
-   "sha256": "dcfc3f75d59bbc9a8dc00983a98a9ab50869b35cbd5a4d65b175937e4c543227",
-   "bytes": 770
+   "sha256": "266c9d2e67b2090edbb9e42ad91b3fe0b115e474133e9983ec0c0c4a3be47b84",
+   "bytes": 768
   },
   "proc_print_a_0.msh": {
-   "sha256": "f0f99d8b5049e7502255817cb80fc998463113f15c10844c2d5865677122301c",
-   "bytes": 99088
+   "sha256": "1671141d54b66280b6d04a4f3cafee0a6010e98e674b9a11204a191b373db34d",
+   "bytes": 28432
   },
   "proc_print_a_0.png": {
    "sha256": "dd7a3653be462e20f154b8feeca2e3edf0806ee639596706fb7ebb98abc68d56",
@@ -650,12 +650,12 @@
    "bytes": 89802
   },
   "proc_print_b.json": {
-   "sha256": "87f87064e280d558d2c70aaa50dab9654067d3638222b4127c8dfbe05c66981c",
-   "bytes": 770
+   "sha256": "80063181dc91b4de2e3f6c04103c95b9c893064831e5439621dbb82d04b9acb4",
+   "bytes": 768
   },
   "proc_print_b_0.msh": {
-   "sha256": "f0f99d8b5049e7502255817cb80fc998463113f15c10844c2d5865677122301c",
-   "bytes": 99088
+   "sha256": "1671141d54b66280b6d04a4f3cafee0a6010e98e674b9a11204a191b373db34d",
+   "bytes": 28432
   },
   "proc_print_b_0.png": {
    "sha256": "17e9808a2f8e7389dccc08e6d78f41129b0963480c53354cce85707b88945549",
@@ -670,12 +670,12 @@
    "bytes": 99824
   },
   "proc_print_c.json": {
-   "sha256": "68a895290ccaa28a7d80df1c1d246924b13bc67fcc02b465097b611547a3a07e",
-   "bytes": 770
+   "sha256": "b4ee8d6b6917c54c3ef9d3560e413ceaa181d8e766d881f09404b0dd68ef7124",
+   "bytes": 768
   },
   "proc_print_c_0.msh": {
-   "sha256": "4daf0e6b5dbeaa84608bb4aff64e95aac26314d8fa988fcbbee5bdd59bcce9dd",
-   "bytes": 99088
+   "sha256": "1be046afd7aaa538159c7aac6a7b3db680a4f2a1d5aac91b165724e88cf35bfd",
+   "bytes": 28432
   },
   "proc_print_c_0.png": {
    "sha256": "b74763c4f539bb7f435da660218c847b1cc8331b6a938e62972a25e732e4e189",
@@ -870,8 +870,8 @@
    "bytes": 1053
   },
   "proc_tv.json": {
-   "sha256": "e297251e5e51a50a904d067dcec8e21414f80a53a2af38e50ac25e189b5a9c51",
-   "bytes": 1213
+   "sha256": "028fa63bba015cc65a04e3078ae57b0993c80e6d7f852309bfd9712b67e664e5",
+   "bytes": 1212
   },
   "proc_tv_0.msh": {
    "sha256": "b0e0d114b8c56027424626ec2f536e391224f00a0b2baee813c9ac286b96b8a4",
@@ -890,8 +890,8 @@
    "bytes": 13139
   },
   "proc_tv_3.msh": {
-   "sha256": "ea601d14a757174acd4ddf29ff0f7a5bcdbfd563d7cc198097f833c4ae85d977",
-   "bytes": 49552
+   "sha256": "da6607fc4ea484a4cc9f8934dd4825799825d8c5e47e41552e33f20d1af09485",
+   "bytes": 14224
   },
   "proc_wall_clock.json": {
    "sha256": "593081de29e99ec9ce965f5b2e8e0234408aad35eba865bd9811bd4a485066da",
@@ -946,12 +946,12 @@
    "bytes": 295616
   },
   "proc_whiteboard.json": {
-   "sha256": "61e18ebef4759b0b41b353ad238bdbb8c8a48e041a98a35dbc9c710a5fba6d36",
-   "bytes": 3020
+   "sha256": "699e789d27ef77007f64342dfa67356c43f08a9369acfa84c9ecdd4bec704e8a",
+   "bytes": 3018
   },
   "proc_whiteboard_0.msh": {
-   "sha256": "5af62e75819facca05cbf2b8a37bdc31e04df659bd317b1d6ccec5477b3b4298",
-   "bytes": 100912
+   "sha256": "770c0767690f39631ae89e753083e3b396ab441c230db104ca8d615526980f3b",
+   "bytes": 30256
   },
   "proc_whiteboard_1.msh": {
    "sha256": "febfa3fc5beca1276325bff164b65359c408203b29c60c5cfa3cc8d297f66b4e",
