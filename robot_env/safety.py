@@ -21,6 +21,7 @@ import numpy as np
 
 from . import config as C
 from . import kernels
+from .lidar import MEMORY_AGE, bridge  # noqa: F401 (MEMORY_AGE: re-exported)
 from .types import STOP, Command, Observation
 
 # Reasons that count against the driver (interventions). Operator stops and
@@ -52,9 +53,21 @@ class SafetyResult:
         return bool(INTERVENTION_REASONS.intersection(self.reasons))
 
 
+class LidarMemory:
+    """robot_env.lidar.bridge with its state held: dropped readings bridged for MEMORY_AGE."""
+
+    def __init__(self):
+        self._state = None
+
+    def fill(self, obs: Observation) -> Observation:
+        obs, self._state = bridge(obs, self._state)
+        return obs
+
+
 class SafetyLayer:
     def __init__(self, clearance_enabled: bool = True):
         self.clearance_enabled = clearance_enabled
+        self.memory = LidarMemory()  # bridges single dropped readings (at most MEMORY_AGE old)
 
     def filter(self, requested: Command | None, issued_at: float | None, obs: Observation,
                now: float, flags: SafetyFlags) -> SafetyResult:
@@ -74,6 +87,7 @@ class SafetyLayer:
             return SafetyResult(STOP, ("command_expired",))
         if now - obs.scan_time > C.SCAN_MAX_AGE + 1e-9:
             return SafetyResult(STOP, ("stale_scan",))
+        obs = self.memory.fill(obs)
 
         reasons: list[str] = []
         v = min(max(requested.v, -C.MAX_LINEAR_SPEED), C.MAX_LINEAR_SPEED)

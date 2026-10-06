@@ -284,3 +284,75 @@ def test_command_expiry_stops_robot_in_system():
 def test_episode_over_stops():
     r = run(Command(0.3, 0.0), flags=SafetyFlags(episode_over=True))
     assert r.command == STOP and r.reasons == ("episode_over",) and not r.intervened
+
+
+# ----- dropped lidar readings (5 percent dropout froze the robot) -----
+
+def test_a_dropped_reading_takes_its_rays_recent_return_moved_by_the_robots_motion():
+    from robot_env.safety import LidarMemory
+    mem = LidarMemory()
+    mem.fill(make_obs(points=[(0.0, 1.0)], scan_time=1.0, velocity=(0.5, 0.0)))
+    out = mem.fill(make_obs(invalid=[0.0], scan_time=1.04, velocity=(0.5, 0.0)))
+    i = int(np.argmin(np.abs(np.degrees(ANGLES))))
+    assert out.lidar_valid[i] and out.lidar[i] == pytest.approx(1.0 - 0.5 * 0.04, abs=1e-6)
+
+
+def test_a_remembered_return_expires_after_memory_age():
+    from robot_env.safety import MEMORY_AGE, LidarMemory
+    mem = LidarMemory()
+    mem.fill(make_obs(points=[(0.0, 1.0)], scan_time=1.0))
+    out = mem.fill(make_obs(invalid=[0.0], scan_time=1.0 + MEMORY_AGE + 0.02))
+    assert not out.lidar_valid[int(np.argmin(np.abs(np.degrees(ANGLES))))]
+
+
+def test_the_robot_keeps_moving_through_random_dropout():
+    """1 m/s down the corridor with 5 percent of readings dropped at random: moving at least 90
+    percent of the time, no stop longer than 0.5 s, no contact (the agreed acceptance, here in
+    three seeded runs; tools runs 100)."""
+    for seed in range(3):
+        s = RobotSystem()
+        s.reset(-4.3, 0.0, 0.0, (4.5, 0.0))
+        s.lidar_dropout, s._fault_rng = 0.05, np.random.default_rng(seed)
+        moving = ticks = 0
+        still = longest = 0.0
+        while s.time < 6.5:
+            s.drive(1.0, 0.0)
+            s.advance(0.02)
+            ticks += 1
+            if s.observe().velocity_estimate[0] > 0.05:
+                moving, still = moving + 1, 0.0
+            else:
+                still += 0.02
+                if s.time > 1.0:
+                    longest = max(longest, still)
+            assert not s.in_contact
+        s.close()
+        assert moving / ticks >= 0.9 and longest <= 0.5
+
+
+def test_a_sustained_loss_on_the_path_still_stops_the_robot():
+    """A 15 degree sector straight ahead dropped for longer than the memory lasts is an unknown
+    sector: driving into it is refused, turning away is not."""
+    layer = SafetyLayer()
+    flags = SafetyFlags()
+    lost = [d for d in range(-7, 8)]
+    r = None
+    for k in range(10):  # 0.2 s of the same loss
+        t = 1.0 + 0.02 * k
+        r = layer.filter(Command(0.5, 0.0), t - 0.01, make_obs(invalid=lost, now=t, scan_time=t), t, flags)
+    assert r.command.v == 0.0 and "clearance" in r.reasons
+    t += 0.02
+    r = layer.filter(Command(-0.2, 0.0), t - 0.01, make_obs(invalid=lost, now=t, scan_time=t), t, flags)
+    assert r.command.v < 0.0
+
+
+@pytest.mark.parametrize("width", [5, 15, 45])
+def test_a_sustained_loss_off_the_path_does_not_stop_the_robot(width):
+    """The same losses beside the robot (centred at 90 degrees) leave driving straight ahead free."""
+    layer = SafetyLayer()
+    lost = [90 + d for d in range(-(width // 2), width // 2 + 1)]
+    r = None
+    for k in range(10):
+        t = 1.0 + 0.02 * k
+        r = layer.filter(Command(0.5, 0.0), t - 0.01, make_obs(invalid=lost, now=t, scan_time=t), t, SafetyFlags())
+    assert r.command == Command(0.5, 0.0)

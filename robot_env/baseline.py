@@ -29,6 +29,7 @@ import math
 import numpy as np
 
 from . import config as C
+from .lidar import bridge
 from .types import Command, Decision, Observation
 
 CELL = 0.1  # m
@@ -73,6 +74,7 @@ class BaselineDriver:
         self._goal = None
         self._still_since: float | None = None
         self._backup_until = -1.0
+        self._lidar = None  # robot_env.lidar's state: dropped readings bridged, as in the safety layer
 
     # ----- memory -----
     def _cell(self, x, y):
@@ -177,7 +179,10 @@ class BaselineDriver:
         w = float(np.clip(2.0 * heading, -self.w_max, self.w_max))
         if abs(heading) > 0.5:
             return Decision(Command(0.0, w), obs.seq)  # turn in place first
-        r = np.where(obs.lidar_valid, obs.lidar, 0.3)
+        # a dropped reading takes its ray's recent return; one still unknown counts as no return
+        # here (the speed choice), since the safety layer blocks any motion into it
+        seen, self._lidar = bridge(obs, self._lidar)
+        r = np.where(seen.lidar_valid, seen.lidar, C.LIDAR_RANGE)
         along, lateral = r * np.cos(obs.lidar_angles), np.abs(r * np.sin(obs.lidar_angles))
         ahead = float(np.min(np.where((along > 0) & (lateral < HALF_WIDTH), along, C.LIDAR_RANGE)))
         room = float(np.clip((ahead - 0.25) / 0.6, 0.0, 1.0))

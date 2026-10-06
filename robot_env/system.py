@@ -54,6 +54,8 @@ class RobotSystem:
         self.safety = safety or SafetyLayer()
         self.flags = SafetyFlags()
         self.scan_enabled = True  # test hook: False freezes the lidar to make it stale
+        self.lidar_dropout = 0.0  # fault hook: the chance each reading is dropped (invalid), per scan
+        self._fault_rng = np.random.default_rng(0)
         self._ctrl_every = round(C.CONTROL_PERIOD / C.PHYSICS_DT)
         self.log = None  # optional DriveLog (robot_env/drive_log.py); written after each tick's decisions
         self.reset(0.0, 0.0, 0.0, (2.0, 2.0))
@@ -322,6 +324,9 @@ class RobotSystem:
         if self.scan_enabled:
             self._scan, self._scan_valid = self.sim.scan()
             self._scan_time = now
+            if self.lidar_dropout > 0.0:
+                drop = self._fault_rng.random(len(self._scan_valid)) < self.lidar_dropout
+                self._scan_valid = self._scan_valid & ~drop
         self._obs = self._build_observation()
         result = self.safety.filter(self._requested, self._issued_at, self._obs, now, self.flags)
         self._target = result.command
