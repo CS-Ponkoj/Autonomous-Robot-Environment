@@ -1,0 +1,31 @@
+{
+ "id": "proc_notice_board",
+ "name": "Cork notice board (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.9,
+  0.02,
+  0.6
+ ],
+ "parts": [
+  {
+   "mesh": "proc_notice_board_0.msh",
+   "material": "plate",
+   "texture": "proc_notice_board_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.35,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  }
+ ],
+ "note": "visual only, on a wall"
+}

@@ -1,0 +1,31 @@
+{
+ "id": "proc_storage_carton_top",
+ "name": "Carton (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.52,
+  0.39,
+  0.3
+ ],
+ "parts": [
+  {
+   "mesh": "proc_storage_carton_top_0.msh",
+   "material": "carton",
+   "texture": "proc_storage_carton_top_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.06,
+   "shininess": 0.1,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  }
+ ],
+ "note": "member: one box"
+}

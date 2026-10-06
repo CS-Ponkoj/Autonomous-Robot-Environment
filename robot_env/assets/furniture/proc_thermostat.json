@@ -1,0 +1,31 @@
+{
+ "id": "proc_thermostat",
+ "name": "Thermostat (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.09,
+  0.025,
+  0.09
+ ],
+ "parts": [
+  {
+   "mesh": "proc_thermostat_0.msh",
+   "material": "plate",
+   "texture": "proc_thermostat_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.35,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  }
+ ],
+ "note": "visual only, on a wall"
+}

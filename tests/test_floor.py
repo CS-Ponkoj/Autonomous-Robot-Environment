@@ -71,14 +71,16 @@ def test_visible_and_colliding_geometry_agree(sim):
 
 
 def test_furniture_meshes_are_visual_only_and_massless(sim):
-    """Every furniture mesh: group 2, collides with nothing, no mass, and declared with shell
-    inertia (thin parts have no volume); the members are what is solid."""
+    """Every furniture mesh: group 2 (or, on the ceiling above 2.3 m, the ceiling's group 3: smoke
+    detectors, a dome camera), collides with nothing, no mass, and declared with shell inertia (thin
+    parts have no volume); the members are what is solid."""
     m = sim.model
     meshes = [g for g in range(m.ngeom) if m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH
               and m.body_rootid[m.geom_bodyid[g]] != sim.robot_body and not m.body(m.geom_bodyid[g]).name.startswith("cat")]
     assert meshes
     for g in meshes:
-        assert m.geom_group[g] == 2 and m.geom_contype[g] == 0 and m.geom_conaffinity[g] == 0
+        on_ceiling = m.geom_group[g] == 3 and sim.data.geom_xpos[g][2] > 2.3
+        assert (m.geom_group[g] == 2 or on_ceiling) and m.geom_contype[g] == 0 and m.geom_conaffinity[g] == 0
         assert m.body_weldid[m.geom_bodyid[g]] == 0  # on the static world
     bw = _build_world()
     furniture_meshes = [line for line in bw.text.splitlines() if line.strip().startswith("<mesh ")]

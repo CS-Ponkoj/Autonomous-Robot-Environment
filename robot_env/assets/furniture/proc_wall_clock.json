@@ -1,0 +1,79 @@
+{
+ "id": "proc_wall_clock",
+ "name": "Office wall clock (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.3,
+  0.04,
+  0.3
+ ],
+ "parts": [
+  {
+   "mesh": "proc_wall_clock_0.msh",
+   "material": "clock_case",
+   "texture": null,
+   "rgba": [
+    0.06,
+    0.06,
+    0.065,
+    1.0
+   ],
+   "specular": 0.45,
+   "shininess": 0.55,
+   "reflectance": 0.0,
+   "faces": 704,
+   "vertices": 705
+  },
+  {
+   "mesh": "proc_wall_clock_1.msh",
+   "material": "clock_dial",
+   "texture": "proc_wall_clock_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.15,
+   "shininess": 0.2,
+   "reflectance": 0.0,
+   "faces": 64,
+   "vertices": 65
+  },
+  {
+   "mesh": "proc_wall_clock_2.msh",
+   "material": "clock_hand",
+   "texture": null,
+   "rgba": [
+    0.05,
+    0.05,
+    0.055,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.4,
+   "reflectance": 0.0,
+   "faces": 88,
+   "vertices": 82
+  },
+  {
+   "mesh": "proc_wall_clock_3.msh",
+   "material": "clock_second",
+   "texture": null,
+   "rgba": [
+    0.75,
+    0.08,
+    0.06,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.4,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 8
+  }
+ ],
+ "note": "visual only, on a wall above the robot"
+}

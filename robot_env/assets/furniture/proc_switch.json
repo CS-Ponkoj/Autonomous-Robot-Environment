@@ -1,0 +1,31 @@
+{
+ "id": "proc_switch",
+ "name": "Light switch (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.085,
+  0.01,
+  0.085
+ ],
+ "parts": [
+  {
+   "mesh": "proc_switch_0.msh",
+   "material": "plate",
+   "texture": "proc_switch_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.35,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  }
+ ],
+ "note": "visual only, on a wall"
+}

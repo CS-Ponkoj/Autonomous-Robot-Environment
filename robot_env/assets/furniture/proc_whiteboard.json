@@ -1,0 +1,191 @@
+{
+ "id": "proc_whiteboard",
+ "name": "Whiteboard with tray (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  1.246,
+  0.07,
+  0.963
+ ],
+ "parts": [
+  {
+   "mesh": "proc_whiteboard_0.msh",
+   "material": "alu",
+   "texture": null,
+   "rgba": [
+    0.62,
+    0.63,
+    0.64,
+    1.0
+   ],
+   "specular": 0.7,
+   "shininess": 0.7,
+   "reflectance": 0.02,
+   "faces": 3096,
+   "vertices": 1992
+  },
+  {
+   "mesh": "proc_whiteboard_1.msh",
+   "material": "board",
+   "texture": "proc_whiteboard_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.45,
+   "shininess": 0.6,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  },
+  {
+   "mesh": "proc_whiteboard_2.msh",
+   "material": "corner",
+   "texture": null,
+   "rgba": [
+    0.2,
+    0.2,
+    0.21,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.35,
+   "reflectance": 0.0,
+   "faces": 3072,
+   "vertices": 1944
+  },
+  {
+   "mesh": "proc_whiteboard_3.msh",
+   "material": "eraser",
+   "texture": null,
+   "rgba": [
+    0.25,
+    0.42,
+    0.7,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.35,
+   "reflectance": 0.0,
+   "faces": 768,
+   "vertices": 486
+  },
+  {
+   "mesh": "proc_whiteboard_4.msh",
+   "material": "felt",
+   "texture": null,
+   "rgba": [
+    0.18,
+    0.18,
+    0.2,
+    1.0
+   ],
+   "specular": 0.05,
+   "shininess": 0.1,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  },
+  {
+   "mesh": "proc_whiteboard_5.msh",
+   "material": "marker_black",
+   "texture": null,
+   "rgba": [
+    0.06,
+    0.06,
+    0.07,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.5,
+   "reflectance": 0.0,
+   "faces": 48,
+   "vertices": 50
+  },
+  {
+   "mesh": "proc_whiteboard_6.msh",
+   "material": "marker_black_cap",
+   "texture": null,
+   "rgba": [
+    0.02,
+    0.02,
+    0.02,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.5,
+   "reflectance": 0.0,
+   "faces": 48,
+   "vertices": 50
+  },
+  {
+   "mesh": "proc_whiteboard_7.msh",
+   "material": "marker_blue",
+   "texture": null,
+   "rgba": [
+    0.1,
+    0.22,
+    0.6,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.5,
+   "reflectance": 0.0,
+   "faces": 48,
+   "vertices": 50
+  },
+  {
+   "mesh": "proc_whiteboard_8.msh",
+   "material": "marker_blue_cap",
+   "texture": null,
+   "rgba": [
+    0.05,
+    0.12,
+    0.38,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.5,
+   "reflectance": 0.0,
+   "faces": 48,
+   "vertices": 50
+  },
+  {
+   "mesh": "proc_whiteboard_9.msh",
+   "material": "marker_red",
+   "texture": null,
+   "rgba": [
+    0.7,
+    0.1,
+    0.08,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.5,
+   "reflectance": 0.0,
+   "faces": 48,
+   "vertices": 50
+  },
+  {
+   "mesh": "proc_whiteboard_10.msh",
+   "material": "marker_red_cap",
+   "texture": null,
+   "rgba": [
+    0.45,
+    0.05,
+    0.04,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.5,
+   "reflectance": 0.0,
+   "faces": 48,
+   "vertices": 50
+  }
+ ],
+ "note": "visual only, on a wall"
+}

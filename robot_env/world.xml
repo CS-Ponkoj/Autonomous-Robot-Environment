@@ -92,6 +92,9 @@
     <material name="chair_base" rgba="0.12 0.12 0.13 1" specular="0.5" shininess="0.6"/>
     <material name="fabric_light" rgba="0.44 0.5 0.58 1"/>
     <material name="monitor" rgba="0.08 0.08 0.09 1" specular="0.4"/>
+    <material name="screen_off" rgba="0.025 0.027 0.03 1" specular="0.7" shininess="0.9" reflectance="0.3"/>
+    <material name="led_white" rgba="0.85 0.95 1 1" emission="1"/>
+    <material name="sign_plate" rgba="0.72 0.73 0.74 1" specular="0.7" shininess="0.6"/>
     <material name="screen" rgba="0.12 0.2 0.3 1" emission="0.35" specular="0.8"/>
     <material name="glass_ware" rgba="0.75 0.85 0.9 0.45" specular="0.9" shininess="0.9"/>
     <material name="cardboard_dark" rgba="0.6 0.47 0.32 1"/>
@@ -167,6 +170,39 @@
     <texture name="metal_office_desk_t0" type="2d" file="metal_office_desk_0.png"/>
     <material name="metal_office_desk_m0" texture="metal_office_desk_t0" specular="0.367" shininess="0.538" reflectance="0.0"/>
     <mesh name="metal_office_desk_0" file="metal_office_desk_0.msh" inertia="shell"/>
+    <material name="proc_desk_set_m0" rgba="0.050 0.050 0.050 1.000" specular="0.3" shininess="0.3" reflectance="0.0"/>
+    <mesh name="proc_desk_set_0" file="proc_desk_set_0.msh" inertia="shell"/>
+    <material name="proc_desk_set_m1" rgba="0.900 0.890 0.860 1.000" specular="0.55" shininess="0.7" reflectance="0.0"/>
+    <mesh name="proc_desk_set_1" file="proc_desk_set_1.msh" inertia="shell"/>
+    <material name="proc_desk_set_m2" rgba="0.160 0.090 0.050 1.000" specular="0.6" shininess="0.8" reflectance="0.0"/>
+    <mesh name="proc_desk_set_2" file="proc_desk_set_2.msh" inertia="shell"/>
+    <material name="proc_desk_set_m3" rgba="0.110 0.110 0.120 1.000" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_desk_set_3" file="proc_desk_set_3.msh" inertia="shell"/>
+    <texture name="proc_desk_set_t4" type="2d" file="proc_desk_set_4.png"/>
+    <material name="proc_desk_set_m4" texture="proc_desk_set_t4" specular="0.25" shininess="0.3" reflectance="0.0"/>
+    <mesh name="proc_desk_set_4" file="proc_desk_set_4.msh" inertia="shell"/>
+    <material name="proc_desk_set_m5" rgba="0.070 0.070 0.075 1.000" specular="0.35" shininess="0.45" reflectance="0.0"/>
+    <mesh name="proc_desk_set_5" file="proc_desk_set_5.msh" inertia="shell"/>
+    <material name="proc_desk_set_m6" rgba="0.300 0.300 0.320 1.000" specular="0.6" shininess="0.6" reflectance="0.0"/>
+    <mesh name="proc_desk_set_6" file="proc_desk_set_6.msh" inertia="shell"/>
+    <material name="proc_desk_set_m7" rgba="0.160 0.160 0.170 1.000" specular="0.5" shininess="0.55" reflectance="0.0"/>
+    <mesh name="proc_desk_set_7" file="proc_desk_set_7.msh" inertia="shell"/>
+    <material name="proc_desk_set_m8" rgba="0.090 0.090 0.100 1.000" specular="0.45" shininess="0.6" reflectance="0.0"/>
+    <mesh name="proc_desk_set_8" file="proc_desk_set_8.msh" inertia="shell"/>
+    <material name="proc_desk_set_m9" rgba="0.120 0.130 0.150 1.000" specular="0.05" shininess="0.1" reflectance="0.0"/>
+    <mesh name="proc_desk_set_9" file="proc_desk_set_9.msh" inertia="shell"/>
+    <texture name="proc_desk_set_t10" type="2d" file="proc_desk_set_10.png"/>
+    <material name="proc_desk_set_m10" texture="proc_desk_set_t10" specular="0.05" shininess="0.1" reflectance="0.0"/>
+    <mesh name="proc_desk_set_10" file="proc_desk_set_10.msh" inertia="shell"/>
+    <material name="proc_desk_set_m11" rgba="0.100 0.180 0.550 1.000" specular="0.5" shininess="0.6" reflectance="0.0"/>
+    <mesh name="proc_desk_set_11" file="proc_desk_set_11.msh" inertia="shell"/>
+    <material name="proc_desk_set_m12" rgba="0.050 0.100 0.350 1.000" specular="0.5" shininess="0.6" reflectance="0.0"/>
+    <mesh name="proc_desk_set_12" file="proc_desk_set_12.msh" inertia="shell"/>
+    <material name="proc_desk_set_m13" rgba="0.040 0.040 0.040 1.000" specular="0.6" shininess="0.6" reflectance="0.0"/>
+    <mesh name="proc_desk_set_13" file="proc_desk_set_13.msh" inertia="shell"/>
+    <texture name="proc_desk_set_t14" type="2d" file="proc_desk_set_14.png"/>
+    <material name="proc_desk_set_m14" texture="proc_desk_set_t14" specular="0.7" shininess="0.9" reflectance="0.0"/>
+    <mesh name="proc_desk_set_14" file="proc_desk_set_14.msh" inertia="shell"/>
     <material name="proc_office_chair_m0" rgba="0.720 0.730 0.750 1.000" specular="0.9" shininess="0.9" reflectance="0.15"/>
     <mesh name="proc_office_chair_0" file="proc_office_chair_0.msh" inertia="shell"/>
     <texture name="proc_office_chair_t1" type="2d" file="proc_office_chair_1.png"/>
@@ -221,11 +257,21 @@
     <texture name="potted_plant_01_t1" type="2d" file="potted_plant_01_1.png"/>
     <material name="potted_plant_01_m1" texture="potted_plant_01_t1" specular="0.0" shininess="0.0" reflectance="0.0"/>
     <mesh name="potted_plant_01_1" file="potted_plant_01_1.msh" inertia="shell"/>
-    <texture name="wall_clock_t0" type="2d" file="wall_clock_0.png"/>
-    <material name="wall_clock_m0" texture="wall_clock_t0" specular="0.315" shininess="0.396" reflectance="0.0"/>
-    <mesh name="wall_clock_0" file="wall_clock_0.msh" inertia="shell"/>
-    <material name="wall_clock_m1" rgba="0.800 0.800 0.800 1.000" specular="0.474" shininess="0.899" reflectance="0.0"/>
-    <mesh name="wall_clock_1" file="wall_clock_1.msh" inertia="shell"/>
+    <material name="proc_wall_clock_m0" rgba="0.060 0.060 0.065 1.000" specular="0.45" shininess="0.55" reflectance="0.0"/>
+    <mesh name="proc_wall_clock_0" file="proc_wall_clock_0.msh" inertia="shell"/>
+    <texture name="proc_wall_clock_t1" type="2d" file="proc_wall_clock_1.png"/>
+    <material name="proc_wall_clock_m1" texture="proc_wall_clock_t1" specular="0.15" shininess="0.2" reflectance="0.0"/>
+    <mesh name="proc_wall_clock_1" file="proc_wall_clock_1.msh" inertia="shell"/>
+    <material name="proc_wall_clock_m2" rgba="0.050 0.050 0.055 1.000" specular="0.3" shininess="0.4" reflectance="0.0"/>
+    <mesh name="proc_wall_clock_2" file="proc_wall_clock_2.msh" inertia="shell"/>
+    <material name="proc_wall_clock_m3" rgba="0.750 0.080 0.060 1.000" specular="0.3" shininess="0.4" reflectance="0.0"/>
+    <mesh name="proc_wall_clock_3" file="proc_wall_clock_3.msh" inertia="shell"/>
+    <texture name="proc_storage_carton_t0" type="2d" file="proc_storage_carton_0.png"/>
+    <material name="proc_storage_carton_m0" texture="proc_storage_carton_t0" specular="0.06" shininess="0.1" reflectance="0.0"/>
+    <mesh name="proc_storage_carton_0" file="proc_storage_carton_0.msh" inertia="shell"/>
+    <texture name="proc_storage_carton_top_t0" type="2d" file="proc_storage_carton_top_0.png"/>
+    <material name="proc_storage_carton_top_m0" texture="proc_storage_carton_top_t0" specular="0.06" shininess="0.1" reflectance="0.0"/>
+    <mesh name="proc_storage_carton_top_0" file="proc_storage_carton_top_0.msh" inertia="shell"/>
     <material name="proc_sofa_m0" rgba="0.480 0.440 0.380 1.000" specular="0.1" shininess="0.2" reflectance="0.0"/>
     <mesh name="proc_sofa_0" file="proc_sofa_0.msh" inertia="shell"/>
     <texture name="proc_sofa_t1" type="2d" file="proc_sofa_1.png"/>
@@ -283,6 +329,111 @@
     <texture name="proc_floor_lamp_t3" type="2d" file="proc_floor_lamp_3.png"/>
     <material name="proc_floor_lamp_m3" texture="proc_floor_lamp_t3" specular="0.05" shininess="0.05" reflectance="0.0"/>
     <mesh name="proc_floor_lamp_3" file="proc_floor_lamp_3.msh" inertia="shell"/>
+    <texture name="proc_storage_pallet_t0" type="2d" file="proc_storage_pallet_0.png"/>
+    <material name="proc_storage_pallet_m0" texture="proc_storage_pallet_t0" specular="0.06" shininess="0.1" reflectance="0.0"/>
+    <mesh name="proc_storage_pallet_0" file="proc_storage_pallet_0.msh" inertia="shell"/>
+    <material name="proc_storage_pallet_m1" rgba="0.240 0.240 0.250 1.000" specular="0.4" shininess="0.4" reflectance="0.0"/>
+    <mesh name="proc_storage_pallet_1" file="proc_storage_pallet_1.msh" inertia="shell"/>
+    <texture name="proc_storage_pallet_t2" type="2d" file="proc_storage_pallet_2.png"/>
+    <material name="proc_storage_pallet_m2" texture="proc_storage_pallet_t2" specular="0.08" shininess="0.12" reflectance="0.0"/>
+    <mesh name="proc_storage_pallet_2" file="proc_storage_pallet_2.msh" inertia="shell"/>
+    <texture name="proc_switch_t0" type="2d" file="proc_switch_0.png"/>
+    <material name="proc_switch_m0" texture="proc_switch_t0" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_switch_0" file="proc_switch_0.msh" inertia="shell"/>
+    <texture name="proc_socket_t0" type="2d" file="proc_socket_0.png"/>
+    <material name="proc_socket_m0" texture="proc_socket_t0" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_socket_0" file="proc_socket_0.msh" inertia="shell"/>
+    <texture name="proc_thermostat_t0" type="2d" file="proc_thermostat_0.png"/>
+    <material name="proc_thermostat_m0" texture="proc_thermostat_t0" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_thermostat_0" file="proc_thermostat_0.msh" inertia="shell"/>
+    <texture name="proc_exit_sign_t0" type="2d" file="proc_exit_sign_0.png"/>
+    <material name="proc_exit_sign_m0" texture="proc_exit_sign_t0" specular="0.3" shininess="0.35" reflectance="0.0" emission="0.25"/>
+    <mesh name="proc_exit_sign_0" file="proc_exit_sign_0.msh" inertia="shell"/>
+    <texture name="proc_notice_board_t0" type="2d" file="proc_notice_board_0.png"/>
+    <material name="proc_notice_board_m0" texture="proc_notice_board_t0" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_notice_board_0" file="proc_notice_board_0.msh" inertia="shell"/>
+    <texture name="proc_first_aid_t0" type="2d" file="proc_first_aid_0.png"/>
+    <material name="proc_first_aid_m0" texture="proc_first_aid_t0" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_first_aid_0" file="proc_first_aid_0.msh" inertia="shell"/>
+    <texture name="proc_safety_poster_t0" type="2d" file="proc_safety_poster_0.png"/>
+    <material name="proc_safety_poster_m0" texture="proc_safety_poster_t0" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_safety_poster_0" file="proc_safety_poster_0.msh" inertia="shell"/>
+    <texture name="proc_trunking_t0" type="2d" file="proc_trunking_0.png"/>
+    <material name="proc_trunking_m0" texture="proc_trunking_t0" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_trunking_0" file="proc_trunking_0.msh" inertia="shell"/>
+    <texture name="proc_smoke_detector_t0" type="2d" file="proc_smoke_detector_0.png"/>
+    <material name="proc_smoke_detector_m0" texture="proc_smoke_detector_t0" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_smoke_detector_0" file="proc_smoke_detector_0.msh" inertia="shell"/>
+    <texture name="proc_print_a_t0" type="2d" file="proc_print_a_0.png"/>
+    <material name="proc_print_a_m0" texture="proc_print_a_t0" specular="0.25" shininess="0.3" reflectance="0.0"/>
+    <mesh name="proc_print_a_0" file="proc_print_a_0.msh" inertia="shell"/>
+    <texture name="proc_print_a_t1" type="2d" file="proc_print_a_1.png"/>
+    <material name="proc_print_a_m1" texture="proc_print_a_t1" specular="0.15" shininess="0.2" reflectance="0.0"/>
+    <mesh name="proc_print_a_1" file="proc_print_a_1.msh" inertia="shell"/>
+    <texture name="proc_print_b_t0" type="2d" file="proc_print_b_0.png"/>
+    <material name="proc_print_b_m0" texture="proc_print_b_t0" specular="0.25" shininess="0.3" reflectance="0.0"/>
+    <mesh name="proc_print_b_0" file="proc_print_b_0.msh" inertia="shell"/>
+    <texture name="proc_print_b_t1" type="2d" file="proc_print_b_1.png"/>
+    <material name="proc_print_b_m1" texture="proc_print_b_t1" specular="0.15" shininess="0.2" reflectance="0.0"/>
+    <mesh name="proc_print_b_1" file="proc_print_b_1.msh" inertia="shell"/>
+    <texture name="proc_print_c_t0" type="2d" file="proc_print_c_0.png"/>
+    <material name="proc_print_c_m0" texture="proc_print_c_t0" specular="0.25" shininess="0.3" reflectance="0.0"/>
+    <mesh name="proc_print_c_0" file="proc_print_c_0.msh" inertia="shell"/>
+    <texture name="proc_print_c_t1" type="2d" file="proc_print_c_1.png"/>
+    <material name="proc_print_c_m1" texture="proc_print_c_t1" specular="0.15" shininess="0.2" reflectance="0.0"/>
+    <mesh name="proc_print_c_1" file="proc_print_c_1.msh" inertia="shell"/>
+    <material name="proc_whiteboard_m0" rgba="0.620 0.630 0.640 1.000" specular="0.7" shininess="0.7" reflectance="0.02"/>
+    <mesh name="proc_whiteboard_0" file="proc_whiteboard_0.msh" inertia="shell"/>
+    <texture name="proc_whiteboard_t1" type="2d" file="proc_whiteboard_1.png"/>
+    <material name="proc_whiteboard_m1" texture="proc_whiteboard_t1" specular="0.45" shininess="0.6" reflectance="0.0"/>
+    <mesh name="proc_whiteboard_1" file="proc_whiteboard_1.msh" inertia="shell"/>
+    <material name="proc_whiteboard_m2" rgba="0.200 0.200 0.210 1.000" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_whiteboard_2" file="proc_whiteboard_2.msh" inertia="shell"/>
+    <material name="proc_whiteboard_m3" rgba="0.250 0.420 0.700 1.000" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_whiteboard_3" file="proc_whiteboard_3.msh" inertia="shell"/>
+    <material name="proc_whiteboard_m4" rgba="0.180 0.180 0.200 1.000" specular="0.05" shininess="0.1" reflectance="0.0"/>
+    <mesh name="proc_whiteboard_4" file="proc_whiteboard_4.msh" inertia="shell"/>
+    <material name="proc_whiteboard_m5" rgba="0.060 0.060 0.070 1.000" specular="0.4" shininess="0.5" reflectance="0.0"/>
+    <mesh name="proc_whiteboard_5" file="proc_whiteboard_5.msh" inertia="shell"/>
+    <material name="proc_whiteboard_m6" rgba="0.020 0.020 0.020 1.000" specular="0.4" shininess="0.5" reflectance="0.0"/>
+    <mesh name="proc_whiteboard_6" file="proc_whiteboard_6.msh" inertia="shell"/>
+    <material name="proc_whiteboard_m7" rgba="0.100 0.220 0.600 1.000" specular="0.4" shininess="0.5" reflectance="0.0"/>
+    <mesh name="proc_whiteboard_7" file="proc_whiteboard_7.msh" inertia="shell"/>
+    <material name="proc_whiteboard_m8" rgba="0.050 0.120 0.380 1.000" specular="0.4" shininess="0.5" reflectance="0.0"/>
+    <mesh name="proc_whiteboard_8" file="proc_whiteboard_8.msh" inertia="shell"/>
+    <material name="proc_whiteboard_m9" rgba="0.700 0.100 0.080 1.000" specular="0.4" shininess="0.5" reflectance="0.0"/>
+    <mesh name="proc_whiteboard_9" file="proc_whiteboard_9.msh" inertia="shell"/>
+    <material name="proc_whiteboard_m10" rgba="0.450 0.050 0.040 1.000" specular="0.4" shininess="0.5" reflectance="0.0"/>
+    <mesh name="proc_whiteboard_10" file="proc_whiteboard_10.msh" inertia="shell"/>
+    <material name="proc_tv_m0" rgba="0.620 0.630 0.640 1.000" specular="0.8" shininess="0.8" reflectance="0.05"/>
+    <mesh name="proc_tv_0" file="proc_tv_0.msh" inertia="shell"/>
+    <material name="proc_tv_m1" rgba="0.300 0.300 0.320 1.000" specular="0.6" shininess="0.6" reflectance="0.0"/>
+    <mesh name="proc_tv_1" file="proc_tv_1.msh" inertia="shell"/>
+    <texture name="proc_tv_t2" type="2d" file="proc_tv_2.png"/>
+    <material name="proc_tv_m2" texture="proc_tv_t2" specular="0.7" shininess="0.9" reflectance="0.0"/>
+    <mesh name="proc_tv_2" file="proc_tv_2.msh" inertia="shell"/>
+    <material name="proc_tv_m3" rgba="0.050 0.050 0.055 1.000" specular="0.4" shininess="0.5" reflectance="0.0"/>
+    <mesh name="proc_tv_3" file="proc_tv_3.msh" inertia="shell"/>
+    <material name="proc_extinguisher_m0" rgba="0.050 0.050 0.050 1.000" specular="0.4" shininess="0.45" reflectance="0.0"/>
+    <mesh name="proc_extinguisher_0" file="proc_extinguisher_0.msh" inertia="shell"/>
+    <texture name="proc_extinguisher_t1" type="2d" file="proc_extinguisher_1.png"/>
+    <material name="proc_extinguisher_m1" texture="proc_extinguisher_t1" specular="0.2" shininess="0.3" reflectance="0.0"/>
+    <mesh name="proc_extinguisher_1" file="proc_extinguisher_1.msh" inertia="shell"/>
+    <material name="proc_extinguisher_m2" rgba="0.720 0.060 0.050 1.000" specular="0.6" shininess="0.7" reflectance="0.0"/>
+    <mesh name="proc_extinguisher_2" file="proc_extinguisher_2.msh" inertia="shell"/>
+    <material name="proc_extinguisher_m3" rgba="0.620 0.630 0.640 1.000" specular="0.8" shininess="0.8" reflectance="0.05"/>
+    <mesh name="proc_extinguisher_3" file="proc_extinguisher_3.msh" inertia="shell"/>
+    <texture name="proc_fire_sign_t0" type="2d" file="proc_fire_sign_0.png"/>
+    <material name="proc_fire_sign_m0" texture="proc_fire_sign_t0" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_fire_sign_0" file="proc_fire_sign_0.msh" inertia="shell"/>
+    <texture name="proc_call_point_t0" type="2d" file="proc_call_point_0.png"/>
+    <material name="proc_call_point_m0" texture="proc_call_point_t0" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_call_point_0" file="proc_call_point_0.msh" inertia="shell"/>
+    <material name="proc_dome_camera_m0" rgba="0.120 0.120 0.130 1.000" specular="0.8" shininess="0.9" reflectance="0.0"/>
+    <mesh name="proc_dome_camera_0" file="proc_dome_camera_0.msh" inertia="shell"/>
+    <texture name="proc_dome_camera_t1" type="2d" file="proc_dome_camera_1.png"/>
+    <material name="proc_dome_camera_m1" texture="proc_dome_camera_t1" specular="0.3" shininess="0.35" reflectance="0.0"/>
+    <mesh name="proc_dome_camera_1" file="proc_dome_camera_1.msh" inertia="shell"/>
   </asset>
 
   <default>
@@ -692,10 +843,30 @@
     <geom type="box" pos="0.8300 3.1140 1.0000" size="0.0600 0.0080 0.0080" material="handle" class="visual"/>
 
     <!-- Room signs (visual only) -->
-    <geom name="sign_office" type="box" pos="-1.7000 0.7040 1.6000" size="0.2500 0.0060 0.0625" material="sign_office" class="visual"/>
-    <geom name="sign_lab" type="box" pos="3.3000 0.7040 1.6000" size="0.2500 0.0060 0.0625" material="sign_lab" class="visual"/>
-    <geom name="sign_storage" type="box" pos="-2.2000 -0.7040 1.6000" size="0.2500 0.0060 0.0625" euler="0 0 180" material="sign_storage" class="visual"/>
-    <geom name="sign_reception" type="box" pos="2.8000 -0.7040 1.6000" size="0.2500 0.0060 0.0625" euler="0 0 180" material="sign_reception" class="visual"/>
+    <geom class="visual" type="cylinder" pos="-1.9350 0.6960 1.5450" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom class="visual" type="cylinder" pos="-1.9350 0.6960 1.6550" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom class="visual" type="cylinder" pos="-1.4650 0.6960 1.5450" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom class="visual" type="cylinder" pos="-1.4650 0.6960 1.6550" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom type="box" pos="-1.7000 0.6905 1.6000" size="0.2620 0.0015 0.0745" material="sign_plate" class="visual"/>
+    <geom name="sign_office" type="box" pos="-1.7000 0.6865 1.6000" size="0.2500 0.0025 0.0625" material="sign_office" class="visual"/>
+    <geom class="visual" type="cylinder" pos="3.0650 0.6960 1.5450" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom class="visual" type="cylinder" pos="3.0650 0.6960 1.6550" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom class="visual" type="cylinder" pos="3.5350 0.6960 1.5450" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom class="visual" type="cylinder" pos="3.5350 0.6960 1.6550" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom type="box" pos="3.3000 0.6905 1.6000" size="0.2620 0.0015 0.0745" material="sign_plate" class="visual"/>
+    <geom name="sign_lab" type="box" pos="3.3000 0.6865 1.6000" size="0.2500 0.0025 0.0625" material="sign_lab" class="visual"/>
+    <geom class="visual" type="cylinder" pos="-2.4350 -0.6960 1.5450" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom class="visual" type="cylinder" pos="-2.4350 -0.6960 1.6550" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom class="visual" type="cylinder" pos="-1.9650 -0.6960 1.5450" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom class="visual" type="cylinder" pos="-1.9650 -0.6960 1.6550" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom type="box" pos="-2.2000 -0.6905 1.6000" size="0.2620 0.0015 0.0745" material="sign_plate" class="visual"/>
+    <geom name="sign_storage" type="box" pos="-2.2000 -0.6865 1.6000" size="0.2500 0.0025 0.0625" euler="0 0 180" material="sign_storage" class="visual"/>
+    <geom class="visual" type="cylinder" pos="2.5650 -0.6960 1.5450" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom class="visual" type="cylinder" pos="2.5650 -0.6960 1.6550" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom class="visual" type="cylinder" pos="3.0350 -0.6960 1.5450" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom class="visual" type="cylinder" pos="3.0350 -0.6960 1.6550" size="0.006 0.004" zaxis="0 1 0" material="handle"/>
+    <geom type="box" pos="2.8000 -0.6905 1.6000" size="0.2620 0.0015 0.0745" material="sign_plate" class="visual"/>
+    <geom name="sign_reception" type="box" pos="2.8000 -0.6865 1.6000" size="0.2500 0.0025 0.0625" euler="0 0 180" material="sign_reception" class="visual"/>
 
     <!-- Office furniture -->
     <geom name="office_desk_metal_office_desk_0" class="visual" type="mesh" mesh="metal_office_desk_0" material="metal_office_desk_m0" pos="-3.8000 4.5050 0.0000" euler="0 0 0.0"/>
@@ -713,12 +884,22 @@
     <geom name="office_desk_handle_3" type="box" pos="-3.0825 4.0495 0.2935" size="0.0575 0.0185 0.0050" material="desk_body" group="4"/>
     <geom name="office_desk_handle_4" type="box" pos="-3.0825 4.0495 0.4585" size="0.0575 0.0185 0.0050" material="desk_body" group="4"/>
     <geom name="office_desk_handle_5" type="box" pos="-3.0825 4.0495 0.6215" size="0.0575 0.0185 0.0050" material="desk_body" group="4"/>
-    <geom type="box" pos="-3.8000 4.6800 0.7930" size="0.0900 0.0700 0.0050" material="robot_dark" class="visual"/>
-    <geom type="box" pos="-3.8000 4.7000 0.8880" size="0.0200 0.0150 0.0900" material="robot_dark" class="visual"/>
-    <geom type="box" pos="-3.8000 4.6800 1.0480" size="0.3000 0.0120 0.1700" material="monitor" class="visual"/>
-    <geom type="box" pos="-3.8000 4.6680 1.0480" size="0.2850 0.0010 0.1550" material="screen" class="visual"/>
-    <geom type="box" pos="-3.8000 4.3800 0.7940" size="0.2100 0.0700 0.0060" material="robot_dark" class="visual"/>
-    <geom type="box" pos="-3.4200 4.3800 0.7960" size="0.0350 0.0500 0.0080" material="robot_dark" class="visual"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_0" material="proc_desk_set_m0" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_1" material="proc_desk_set_m1" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_2" material="proc_desk_set_m2" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_3" material="proc_desk_set_m3" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_4" material="proc_desk_set_m4" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_5" material="proc_desk_set_m5" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_6" material="proc_desk_set_m6" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_7" material="proc_desk_set_m7" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_8" material="proc_desk_set_m8" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_9" material="proc_desk_set_m9" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_10" material="proc_desk_set_m10" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_11" material="proc_desk_set_m11" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_12" material="proc_desk_set_m12" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_13" material="proc_desk_set_m13" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_desk_set_14" material="proc_desk_set_m14" pos="-3.8000 4.5050 0.7885" euler="0 0 0.0"/>
+    <geom type="box" pos="-3.5420 4.6592 0.8895" size="0.0012 0.0004 0.0012" material="led_white" class="visual"/>
     <geom name="office_chair_proc_office_chair_0" class="visual" type="mesh" mesh="proc_office_chair_0" material="proc_office_chair_m0" pos="-3.8000 3.6200 0.0000" euler="0 0 180.0"/>
     <geom name="office_chair_proc_office_chair_1" class="visual" type="mesh" mesh="proc_office_chair_1" material="proc_office_chair_m1" pos="-3.8000 3.6200 0.0000" euler="0 0 180.0"/>
     <geom name="office_chair_proc_office_chair_2" class="visual" type="mesh" mesh="proc_office_chair_2" material="proc_office_chair_m2" pos="-3.8000 3.6200 0.0000" euler="0 0 180.0"/>
@@ -824,8 +1005,10 @@
     <geom name="office_plant_pot_39" type="cylinder" pos="-0.4500 1.2500 0.7100" size="0.2345 0.0050" group="4" material="pot"/>
     <geom name="office_plant_pot_40" type="cylinder" pos="-0.4500 1.2500 0.7225" size="0.2359 0.0075" group="4" material="pot"/>
     <geom name="office_plant_pot_41" type="cylinder" pos="-0.4500 1.2500 0.7400" size="0.2393 0.0100" group="4" material="pot"/>
-    <geom class="visual" type="mesh" mesh="wall_clock_0" material="wall_clock_m0" pos="-2.7000 4.9760 1.7000" euler="0 0 0.0"/>
-    <geom class="visual" type="mesh" mesh="wall_clock_1" material="wall_clock_m1" pos="-2.7000 4.9760 1.7000" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_wall_clock_0" material="proc_wall_clock_m0" pos="-2.7000 4.9990 1.7500" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_wall_clock_1" material="proc_wall_clock_m1" pos="-2.7000 4.9990 1.7500" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_wall_clock_2" material="proc_wall_clock_m2" pos="-2.7000 4.9990 1.7500" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_wall_clock_3" material="proc_wall_clock_m3" pos="-2.7000 4.9990 1.7500" euler="0 0 0.0"/>
 
     <!-- Lab furniture -->
     <geom name="lab_bench_north" type="box" pos="2.6000 4.5500 0.4500" size="1.2000 0.4000 0.4500" material="lab_white"/>
@@ -1023,7 +1206,10 @@
     <geom type="box" pos="-1.1500 -3.1072 1.5902" size="0.1997 0.1096 0.0802" material="bin_grey" class="visual"/>
     <geom type="box" pos="-1.1500 -2.8176 1.6172" size="0.1916 0.1403 0.1072" material="bin_grey" class="visual"/>
     <geom type="box" pos="-1.1500 -2.5638 1.5813" size="0.1855 0.0671 0.0713" material="bin_grey" class="visual"/>
-    <geom name="storage_boxes" type="box" pos="-0.4500 -4.5500 0.3000" size="0.3000 0.3000 0.3000" material="cardboard"/>
+    <geom name="storage_boxes_proc_storage_carton_0" class="visual" type="mesh" mesh="proc_storage_carton_0" material="proc_storage_carton_m0" pos="-0.4500 -4.5500 0.0000" euler="0 0 0.0"/>
+    <geom name="storage_boxes_base" type="box" pos="-0.4500 -4.5500 0.1600" size="0.3000 0.2900 0.1600" material="cardboard" group="4"/>
+    <geom name="storage_boxes_proc_storage_carton_top_0" class="visual" type="mesh" mesh="proc_storage_carton_top_0" material="proc_storage_carton_top_m0" pos="-0.4400 -4.5600 0.3200" euler="0 0 94.0"/>
+    <geom name="storage_boxes_top_box" type="box" pos="-0.4400 -4.5600 0.4700" size="0.2600 0.1950 0.1500" euler="0 0 94.0" material="cardboard" group="4"/>
 
     <!-- Reception furniture -->
     <geom name="reception_counter" type="box" pos="3.5000 -2.2000 0.5500" size="0.9000 0.3000 0.5500" material="desk_wood"/>
@@ -1202,28 +1388,78 @@
     <geom name="reception_trash_bin_low" type="cylinder" pos="4.7500 -3.0000 0.0550" size="0.1320 0.0550" group="4" material="bin_dark"/>
     <geom name="reception_trash_bin_mid" type="cylinder" pos="4.7500 -3.0000 0.1650" size="0.1390 0.0550" group="4" material="bin_dark"/>
     <geom name="reception_trash_bin_top" type="cylinder" pos="4.7500 -3.0000 0.2860" size="0.1510 0.0660" group="4" material="bin_dark"/>
-    <geom name="storage_pallet" type="box" pos="-0.5000 -1.6000 0.3500" size="0.4000 0.3500 0.3500" material="cardboard"/>
-    <geom type="box" pos="-0.5000 -1.6000 0.0600" size="0.4020 0.3520 0.0600" material="pallet_wood" class="visual"/>
-    <geom type="box" pos="-0.7000 -1.7700 0.4400" size="0.1900 0.1600 0.0020" material="seam" class="visual"/>
-    <geom type="box" pos="-0.3000 -1.7700 0.4400" size="0.1900 0.1600 0.0020" material="seam" class="visual"/>
-    <geom type="box" pos="-0.7000 -1.4300 0.4400" size="0.1900 0.1600 0.0020" material="seam" class="visual"/>
-    <geom type="box" pos="-0.3000 -1.4300 0.4400" size="0.1900 0.1600 0.0020" material="seam" class="visual"/>
+    <geom name="storage_pallet_proc_storage_pallet_0" class="visual" type="mesh" mesh="proc_storage_pallet_0" material="proc_storage_pallet_m0" pos="-0.5000 -1.6000 0.0000" euler="0 0 0.0"/>
+    <geom name="storage_pallet_proc_storage_pallet_1" class="visual" type="mesh" mesh="proc_storage_pallet_1" material="proc_storage_pallet_m1" pos="-0.5000 -1.6000 0.0000" euler="0 0 0.0"/>
+    <geom name="storage_pallet_proc_storage_pallet_2" class="visual" type="mesh" mesh="proc_storage_pallet_2" material="proc_storage_pallet_m2" pos="-0.5000 -1.6000 0.0000" euler="0 0 0.0"/>
+    <geom name="storage_pallet_bottom_0" type="box" pos="-0.5000 -1.9000 0.0110" size="0.4000 0.0500 0.0110" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_bottom_1" type="box" pos="-0.5000 -1.6000 0.0110" size="0.4000 0.0500 0.0110" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_bottom_2" type="box" pos="-0.5000 -1.3000 0.0110" size="0.4000 0.0500 0.0110" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_block_0_0" type="box" pos="-0.8500 -1.9000 0.0610" size="0.0500 0.0500 0.0390" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_block_0_1" type="box" pos="-0.8500 -1.6000 0.0610" size="0.0500 0.0500 0.0390" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_block_0_2" type="box" pos="-0.8500 -1.3000 0.0610" size="0.0500 0.0500 0.0390" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_block_1_0" type="box" pos="-0.5000 -1.9000 0.0610" size="0.0725 0.0500 0.0390" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_block_1_1" type="box" pos="-0.5000 -1.6000 0.0610" size="0.0725 0.0500 0.0390" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_block_1_2" type="box" pos="-0.5000 -1.3000 0.0610" size="0.0725 0.0500 0.0390" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_block_2_0" type="box" pos="-0.1500 -1.9000 0.0610" size="0.0500 0.0500 0.0390" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_block_2_1" type="box" pos="-0.1500 -1.6000 0.0610" size="0.0500 0.0500 0.0390" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_block_2_2" type="box" pos="-0.1500 -1.3000 0.0610" size="0.0500 0.0500 0.0390" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_stringer_0" type="box" pos="-0.5000 -1.9000 0.1110" size="0.4000 0.0500 0.0110" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_stringer_1" type="box" pos="-0.5000 -1.6000 0.1110" size="0.4000 0.0500 0.0110" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_stringer_2" type="box" pos="-0.5000 -1.3000 0.1110" size="0.4000 0.0500 0.0110" material="pallet_wood" group="4"/>
+    <geom name="storage_pallet_load" type="box" pos="-0.5000 -1.6000 0.4230" size="0.4000 0.3500 0.3010" material="pallet_wood" group="4"/>
+
+    <!-- Wall and ceiling items: switches, sockets, signs, boards (visual only) -->
+    <geom class="visual" type="mesh" mesh="proc_switch_0" material="proc_switch_m0" pos="-1.8675 0.8010 1.0000" euler="0 0 180.0"/>
+    <geom class="visual" type="mesh" mesh="proc_socket_0" material="proc_socket_m0" pos="-1.6100 0.8010 0.2600" euler="0 0 180.0"/>
+    <geom class="visual" type="mesh" mesh="proc_switch_0" material="proc_switch_m0" pos="3.1325 0.8010 1.0000" euler="0 0 180.0"/>
+    <geom class="visual" type="mesh" mesh="proc_socket_0" material="proc_socket_m0" pos="3.3900 0.8010 0.2600" euler="0 0 180.0"/>
+    <geom class="visual" type="mesh" mesh="proc_switch_0" material="proc_switch_m0" pos="-2.3675 -0.8010 1.0000" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_socket_0" material="proc_socket_m0" pos="-2.1100 -0.8010 0.2600" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_switch_0" material="proc_switch_m0" pos="2.6325 -0.8010 1.0000" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_socket_0" material="proc_socket_m0" pos="2.8900 -0.8010 0.2600" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_switch_0" material="proc_switch_m0" pos="0.0510 4.1325 1.0000" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_socket_0" material="proc_socket_m0" pos="0.0510 4.3900 0.2600" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_thermostat_0" material="proc_thermostat_m0" pos="-1.8675 0.8010 1.4200" euler="0 0 180.0"/>
+    <geom class="visual" type="mesh" mesh="proc_exit_sign_0" material="proc_exit_sign_m0" pos="-4.9990 0.0000 2.0500" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_exit_sign_0" material="proc_exit_sign_m0" pos="4.9990 0.0000 2.0500" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_notice_board_0" material="proc_notice_board_m0" pos="-0.9000 0.6990 1.1500" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_first_aid_0" material="proc_first_aid_m0" pos="4.9990 4.6000 1.3000" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_safety_poster_0" material="proc_safety_poster_m0" pos="0.0510 2.2000 1.3000" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_trunking_0" material="proc_trunking_m0" pos="-0.0510 2.2500 0.7000" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_socket_0" material="proc_socket_m0" pos="-0.1015 1.8500 0.7100" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_socket_0" material="proc_socket_m0" pos="-0.1015 2.6500 0.7100" euler="0 0 -90.0"/>
+    <geom class="ceiling" type="mesh" mesh="proc_smoke_detector_0" material="proc_smoke_detector_m0" pos="-2.5000 2.0000 2.3640" euler="0 0 0.0"/>
+    <geom class="ceiling" type="mesh" mesh="proc_smoke_detector_0" material="proc_smoke_detector_m0" pos="2.5000 2.0000 2.3640" euler="0 0 0.0"/>
+    <geom class="ceiling" type="mesh" mesh="proc_smoke_detector_0" material="proc_smoke_detector_m0" pos="-2.5000 -2.0000 2.3640" euler="0 0 0.0"/>
+    <geom class="ceiling" type="mesh" mesh="proc_smoke_detector_0" material="proc_smoke_detector_m0" pos="2.5000 -2.0000 2.3640" euler="0 0 0.0"/>
+    <geom class="ceiling" type="mesh" mesh="proc_smoke_detector_0" material="proc_smoke_detector_m0" pos="0.0000 0.3500 2.3640" euler="0 0 0.0"/>
 
     <!-- Decor on the furnished floor (visual only): rugs, wall art, whiteboard, TV -->
     <geom type="box" pos="1.3000 -3.5500 0.0026" size="0.8500 0.6000 0.0024" material="rug_red_edge" class="visual"/>
     <geom type="box" pos="1.3000 -3.5500 0.0052" size="0.8460 0.5960 0.0001" material="rug_red" class="visual"/>
     <geom type="box" pos="-3.8000 3.9500 0.0026" size="0.9500 0.6500 0.0024" material="rug_blue_edge" class="visual"/>
     <geom type="box" pos="-3.8000 3.9500 0.0052" size="0.9460 0.6460 0.0001" material="rug_blue" class="visual"/>
-    <geom type="box" pos="-0.5000 -0.6880 1.5000" size="0.4300 0.0120 0.3000" material="window_frame" class="visual"/>
-    <geom type="box" pos="-0.5000 -0.6740 1.5000" size="0.4000 0.0020 0.2700" material="painting_1" class="visual"/>
-    <geom type="box" pos="0.9000 0.6880 1.5000" size="0.4300 0.0120 0.3000" material="window_frame" class="visual"/>
-    <geom type="box" pos="0.9000 0.6740 1.5000" size="0.4000 0.0020 0.2700" material="painting_2" class="visual"/>
-    <geom type="box" pos="0.0620 -2.6000 1.5000" size="0.0120 0.3800 0.2700" material="window_frame" class="visual"/>
-    <geom type="box" pos="0.0760 -2.6000 1.5000" size="0.0020 0.3500 0.2400" material="painting_2" class="visual"/>
-    <geom type="box" pos="-0.0620 1.9000 1.4000" size="0.0120 0.6300 0.3300" material="window_frame" class="visual"/>
-    <geom type="box" pos="-0.0760 1.9000 1.4000" size="0.0020 0.6000 0.3000" material="whiteboard" class="visual"/>
-    <geom type="box" pos="0.0620 -3.9000 1.2500" size="0.0120 0.5300 0.3100" material="robot_dark" class="visual"/>
-    <geom type="box" pos="0.0760 -3.9000 1.2500" size="0.0020 0.5000 0.2800" material="tv_screen" class="visual"/>
+    <geom class="visual" type="mesh" mesh="proc_print_a_0" material="proc_print_a_m0" pos="-0.5000 -0.6990 1.2000" euler="0 0 180.0"/>
+    <geom class="visual" type="mesh" mesh="proc_print_a_1" material="proc_print_a_m1" pos="-0.5000 -0.6990 1.2000" euler="0 0 180.0"/>
+    <geom class="visual" type="mesh" mesh="proc_print_b_0" material="proc_print_b_m0" pos="0.9000 0.6990 1.2000" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_print_b_1" material="proc_print_b_m1" pos="0.9000 0.6990 1.2000" euler="0 0 0.0"/>
+    <geom class="visual" type="mesh" mesh="proc_print_c_0" material="proc_print_c_m0" pos="0.0510 -2.6000 1.2300" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_print_c_1" material="proc_print_c_m1" pos="0.0510 -2.6000 1.2300" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_whiteboard_0" material="proc_whiteboard_m0" pos="-0.0510 1.9000 0.9800" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_whiteboard_1" material="proc_whiteboard_m1" pos="-0.0510 1.9000 0.9800" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_whiteboard_2" material="proc_whiteboard_m2" pos="-0.0510 1.9000 0.9800" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_whiteboard_3" material="proc_whiteboard_m3" pos="-0.0510 1.9000 0.9800" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_whiteboard_4" material="proc_whiteboard_m4" pos="-0.0510 1.9000 0.9800" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_whiteboard_5" material="proc_whiteboard_m5" pos="-0.0510 1.9000 0.9800" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_whiteboard_6" material="proc_whiteboard_m6" pos="-0.0510 1.9000 0.9800" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_whiteboard_7" material="proc_whiteboard_m7" pos="-0.0510 1.9000 0.9800" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_whiteboard_8" material="proc_whiteboard_m8" pos="-0.0510 1.9000 0.9800" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_whiteboard_9" material="proc_whiteboard_m9" pos="-0.0510 1.9000 0.9800" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_whiteboard_10" material="proc_whiteboard_m10" pos="-0.0510 1.9000 0.9800" euler="0 0 -90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_tv_0" material="proc_tv_m0" pos="0.0510 -3.9000 0.9500" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_tv_1" material="proc_tv_m1" pos="0.0510 -3.9000 0.9500" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_tv_2" material="proc_tv_m2" pos="0.0510 -3.9000 0.9500" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_tv_3" material="proc_tv_m3" pos="0.0510 -3.9000 0.9500" euler="0 0 90.0"/>
     <!-- /OBSTACLES -->
 
     <!-- Windows set into the outer walls (visual: the wall's hidden solid stays whole, like glass to a robot) -->
@@ -1418,8 +1654,15 @@
     <geom type="box" pos="5.0120 0.0000 1.7940" size="0.0080 0.5600 0.0120" material="blind_rail" class="visual"/>
     <light pos="4.900 0.000 1.800" dir="-1.00 0.00 -0.7" directional="false" cutoff="70" exponent="2" diffuse="0.15 0.17 0.21" specular="0 0 0" attenuation="1 0.2 0.05" castshadow="false"/>
 
-    <!-- Fire extinguisher on the corridor's west end wall (visual, mounted above robot height) -->
-    <geom type="cylinder" pos="-4.9450 0.4500 0.5500" size="0.0550 0.1700" material="extinguisher" class="visual"/>
+    <!-- Fire point on the corridor's west end wall (visual, above robot height): extinguisher, sign, call point -->
+    <geom class="visual" type="mesh" mesh="proc_extinguisher_0" material="proc_extinguisher_m0" pos="-4.9990 0.4500 0.5800" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_extinguisher_1" material="proc_extinguisher_m1" pos="-4.9990 0.4500 0.5800" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_extinguisher_2" material="proc_extinguisher_m2" pos="-4.9990 0.4500 0.5800" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_extinguisher_3" material="proc_extinguisher_m3" pos="-4.9990 0.4500 0.5800" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_fire_sign_0" material="proc_fire_sign_m0" pos="-4.9990 0.4500 1.3000" euler="0 0 90.0"/>
+    <geom class="visual" type="mesh" mesh="proc_call_point_0" material="proc_call_point_m0" pos="-4.9990 0.4500 1.5000" euler="0 0 90.0"/>
+    <geom class="ceiling" type="mesh" mesh="proc_dome_camera_0" material="proc_dome_camera_m0" pos="4.4000 -4.4000 2.3610" euler="0 0 0.0"/>
+    <geom class="ceiling" type="mesh" mesh="proc_dome_camera_1" material="proc_dome_camera_m1" pos="4.4000 -4.4000 2.3610" euler="0 0 0.0"/>
 
     <!-- Ceiling and light fittings: group 3, robot camera only (hidden in overview views) -->
     <geom name="ceiling" type="box" pos="0.0000 0.0000 2.4250" size="5.1000 5.1000 0.0250" material="ceiling" class="ceiling"/>

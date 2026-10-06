@@ -1,0 +1,63 @@
+{
+ "id": "proc_storage_pallet",
+ "name": "Pallet with cartons (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.8,
+  0.7025,
+  0.724
+ ],
+ "parts": [
+  {
+   "mesh": "proc_storage_pallet_0.msh",
+   "material": "carton",
+   "texture": "proc_storage_pallet_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.06,
+   "shininess": 0.1,
+   "reflectance": 0.0,
+   "faces": 96,
+   "vertices": 192
+  },
+  {
+   "mesh": "proc_storage_pallet_1.msh",
+   "material": "nail",
+   "texture": null,
+   "rgba": [
+    0.24,
+    0.24,
+    0.25,
+    1.0
+   ],
+   "specular": 0.4,
+   "shininess": 0.4,
+   "reflectance": 0.0,
+   "faces": 1344,
+   "vertices": 1428
+  },
+  {
+   "mesh": "proc_storage_pallet_2.msh",
+   "material": "pine",
+   "texture": "proc_storage_pallet_2.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.08,
+   "shininess": 0.12,
+   "reflectance": 0.0,
+   "faces": 264,
+   "vertices": 528
+  }
+ ],
+ "note": "members: bottom boards, blocks, stringer boards, deck and load"
+}

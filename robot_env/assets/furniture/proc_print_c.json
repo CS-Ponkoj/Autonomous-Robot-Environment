@@ -1,0 +1,47 @@
+{
+ "id": "proc_print_c",
+ "name": "Framed print (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.7,
+  0.025,
+  0.52
+ ],
+ "parts": [
+  {
+   "mesh": "proc_print_c_0.msh",
+   "material": "frame_oak",
+   "texture": "proc_print_c_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.25,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 3072,
+   "vertices": 1944
+  },
+  {
+   "mesh": "proc_print_c_1.msh",
+   "material": "print",
+   "texture": "proc_print_c_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.15,
+   "shininess": 0.2,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  }
+ ],
+ "note": "visual only, on a wall"
+}

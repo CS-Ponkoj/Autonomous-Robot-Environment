@@ -1,0 +1,255 @@
+{
+ "id": "proc_desk_set",
+ "name": "Monitor, keyboard, mouse, mug, notepad (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.947,
+  0.5194,
+  0.443
+ ],
+ "parts": [
+  {
+   "mesh": "proc_desk_set_0.msh",
+   "material": "cable",
+   "texture": null,
+   "rgba": [
+    0.05,
+    0.05,
+    0.05,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 204,
+   "vertices": 120
+  },
+  {
+   "mesh": "proc_desk_set_1.msh",
+   "material": "ceramic",
+   "texture": null,
+   "rgba": [
+    0.9,
+    0.89,
+    0.86,
+    1.0
+   ],
+   "specular": 0.55,
+   "shininess": 0.7,
+   "reflectance": 0.0,
+   "faces": 480,
+   "vertices": 352
+  },
+  {
+   "mesh": "proc_desk_set_2.msh",
+   "material": "coffee",
+   "texture": null,
+   "rgba": [
+    0.16,
+    0.09,
+    0.05,
+    1.0
+   ],
+   "specular": 0.6,
+   "shininess": 0.8,
+   "reflectance": 0.0,
+   "faces": 56,
+   "vertices": 56
+  },
+  {
+   "mesh": "proc_desk_set_3.msh",
+   "material": "key_case",
+   "texture": null,
+   "rgba": [
+    0.11,
+    0.11,
+    0.12,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.35,
+   "reflectance": 0.0,
+   "faces": 24,
+   "vertices": 48
+  },
+  {
+   "mesh": "proc_desk_set_4.msh",
+   "material": "keycap",
+   "texture": "proc_desk_set_4.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.25,
+   "shininess": 0.3,
+   "reflectance": 0.0,
+   "faces": 1260,
+   "vertices": 2520
+  },
+  {
+   "mesh": "proc_desk_set_5.msh",
+   "material": "monitor_body",
+   "texture": null,
+   "rgba": [
+    0.07,
+    0.07,
+    0.075,
+    1.0
+   ],
+   "specular": 0.35,
+   "shininess": 0.45,
+   "reflectance": 0.0,
+   "faces": 1536,
+   "vertices": 972
+  },
+  {
+   "mesh": "proc_desk_set_6.msh",
+   "material": "monitor_logo",
+   "texture": null,
+   "rgba": [
+    0.3,
+    0.3,
+    0.32,
+    1.0
+   ],
+   "specular": 0.6,
+   "shininess": 0.6,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  },
+  {
+   "mesh": "proc_desk_set_7.msh",
+   "material": "monitor_stand",
+   "texture": null,
+   "rgba": [
+    0.16,
+    0.16,
+    0.17,
+    1.0
+   ],
+   "specular": 0.5,
+   "shininess": 0.55,
+   "reflectance": 0.0,
+   "faces": 452,
+   "vertices": 264
+  },
+  {
+   "mesh": "proc_desk_set_8.msh",
+   "material": "mouse",
+   "texture": null,
+   "rgba": [
+    0.09,
+    0.09,
+    0.1,
+    1.0
+   ],
+   "specular": 0.45,
+   "shininess": 0.6,
+   "reflectance": 0.0,
+   "faces": 528,
+   "vertices": 288
+  },
+  {
+   "mesh": "proc_desk_set_9.msh",
+   "material": "mouse_pad",
+   "texture": null,
+   "rgba": [
+    0.12,
+    0.13,
+    0.15,
+    1.0
+   ],
+   "specular": 0.05,
+   "shininess": 0.1,
+   "reflectance": 0.0,
+   "faces": 768,
+   "vertices": 486
+  },
+  {
+   "mesh": "proc_desk_set_10.msh",
+   "material": "paper",
+   "texture": "proc_desk_set_10.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.05,
+   "shininess": 0.1,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  },
+  {
+   "mesh": "proc_desk_set_11.msh",
+   "material": "pen",
+   "texture": null,
+   "rgba": [
+    0.1,
+    0.18,
+    0.55,
+    1.0
+   ],
+   "specular": 0.5,
+   "shininess": 0.6,
+   "reflectance": 0.0,
+   "faces": 40,
+   "vertices": 42
+  },
+  {
+   "mesh": "proc_desk_set_12.msh",
+   "material": "pen_cap",
+   "texture": null,
+   "rgba": [
+    0.05,
+    0.1,
+    0.35,
+    1.0
+   ],
+   "specular": 0.5,
+   "shininess": 0.6,
+   "reflectance": 0.0,
+   "faces": 40,
+   "vertices": 42
+  },
+  {
+   "mesh": "proc_desk_set_13.msh",
+   "material": "pen_tip",
+   "texture": null,
+   "rgba": [
+    0.04,
+    0.04,
+    0.04,
+    1.0
+   ],
+   "specular": 0.6,
+   "shininess": 0.6,
+   "reflectance": 0.0,
+   "faces": 40,
+   "vertices": 42
+  },
+  {
+   "mesh": "proc_desk_set_14.msh",
+   "material": "screen",
+   "texture": "proc_desk_set_14.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.7,
+   "shininess": 0.9,
+   "reflectance": 0.0,
+   "faces": 2,
+   "vertices": 4
+  }
+ ],
+ "note": "visual only, on the office desk top"
+}

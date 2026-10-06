@@ -57,7 +57,6 @@ MODELS = {
     "metal_office_desk": (512, 8000),
     "steel_frame_shelves_01": (512, 6000),
     "potted_plant_01": (512, 43000, {"_pot": 25000, "_leaves": 18000}),
-    "wall_clock": (256, 3658),  # its own face count: not simplified (it is small)
 }
 WINDING_OK: dict[str, str] = {}  # model id -> why its inconsistent winding is accepted
 
@@ -486,6 +485,8 @@ def tool_record() -> dict:
     return {"tool": "tools/fetch_models.py", "tool_sha256": text_sha(Path(__file__)),
             "procedural_tool": "tools/proc_furniture.py",
             "procedural_tool_sha256": text_sha(Path(__file__).parent / "proc_furniture.py"),
+            "props_tool": "tools/proc_props.py",
+            "props_tool_sha256": text_sha(Path(__file__).parent / "proc_props.py"),
             "python": sys.version.split()[0], "packages": deps}
 
 
@@ -537,6 +538,8 @@ def main() -> int:
             import proc_furniture  # the procedural meshes are regenerated too, then compared
             proc_furniture.OUT = Path(tmp)
             proc_furniture.main()
+            import proc_props  # the procedural props (written through proc_furniture.OUT)
+            proc_props.main()
             build(Path(tmp), list(MODELS))
             a = {p.name: p.read_bytes() for p in Path(tmp).iterdir()}
             b = {p.name: p.read_bytes() for p in OUT.iterdir()}

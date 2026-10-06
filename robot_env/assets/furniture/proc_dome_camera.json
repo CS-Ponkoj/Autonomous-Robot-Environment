@@ -1,0 +1,47 @@
+{
+ "id": "proc_dome_camera",
+ "name": "Dome camera (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.12,
+  0.12,
+  0.044
+ ],
+ "parts": [
+  {
+   "mesh": "proc_dome_camera_0.msh",
+   "material": "dome",
+   "texture": null,
+   "rgba": [
+    0.12,
+    0.12,
+    0.13,
+    1.0
+   ],
+   "specular": 0.8,
+   "shininess": 0.9,
+   "reflectance": 0.0,
+   "faces": 704,
+   "vertices": 384
+  },
+  {
+   "mesh": "proc_dome_camera_1.msh",
+   "material": "plate",
+   "texture": "proc_dome_camera_1.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.3,
+   "shininess": 0.35,
+   "reflectance": 0.0,
+   "faces": 128,
+   "vertices": 130
+  }
+ ],
+ "note": "visual only, on the ceiling"
+}

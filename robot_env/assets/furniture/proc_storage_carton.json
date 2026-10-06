@@ -1,0 +1,31 @@
+{
+ "id": "proc_storage_carton",
+ "name": "Large carton (procedural)",
+ "authors": [],
+ "license": "procedural (this repository)",
+ "source": "tools/proc_furniture.py",
+ "size_m": [
+  0.6,
+  0.58,
+  0.32
+ ],
+ "parts": [
+  {
+   "mesh": "proc_storage_carton_0.msh",
+   "material": "carton",
+   "texture": "proc_storage_carton_0.png",
+   "rgba": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "specular": 0.06,
+   "shininess": 0.1,
+   "reflectance": 0.0,
+   "faces": 12,
+   "vertices": 24
+  }
+ ],
+ "note": "member: one box"
+}

@@ -55,9 +55,12 @@ def item(name, support=0.0):
         _item = None
 
 
-def model(model_id, pos, yaw=0.0):
+EMISSIVE = {"proc_exit_sign": 0.25}  # lit signs: their material glows a little (not a light source)
+
+
+def model(model_id, pos, yaw=0.0, cls="visual"):
     """A detailed furniture mesh (visual only) at its real size: the model's base centre at pos,
-    turned yaw degrees about z."""
+    turned yaw degrees about z. cls "ceiling" puts it with the ceiling (group 3, robot camera only)."""
     rec = json.loads((FURNITURE / f"{model_id}.json").read_text(encoding="utf-8"))
     if model_id not in _assets_done:
         _assets_done.add(model_id)
@@ -68,11 +71,12 @@ def model(model_id, pos, yaw=0.0):
             else:
                 look = 'rgba="' + " ".join(f"{c:.3f}" for c in part["rgba"]) + '"'
             furniture_assets.append(f'    <material name="{model_id}_m{k}" {look} specular="{part["specular"]}" '
-                                    f'shininess="{part["shininess"]}" reflectance="{part["reflectance"]}"/>')
+                                    f'shininess="{part["shininess"]}" reflectance="{part["reflectance"]}"'
+                                    + (f' emission="{EMISSIVE[model_id]}"' if model_id in EMISSIVE else "") + "/>")
             furniture_assets.append(f'    <mesh name="{model_id}_{k}" file="{part["mesh"]}" inertia="shell"/>')
     for k in range(len(rec["parts"])):
         name = f'name="{_item["name"]}_{model_id}_{k}" ' if _item is not None else ""
-        geoms.append(f'    <geom {name}class="visual" type="mesh" mesh="{model_id}_{k}" material="{model_id}_m{k}" '
+        geoms.append(f'    <geom {name}class="{cls}" type="mesh" mesh="{model_id}_{k}" material="{model_id}_m{k}" '
                      f'pos="{pos[0]:.4f} {pos[1]:.4f} {pos[2]:.4f}" euler="0 0 {yaw:.1f}"/>')
     placed = {"model": model_id, "pos": [round(float(c), 4) for c in pos], "yaw": float(yaw)}
     placed_models.append({**placed, "item": _item["name"] if _item is not None else None})
@@ -371,6 +375,94 @@ def end_table(name, pos, yaw=0.0):
                                  ("box", "top", (0, 0, 0.54), (0.23, 0.23, 0.01))], "desk_wood")
 
 
+# ----- props (tools/proc_props.py and small CC0 models) -----
+PALLET_T, PALLET_BLOCK = 0.022, 0.078  # board thickness and block height of the block pallet
+
+
+def pallet_load(name, xy, yaw=0.0):
+    """A block pallet (0.8 x 0.7 m) loaded with 2 x 2 x 2 cartons to 0.724 m. Members follow the
+    pallet's layers (bottom boards, blocks, stringer boards), then one box for the deck and the
+    load, which spans the lidar plane; everything below it lies inside its footprint."""
+    pos = (xy[0], xy[1], 0.0)
+    with item(name):
+        model("proc_storage_pallet", pos, yaw)
+        t, b = PALLET_T, PALLET_BLOCK
+        ys, xs = (-0.3, 0.0, 0.3), (-0.35, 0.0, 0.35)
+        parts = [("box", f"bottom_{i}", (0.0, y, t / 2), (0.4, 0.05, t / 2)) for i, y in enumerate(ys)]
+        parts += [("box", f"block_{i}_{j}", (x, y, t + b / 2), (0.0725 if x == 0.0 else 0.05, 0.05, b / 2))
+                  for i, x in enumerate(xs) for j, y in enumerate(ys)]
+        parts += [("box", f"stringer_{i}", (0.0, y, t + b + t / 2), (0.4, 0.05, t / 2)) for i, y in enumerate(ys)]
+        top = 2 * t + b
+        parts.append(("box", "load", (0.0, 0.0, (top + 0.724) / 2), (0.4, 0.35, (0.724 - top) / 2)))
+        members(name, pos, yaw, parts, "pallet_wood")
+
+
+def carton_stack(name, xy, yaw=0.0):
+    """A large carton on the floor (0.6 x 0.58 x 0.32 m) with a smaller one (0.52 x 0.39 x 0.30 m) set
+    on it, turned a little."""
+    pos = (xy[0], xy[1], 0.0)
+    with item(name):
+        model("proc_storage_carton", pos, yaw)
+        members(name, pos, yaw, [("box", "base", (0.0, 0.0, 0.16), (0.3, 0.29, 0.16))], "cardboard")
+        top, top_yaw = (pos[0] + 0.01, pos[1] - 0.01, 0.32), yaw + 94.0  # a smaller carton on it, turned
+        model("proc_storage_carton_top", top, top_yaw)
+        members(name + "_top", top, top_yaw, [("box", "box", (0.0, 0.0, 0.15), (0.26, 0.195, 0.15))], "cardboard")
+
+
+DESK_MONITOR = {"width": 0.54, "height": 0.33, "bottom": 0.105, "front_y": 0.155}  # proc_props.MONITOR
+
+
+def desk_set(pos):
+    """Monitor, keyboard, mouse, mug and notepad on a desk top (pos: the top's centre), and the
+    monitor's power light (the screen, switched off, is part of the mesh with its reflection baked in:
+    a reflective box showed no reflection in the classic renderer)."""
+    x, y, z = pos
+    model("proc_desk_set", (x, y, z + 0.0005))
+    m = DESK_MONITOR
+    box(None, (x + m["width"] / 2 - 0.012, y + m["front_y"] - 0.0008, z + 0.0005 + m["bottom"] - 0.004),
+        (0.0012, 0.0004, 0.0012), "led_white", cls="visual")  # the power light on the chin
+
+
+DOORS = (  # wall axis, wall centre line, door centre, the side the door swings into (as in build_floor)
+    ("x", CORRIDOR + T / 2, -2.5, +1), ("x", CORRIDOR + T / 2, 2.5, +1),
+    ("x", -CORRIDOR - T / 2, -3.0, -1), ("x", -CORRIDOR - T / 2, 2.0, -1),
+    ("y", 0.0, 3.5, +1),
+)
+
+
+def on_wall(model_id, axis, line, side, along, z, cls="visual"):
+    """A wall-mounted model (its back at its local y = 0, facing its local -y) on the face of the wall
+    whose centre line is `line` along `axis`, on `side` (+1 or -1 along the wall's normal), `along`
+    the wall, its base at height z, 1 mm off the face."""
+    face = line + side * (T / 2 + 0.001)
+    if axis == "x":
+        model(model_id, (along, face, z), 0.0 if side < 0 else 180.0, cls)
+    else:
+        model(model_id, (face, along, z), 90.0 if side > 0 else -90.0, cls)
+
+
+def wall_items():
+    """The building standard, from the door list: a light switch on the latch side of every door
+    (inside the room the door opens into) and a double socket beside it; plus a thermostat, exit
+    signs at the corridor ends, a notice board, a first aid cabinet, a safety poster, dado trunking
+    with sockets, and a smoke detector per room (ceiling group)."""
+    latch = DOOR_GAP / 2 + 0.07  # the architrave's outer edge on the latch side
+    for axis, line, c, into in DOORS:
+        on_wall("proc_switch", axis, line, into, c + latch + 0.0625, 1.0)
+        on_wall("proc_socket", axis, line, into, c + latch + 0.32, 0.26)
+    on_wall("proc_thermostat", "x", CORRIDOR + T / 2, +1, -2.5 + latch + 0.0625, 1.42)  # office
+    on_wall("proc_exit_sign", "y", -H - T / 2, +1, 0.0, 2.05)  # corridor ends
+    on_wall("proc_exit_sign", "y", H + T / 2, -1, 0.0, 2.05)
+    on_wall("proc_notice_board", "x", CORRIDOR + T / 2, -1, -0.9, 1.15)  # corridor
+    on_wall("proc_first_aid", "y", H + T / 2, -1, 4.6, 1.3)  # lab, east wall, beside the window
+    on_wall("proc_safety_poster", "y", 0.0, +1, 2.2, 1.3)  # lab, divider
+    on_wall("proc_trunking", "y", 0.0, -1, 2.25, 0.7)  # office divider, below the whiteboard
+    for along in (1.85, 2.65):
+        model("proc_socket", (-T / 2 - 0.0515, along, 0.71), -90.0)  # on the trunking's face
+    for x, y in ((-2.5, 2.0), (2.5, 2.0), (-2.5, -2.0), (2.5, -2.0), (0.0, 0.35)):  # corridor: off the axis, 0.15 m clear of the panels
+        model("proc_smoke_detector", (x, y, WH - 0.001 - 0.035), 0.0, "ceiling")
+
+
 def office_chair(name, pos, yaw=0.0):
     """Four-legged office chair (procedural, tools/proc_furniture.py): legs from the floor to the
     seat (they cross the lidar plane), back posts, seat pan and seat, the reclined back (two boxes,
@@ -657,10 +749,27 @@ def door_leaf(name, axis, fixed, center, into):
 
 
 def label(name, pos, axis, texture_material, facing=-1):
-    """A room sign. A box face maps its texture mirrored on one side, so signs facing +y
-    are turned 180 degrees to read correctly."""
-    half = (0.25, 0.006, 0.0625) if axis == "x" else (0.006, 0.25, 0.0625)
-    box(name, pos, half, texture_material, cls="visual", euler=180 if facing > 0 else None)
+    """A room sign, mounted like a real door sign: four chrome standoffs from the wall, a brushed
+    aluminium backing plate 8 to 11 mm out, and the printed panel on its face. pos: the panel's old
+    position (its back 4 mm inside the wall face); the wall face is found from it. A box face maps its
+    texture mirrored on one side, so signs facing +y are turned 180 degrees to read correctly."""
+    wall = (pos[1] if axis == "x" else pos[0]) + facing * 0.004  # the wall face behind the sign
+
+    def at(out, along=0.0, dz=0.0):  # a point `out` metres from the wall face into the room
+        w = wall + facing * out
+        return (pos[0] + along, w, pos[2] + dz) if axis == "x" else (w, pos[1] + along, pos[2] + dz)
+
+    def half(a, o, u):
+        return (a, o, u) if axis == "x" else (o, a, u)
+    for da in (-0.235, 0.235):
+        for dz in (-0.055, 0.055):
+            sp = at(0.004, da, dz)
+            zaxis = "0 1 0" if axis == "x" else "1 0 0"
+            geoms.append(f'    <geom class="visual" type="cylinder" pos="{sp[0]:.4f} {sp[1]:.4f} {sp[2]:.4f}" '
+                         f'size="0.006 0.004" zaxis="{zaxis}" material="handle"/>')
+    box(None, at(0.0095), half(0.262, 0.0015, 0.0745), "sign_plate", cls="visual")
+    box(name, at(0.0135), half(0.25, 0.0025, 0.0625), texture_material, cls="visual",
+        euler=180 if facing > 0 else None)
 
 
 def _on_wall(center, axis, facing, along, out, z):
@@ -827,17 +936,12 @@ def build_floor():
     comment("Office furniture")
     office_desk("office_desk", (-3.8, 4.505, 0.0))
     top = OFFICE_DESK_TOP
-    box(None, (-3.8, 4.68, top + 0.005), (0.09, 0.07, 0.005), "robot_dark", cls="visual")  # monitor stand
-    box(None, (-3.8, 4.70, top + 0.10), (0.02, 0.015, 0.09), "robot_dark", cls="visual")
-    box(None, (-3.8, 4.68, top + 0.26), (0.3, 0.012, 0.17), "monitor", cls="visual")
-    box(None, (-3.8, 4.668, top + 0.26), (0.285, 0.001, 0.155), "screen", cls="visual")
-    box(None, (-3.8, 4.38, top + 0.006), (0.21, 0.07, 0.006), "robot_dark", cls="visual")  # keyboard
-    box(None, (-3.42, 4.38, top + 0.008), (0.035, 0.05, 0.008), "robot_dark", cls="visual")  # mouse
+    desk_set((-3.8, 4.505, top))
     office_chair("office_chair", (-3.8, 3.62, 0.0), 180.0)  # tucked in at the kneehole (seat 0.21 m from the desk)
     steel_shelf("office_bookshelf", (-4.74, 2.4, 0.0), 90.0, books_seed=11)
     filing_cabinet("office_cabinet", (-0.45, 4.674, 0.0))
     planter("office_plant", (-0.45, 1.25))
-    model("wall_clock", (-2.7, H - 0.024, 1.7))  # on the north wall between the windows (visual, high up)
+    model("proc_wall_clock", (-2.7, H - 0.001, 1.75))  # on the north wall between the windows (visual, high up)
 
     comment("Lab furniture")
     box("lab_bench_north", (2.6, 4.55, 0.45), (1.2, 0.4, 0.45), "lab_white")
@@ -862,7 +966,7 @@ def build_floor():
     shelving_unit("storage_shelf_west", (-4.75, -3.0), (0.25, 1.2), 2.0, 4, seed=2)
     shelving_unit("storage_shelf_mid", (-2.9, -3.5), (0.25, 1.2), 2.0, 4, seed=3)
     shelving_unit("storage_shelf_east", (-1.15, -3.5), (0.25, 1.2), 2.0, 4, seed=4)
-    box("storage_boxes", (-0.45, -4.55, 0.3), (0.3, 0.3, 0.3), "cardboard")
+    carton_stack("storage_boxes", (-0.45, -4.55))
 
     comment("Reception furniture")
     box("reception_counter", (3.5, -2.2, 0.55), (0.9, 0.3, 0.55), "desk_wood")
@@ -888,27 +992,29 @@ def build_floor():
     cyl("lab_stool_2", (3.72, 1.83, 0.25), 0.17, 0.25, "bin_dark")
     standing_lamp("reception_lamp", (4.78, -4.78, 0.0))  # in the south-east corner, 9 cm to both walls
     waste_bin("reception_trash_bin", (4.75, -3.0, 0.0))  # 10 cm to the east wall
-    box("storage_pallet", (-0.5, -1.6, 0.35), (0.4, 0.35, 0.35), "cardboard")
-    box(None, (-0.5, -1.6, 0.06), (0.402, 0.352, 0.06), "pallet_wood", cls="visual")
-    for i, (dx, dy) in enumerate(((-0.2, -0.17), (0.2, -0.17), (-0.2, 0.17), (0.2, 0.17))):
-        box(None, (-0.5 + dx, -1.6 + dy, 0.44), (0.19, 0.16, 0.002), "seam", cls="visual")
+    pallet_load("storage_pallet", (-0.5, -1.6))
+    comment("Wall and ceiling items: switches, sockets, signs, boards (visual only)")
+    wall_items()
     comment("Decor on the furnished floor (visual only): rugs, wall art, whiteboard, TV")
     # rugs: a 5 mm pile (its bound edge darker) with the woven design on top
     for (cx, cy), (hx, hy), name in (((1.3, -3.55), (0.85, 0.6), "rug_red"), ((-3.8, 3.95), (0.95, 0.65), "rug_blue")):
         box(None, (cx, cy, 0.0026), (hx, hy, 0.0024), f"{name}_edge", cls="visual")
         box(None, (cx, cy, 0.00515), (hx - 0.004, hy - 0.004, 0.00015), name, cls="visual")
-    wall_picture((-0.5, -CORRIDOR), "x", +1, (0.4, 0.27), 1.5, "painting_1")
-    wall_picture((0.9, CORRIDOR), "x", -1, (0.4, 0.27), 1.5, "painting_2")
-    wall_picture((T / 2, -2.6), "y", +1, (0.35, 0.24), 1.5, "painting_2")
-    wall_picture((-T / 2, 1.9), "y", -1, (0.6, 0.3), 1.4, "whiteboard")
-    wall_picture((T / 2, -3.9), "y", +1, (0.5, 0.28), 1.25, "tv_screen", frame="robot_dark")
+    on_wall("proc_print_a", "x", -CORRIDOR - T / 2, +1, -0.5, 1.2)  # framed prints, centres near 1.5 m
+    on_wall("proc_print_b", "x", CORRIDOR + T / 2, -1, 0.9, 1.2)
+    on_wall("proc_print_c", "y", 0.0, +1, -2.6, 1.23)
+    model("proc_whiteboard", (-T / 2 - 0.001, 1.9, 0.98), -90.0)  # on the divider, facing the office
+    on_wall("proc_tv", "y", 0.0, +1, -3.9, 0.95)  # reception: a 47-inch TV, switched off
     geoms.append("    <!-- /OBSTACLES -->")
 
     comment("Windows set into the outer walls (visual: the wall's hidden solid stays whole, like glass to a robot)")
     for k, w in enumerate(WINDOWS):
         window(k, *w)
-    comment("Fire extinguisher on the corridor's west end wall (visual, mounted above robot height)")
-    cyl(None, (-H + 0.055, 0.45, 0.55), 0.055, 0.17, "extinguisher", cls="visual")
+    comment("Fire point on the corridor's west end wall (visual, above robot height): extinguisher, sign, call point")
+    on_wall("proc_extinguisher", "y", -H - T / 2, +1, 0.45, 0.58)  # the handle at about 1.1 m
+    on_wall("proc_fire_sign", "y", -H - T / 2, +1, 0.45, 1.3)
+    on_wall("proc_call_point", "y", -H - T / 2, +1, 0.45, 1.5)
+    model("proc_dome_camera", (4.4, -4.4, WH - 0.001 - 0.038), 0.0, "ceiling")  # reception, over the seating; ring against the ceiling
 
     comment("Ceiling and light fittings: group 3, robot camera only (hidden in overview views)")
     box("ceiling", (0, 0, WH + 0.025), (H + T, H + T, 0.025), "ceiling", cls="ceiling")
@@ -1171,6 +1277,9 @@ HEADER = """<!--
     <material name="chair_base" rgba="0.12 0.12 0.13 1" specular="0.5" shininess="0.6"/>
     <material name="fabric_light" rgba="0.44 0.5 0.58 1"/>
     <material name="monitor" rgba="0.08 0.08 0.09 1" specular="0.4"/>
+    <material name="screen_off" rgba="0.025 0.027 0.03 1" specular="0.7" shininess="0.9" reflectance="0.3"/>
+    <material name="led_white" rgba="0.85 0.95 1 1" emission="1"/>
+    <material name="sign_plate" rgba="0.72 0.73 0.74 1" specular="0.7" shininess="0.6"/>
     <material name="screen" rgba="0.12 0.2 0.3 1" emission="0.35" specular="0.8"/>
     <material name="glass_ware" rgba="0.75 0.85 0.9 0.45" specular="0.9" shininess="0.9"/>
     <material name="cardboard_dark" rgba="0.6 0.47 0.32 1"/>
