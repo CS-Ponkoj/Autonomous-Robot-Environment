@@ -567,6 +567,38 @@ def test_camera_moves_smoothly_on_real_routes(seed, view):
     assert still["settled_last_s_max_m"] <= 0.002, still
 
 
+def test_the_chase_camera_holds_its_zoom_through_the_demo_route():
+    """Regression (owner: the camera zooms in and out by itself during the demo, through the
+    office-lab door and in the opening turn): side beams and look-ahead that the view never reaches
+    pulled it in, and the limit followed one-frame room dips. On the README demo route (seed 1000,
+    the baseline driver, chase view) the camera now stays out and barely moves."""
+    import numpy as np
+    from robot_env import config as C
+    from robot_env.app import ViewCamera
+    from robot_env.baseline import BaselineDriver
+    from robot_env.layout import RoomMap
+    from robot_env.system import RobotSystem
+    s = RobotSystem(cats=0)
+    task = RoomMap(s.sim.model).sample_task(1000)
+    s.reset(*task.start, task.goal)
+    cam, driver, next_decision, dists = ViewCamera(), BaselineDriver(), 0.0, []
+    for _ in range(int(16 * 60)):
+        if s.time >= next_decision - 1e-9:
+            s.apply(driver.decide(s.observe()))
+            next_decision = s.time + C.DECISION_PERIOD
+        s.advance(1 / 60)
+        dists.append(cam.apply(s.sim, 1 / 60).distance)
+        if s.observe().goal_distance <= C.GOAL_RADIUS:
+            break
+    s.close()
+    d = np.array(dists)
+    travel = float(np.abs(np.diff(d)).sum())
+    assert d.min() >= 1.0, d.min()  # was 0.40 (the doorway)
+    assert travel <= 2.0, travel  # was 5.3 m of zooming in and out
+    steps = np.diff(d)[np.abs(np.diff(d)) > 1e-4]
+    assert int(np.sum(np.diff(np.sign(steps)) != 0)) <= 8  # was 49 reversals
+
+
 def test_wheel_always_changes_the_requested_zoom_and_tight_spaces_show_a_cue():
     from robot_env.app import ViewCamera
     from robot_env.sim import RobotSim

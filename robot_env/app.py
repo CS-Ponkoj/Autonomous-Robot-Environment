@@ -184,7 +184,6 @@ class ViewCamera:
     ZOOM_RATE = 45.0  # 1/s: critically damped follow, 90 percent of a notch in 86 ms, no overshoot
     LIMIT_IN_TAU = 0.10  # s, pulling in ahead of an obstruction
     LIMIT_HYST = 0.05  # m, the limit grows back only when the room exceeds it by this much
-    LOOKAHEAD = (-16.0, -8.0, 8.0, 16.0)  # degrees around the azimuth the camera turns to, checked for room
     BEAM = ((0.35, 0.0), (-0.35, 0.0), (0.24, 0.0), (-0.24, 0.0), (0.12, 0.0), (-0.12, 0.0), (0.06, 0.0),
             (-0.06, 0.0), (0.0, 0.15), (0.0, 0.3), (0.0, -0.06))  # m (sideways, up):
     # parallel room rays, so an edge (a door jamb) is seen well before the line of sight reaches it
@@ -195,6 +194,9 @@ class ViewCamera:
     SEARCH_PER_FRAME = 6  # candidate poses checked per frame while looking for a new one
     MIN_VIEW = 0.60  # m: closer than this the view loses the route around the robot
     CLOSEST = 0.40  # m: an edge crossing the line of sight may pull the camera this close, smoothly
+    SWEEP_DEG = 2.0  # degrees between the shown and the aimed azimuth before the view counts as turning
+    ROOM_HOLD = 0.12  # s a room dip must last before the smoothed limit follows it
+    INNER_BEAM = 0.13  # m: side beams this close to the line of sight always count; wider ones only on the sweep side
     _BEAM_SIDE = np.array([b[0] for b in BEAM])
     _BEAM_LIFT = np.array([b[1] for b in BEAM])
     _BEAM_REACH = np.hypot(_BEAM_SIDE, _BEAM_LIFT)
@@ -254,6 +256,9 @@ class ViewCamera:
         self._tilt_dir = 0.0  # direction of the drag's tilt (+1 up, -1 down) while it lasts
         self.ignore_drag = False  # the press went to a panel or menu: its drag does not turn the view
         self._targets = []
+        self._sweep = 0  # which way the view is sweeping (-1, 0, +1): see apply()
+        self._turn = 0.0  # degrees of turn still to come (shown to aimed azimuth)
+        self._room_hist = []  # (clock, room) of the last ROOM_HOLD seconds
 
     def handle_event(self, event: pygame.event.Event) -> None:
         """Left-drag turns and tilts the view (applied directly, the same frame); the wheel zooms."""
@@ -346,6 +351,13 @@ class ViewCamera:
             self._look += (target_look - self._look) * self._alpha(dt, self.LOOK_TAU)
         self.cam.lookat[:] = self._look
         targets = self._targets = self._sight_targets(sim, x, y, yaw)
+        # Which way the view is about to sweep (the outer side beams look only that way): toward the
+        # angle the camera is heading for, when it is more than SWEEP_DEG away from what is shown.
+        aim = heading + self.azimuth + self._detour[0]
+        shown = self._shown[0] if self._shown is not None else aim
+        turn = (aim - shown + 180.0) % 360.0 - 180.0
+        self._sweep = 0 if abs(turn) < self.SWEEP_DEG else (1 if turn > 0 else -1)
+        self._turn = turn  # the rest of the turn: the look-ahead checks only the angles it will pass
 
         # Line-of-sight detour, spring-arm style: a pose that hides the robot first pulls the camera
         # in along its own line (in front of whatever hides it); a pose is kept while that leaves
@@ -451,12 +463,18 @@ class ViewCamera:
         ahead = min([self._beam_room(sim, az, target_elev), goal_clear, self._beam_room(sim, heading_az, target_elev),
                      self._bubble_distance(sim, heading_az, target_elev, min(goal_clear, self.distance))]
                     + [self._clear_distance(sim, az, el + d) for d in (-6.0, -3.0, 3.0)]
-                    + [self._clear_distance(sim, heading_az + d, e) for d in self.LOOKAHEAD for e in (el, target_elev)])
+                    + [self._clear_distance(sim, az + f * self._turn, e) for f in (0.5, 1.0) for e in (el, target_elev)])
         # Directions the camera is not facing yet pull it in early, but never below MIN_VIEW: a door
         # frame beside the robot is not a reason to collapse the view (if the line of sight itself
         # gets that tight, the pose is switched for a roomier one).
         room = min(hard_room, max(near, self.CLOSEST), max(ahead, self.MIN_VIEW))
         room = min(room, 2.0 * self.distance)  # beyond this the limit does not matter
+        # Only a dip that lasts pulls the smoothed limit in: the room terms flicker for a frame or two
+        # as rays sweep past edges while the view turns, and a real obstruction is already met by the
+        # hard cap (applied every frame). The limit follows the largest room of the last ROOM_HOLD s.
+        self._room_hist = [(t_, r_) for t_, r_ in self._room_hist if self._clock - t_ < self.ROOM_HOLD]
+        self._room_hist.append((self._clock, room))
+        room = max(r_ for _, r_ in self._room_hist)
         self.room = room  # what the walls allow around the current and upcoming pose (diagnostics, cue)
         if snap or self._limit == math.inf or (was_free and room >= self._limit):
             # nothing to ease: the limit is not what the camera shows (the zoom spring is), so it
@@ -675,8 +693,12 @@ class ViewCamera:
 
     def _beam_room(self, sim, azimuth: float, elevation: float) -> float:
         """Room along rays parallel to the line of sight, offset sideways and up: an edge (a door
-        frame) is seen before the line of sight itself reaches it, so the camera glides in early."""
-        key = (round(azimuth, 2), round(elevation, 2))
+        frame) is seen before the line of sight itself reaches it, so the camera glides in early.
+        The outer side rays count only on the side the view is sweeping toward (a jamb beside a
+        straight drive through a door never crosses the line of sight, so it no longer pulls the
+        camera in and lets it out again)."""
+        sweep = getattr(self, "_sweep", 0)
+        key = (round(azimuth, 2), round(elevation, 2), sweep, round(getattr(self, "_turn", 0.0)))
         cache = getattr(self, "_beam_cache", None)
         if cache is not None and key in cache:
             return cache[key]
@@ -691,9 +713,17 @@ class ViewCamera:
         gaps = sim.rays_to_view_blocker(look, offsets / self._BEAM_REACH[:, None], self._BEAM_REACH.max() + 0.06)
         best = math.inf
         for i in range(len(offsets)):
+            side = self._BEAM_SIDE[i]
+            if abs(side) > self.INNER_BEAM and side * sweep <= 0:
+                continue  # an outer beam away from (or without) the sweep: that edge will not cross
             if 0 <= gaps[i] <= self._BEAM_REACH[i] + 0.05:
                 continue  # this ray would start inside or behind a wall next to the robot: not room ahead
             hit = sim.ray_to_view_blocker(look + offsets[i], back)
+            if hit >= 0 and abs(side) > self.INNER_BEAM:
+                # an outer edge crosses the line of sight only if the view still turns far enough to
+                # reach it: atan(side / distance) (a jamb just behind the robot needs a large turn)
+                if math.degrees(math.atan2(abs(side), max(hit, 1e-3))) > abs(getattr(self, "_turn", 0.0)) + self.SWEEP_DEG:
+                    continue
             if hit >= 0:
                 best = min(best, max(hit - self.MARGIN, 0.02))
         if cache is not None:
