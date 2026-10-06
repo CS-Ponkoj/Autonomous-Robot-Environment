@@ -69,7 +69,8 @@ In PowerShell, in this folder:
 ```
 
 This creates `.venv\` and installs the pinned packages from `requirements.txt`
-(MuJoCo, Gymnasium, Pygame, NumPy, Numba, pytest). It ends with "Setup OK" and the
+(MuJoCo, Gymnasium, Pygame, NumPy, Numba, pytest), held to the exact versions tested by
+`requirements.lock` (every package they pull in). It ends with "Setup OK" and the
 installed versions. Numba compiles the cats' numeric code (their skeletons, clearance checks, and
 planning) on the first run, which takes a few seconds once; it is needed for the cats to run in
 real time. Without it the same code runs as plain Python with identical results, about 20 times
@@ -220,12 +221,21 @@ continue; if a banner asks you to release a key, release it and press again.
     noise, latency, motion distortion, or dropouts other than injected
     faults (a real low-cost lidar also scans more slowly, 5 to 15 times per
     second).
+  - **Depth sensor:** forward-facing from the camera's mount, 64 × 36 rays over 80° × 50°,
+    tilted 20° down, 0.15 to 3 m, 30 frames per second, levelled by the robot's IMU (the body
+    pitches a few degrees when it speeds up or brakes). It sees what the lidar plane passes
+    over: anything on the floor lower than the robot's own top (0.14 m), ahead of the robot.
   - **Camera:** forward-facing, 75° field of view.
   - **Wheel encoders:** measured speed.
   - **Goal sensor:** distance and bearing to the goal.
 - **Safety layer:** 50 times a second, it predicts the robot's path for the
   requested command (including the time to brake) and keeps a 5 cm gap to
-  anything the lidar sees. If the full command is unsafe, it first keeps the
+  anything the lidar or the depth sensor sees. A lidar reading that drops out
+  takes its ray's last return for up to 0.1 s (moved by the robot's own motion), so
+  random dropouts do not stop it; a gap that lasts longer is an unknown sector it will
+  not drive into. Low things the depth sensor saw are remembered once the robot is too
+  close to see them, and a depth frame older than 0.1 s allows no forward motion.
+  If the full command is unsafe, it first keeps the
   requested turning and reduces the forward speed, then scales the whole
   command down, and otherwise stops. Near an obstacle, moves that would bring
   it closer are refused, while moves away from it are allowed.
@@ -234,7 +244,8 @@ continue; if a banner asks you to release a key, release it and press again.
 
 - The goal sensor is ideal. A real robot would need localization.
 - The lidar sees only one horizontal plane. Things below or above it (a low
-  step, a table top) are invisible to it. Objects thinner than the gap
+  step, a table top) are invisible to it; the depth sensor covers what is low and
+  ahead, but beside and behind the robot only the lidar sees. Objects thinner than the gap
   between neighboring rays can still be missed (in the tested approaches, a
   2.4 cm pole and 4 cm door edges were detected and avoided). A separate contact check records any
   collision honestly, but it does not prevent it.
