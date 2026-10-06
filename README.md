@@ -480,11 +480,37 @@ obs, reward, terminated, truncated, info = env.step([0.3, 0.0])  # [v m/s, omega
 `robot_env/baseline.py` is a rule-based reference driver, so later changes can be compared
 honestly. It sees only the observation, like any driver:
 - it integrates its own odometry from the encoder speeds;
-- it builds its own occupancy map from the lidar;
-- it plans to the goal on that map and backs up when stuck.
+- it maps what the lidar hits, and the low things only the depth sensor sees; a cell seen only
+  briefly (a passing cat) lapses after 2 s;
+- it plans to the goal on that map, and with no route known it explores toward the edge of what
+  it has seen;
+- when it cannot move it remembers that spot, plans around it, and backs up only into space the
+  lidar shows clear (otherwise it turns toward the roomier side).
 
-On the held-out goals with ideal sensors it reaches 8, 9, and 10 of 10 goals at levels 1, 2,
-and 5, with no collisions. Its failures come from odometry drift on long runs.
+Results with ideal sensors, levels 1 / 2 / 5 (no collisions in any episode):
+
+| Seeds | Goals reached |
+|---|---|
+| held-out, 1000 to 1009 | 9 / 10 / 10 of 10 |
+| unseen, 5000 to 5029 (never used for tuning) | 21 / 27 / 26 of 30 |
+| trapped, 4002 and 4016 (from a QA report) | 1 / 1 / 2 of 2 |
+
+Most failures are timeouts at the slowest level; seed 4002 still traps it at levels 1 and 2.
+
+Benchmarks (each writes its result, with the exact command, commit, and versions, to `--out`):
+
+```powershell
+.venv\Scripts\python tools\eval_baseline.py --set heldout --levels 1 2 5 --out qa_outputaseline_heldout.json
+.venv\Scripts\python tools\eval_baseline.py --set unseen --levels 1 2 5 --no-strict --out qa_outputaseline_unseen.json
+.venv\Scripts\python tools\eval_baseline.py --set trapped --levels 1 2 5 --no-strict
+# seeded faults, each episode run clean and faulty side by side:
+.venv\Scripts\python tools\eval_baseline.py --set heldout --levels 2 --paired --dropout 0.05 --noise 0.02 --obstacle-on-path 0.10 --no-strict
+```
+
+Fault options: `--dropout P`, `--noise M`, `--bias M`, `--outage START END`, `--decision-period S`,
+`--obstacle-on-path HEIGHT`, `--fault-seed N`. Each episode reports progress toward the goal,
+time standing still, and odometry drift as well as the outcome. Tested on Windows 11 (an RTX 5060
+laptop); one tester has also run it on macOS on Apple silicon.
 
 ### Drive logs
 
