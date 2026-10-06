@@ -311,8 +311,8 @@ def test_the_robot_keeps_moving_through_random_dropout():
     three seeded runs; tools runs 100)."""
     for seed in range(3):
         s = RobotSystem()
+        s.faults.dropout, s.faults.seed = 0.05, seed
         s.reset(-4.3, 0.0, 0.0, (4.5, 0.0))
-        s.lidar_dropout, s._fault_rng = 0.05, np.random.default_rng(seed)
         moving = ticks = 0
         still = longest = 0.0
         while s.time < 6.5:

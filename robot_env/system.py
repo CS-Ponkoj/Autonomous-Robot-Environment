@@ -31,6 +31,20 @@ class SafetyEvent:
     # for an ordinary change, zero for a hard stop (hard stops zero the motors at once)
 
 
+@dataclass
+class SensorFaults:
+    """Seeded lidar faults for evaluation (all off by default). The random draws restart from
+    `seed` at every reset, so a run repeats exactly and paired runs see the same faults."""
+    dropout: float = 0.0  # chance each reading is dropped (invalid), per scan
+    noise: float = 0.0  # m: standard deviation of the range noise on each return
+    bias: float = 0.0  # m added to every return
+    outage: tuple[float, float] | None = None  # (start, end) s after reset: no new scans (they go stale)
+    seed: int = 0
+
+    def active(self) -> bool:
+        return bool(self.dropout or self.noise or self.bias or self.outage)
+
+
 class RobotSystem:
     def __init__(self, sim: RobotSim | None = None, safety: SafetyLayer | None = None, cats: int = 0,
                  cat_seed: int = 0):
@@ -54,7 +68,7 @@ class RobotSystem:
         self.safety = safety or SafetyLayer()
         self.flags = SafetyFlags()
         self.scan_enabled = True  # test hook: False freezes the lidar to make it stale
-        self.lidar_dropout = 0.0  # fault hook: the chance each reading is dropped (invalid), per scan
+        self.faults = SensorFaults()  # evaluation hook: seeded lidar faults (none by default)
         self._fault_rng = np.random.default_rng(0)
         self._ctrl_every = round(C.CONTROL_PERIOD / C.PHYSICS_DT)
         self.log = None  # optional DriveLog (robot_env/drive_log.py); written after each tick's decisions
@@ -84,6 +98,8 @@ class RobotSystem:
         self._target = STOP  # latest approved command; the smoother moves toward it every physics step
         self.applied = STOP
         self.sim.reset(x, y, yaw, goal_xy)
+        self._fault_rng = np.random.default_rng(self.faults.seed)  # the same faults every run
+        self._reset_time = self.sim.time
         if self.cats is not None:
             self.cats.reset((x, y), goal_xy)
             mujoco_forward(self.sim)
@@ -321,12 +337,13 @@ class RobotSystem:
 
     def _control_tick(self) -> None:
         now = self.sim.time
-        if self.scan_enabled:
+        f = self.faults
+        out = f.outage is not None and f.outage[0] <= now - self._reset_time < f.outage[1]
+        if self.scan_enabled and not out:
             self._scan, self._scan_valid = self.sim.scan()
             self._scan_time = now
-            if self.lidar_dropout > 0.0:
-                drop = self._fault_rng.random(len(self._scan_valid)) < self.lidar_dropout
-                self._scan_valid = self._scan_valid & ~drop
+            if f.active():
+                self._scan, self._scan_valid = self._apply_faults(self._scan, self._scan_valid)
         self._obs = self._build_observation()
         result = self.safety.filter(self._requested, self._issued_at, self._obs, now, self.flags)
         self._target = result.command
@@ -347,6 +364,16 @@ class RobotSystem:
         self.last_result = result
         if self.log is not None:
             self.log.tick(self)  # after every decision of this tick: logging cannot change them
+
+    def _apply_faults(self, scan: np.ndarray, valid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        f, rng = self.faults, self._fault_rng
+        hit = valid & (scan < C.LIDAR_RANGE)
+        scan = scan.copy()
+        if f.noise or f.bias:
+            scan[hit] = np.clip(scan[hit] + f.bias + f.noise * rng.standard_normal(int(hit.sum())), 0.0, C.LIDAR_RANGE)
+        if f.dropout:
+            valid = valid & ~(rng.random(len(valid)) < f.dropout)
+        return scan, valid
 
     def _motor_step(self) -> None:
         """Velocity smoother, once before every physics step: the motor command moves toward the
