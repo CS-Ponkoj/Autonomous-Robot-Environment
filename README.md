@@ -141,9 +141,10 @@ The commands elsewhere in this README are written for Windows; on macOS and Linu
 
 | Option | Meaning |
 |---|---|
+| `--driver manual` or `--driver baseline` | Manual controls or autonomous baseline navigation (default manual). |
 | `--seed N` | Which start and goal to use (default 1000). The same seed always gives the same task. |
 | `--view N` | Starting view: 0 chase, 1 top, 2 orbit, 3 robot camera (default 0). |
-| `--speed-level N` | Starting speed level (default 2). |
+| `--speed-level N` | Starting speed level (default 2); sets the fixed speed cap for the baseline. |
 | `--cats N` | Number of cats at start, 0 to 4 (default 4; 0 turns them off). The Options button changes it while running. |
 | `--cat-seed S` | Seed for the cats' behavior (default 0), independent of the goal seed. |
 | `--screenshot PATH` | Save a screenshot to PATH when the window closes. |
@@ -152,6 +153,26 @@ The commands elsewhere in this README are written for Windows; on macOS and Linu
 
 When the window closes, the terminal prints a summary (status, seed, time,
 collisions, interventions, goal distance, frame rate, real-time factor).
+
+**Autonomous driving:** the built-in rule-based baseline drives toward the goal without
+keyboard steering, using its sensor-built map, route planner, and the shared safety layer.
+
+```powershell
+.venv\Scripts\python run_sim.py --driver baseline --cats 0
+.venv\Scripts\python run_sim.py --driver baseline --cats 4 --cat-seed 16
+.venv\Scripts\python run_sim.py --driver baseline --seed 1003 --speed-level 1
+```
+
+On macOS and Linux, use `.venv/bin/python run_sim.py --driver baseline` with the same options.
+Start without cats for a simpler task. The baseline is a programmed controller; no external
+decision model is loaded. It can still get stuck or fail a task.
+
+The full panel (H) identifies the driver as `rule_baseline`; the speed display shows its fixed
+cap. `--speed-level` sets that cap at launch. Keyboard steering, right-drag driving, +/-, and
+Shift apply only to manual driving. Space still brakes, R restarts, and N selects the next goal.
+Keep the window focused: losing focus stops the robot. After an emergency brake, release
+Space and all drive inputs, then press a drive key to allow autonomous driving to resume.
+Run without `--driver`, or use `--driver manual`, to drive by hand.
 
 ## 4. The window
 

@@ -1,4 +1,4 @@
-"""Pygame window for manual driving: 3D view, robot camera, lidar map, and status.
+"""Pygame window for manual or autonomous driving: 3D view, robot camera, lidar map, and status.
 
 Single thread, single event loop. Physics advances in fixed steps by the real time
 that passed (capped), so a slow frame slows the simulation instead of skipping it. The window
@@ -20,6 +20,7 @@ import numpy as np
 import pygame
 
 from . import config as C
+from .baseline import BaselineDriver
 from .layout import RoomMap, Task
 from .cats import DEFAULT_CATS, MAX_CATS
 from .display import Display
@@ -40,8 +41,8 @@ INSET_PERIOD = 1 / 10  # s of simulated time between robot-camera inset renders
 VIEWS = ("chase", "top", "orbit", "robot camera")
 HUD_MODES = ("compact", "full", "none")
 HELP = [
-    "W/A/S/D or arrows: drive    +/-: speed level    Shift: fastest level",
-    "Right-drag: drive with the mouse",
+    "Manual only: W/A/S/D or arrows: drive    +/-: speed level    Shift: fastest level",
+    "Manual only: right-drag: drive with the mouse",
     "Space: emergency brake (release Space, keys and mouse, then press a drive key)",
     "Left-drag: rotate view    Wheel: zoom    C: change view",
     "R: restart    N: next goal    T: continue after contact on/off",
@@ -995,6 +996,9 @@ class App:
     def speed_level_text(self) -> str:
         """The selected level, and the level in effect when Shift is held."""
         n = len(C.SPEED_LEVELS)
+        if isinstance(self.driver, BaselineDriver):
+            v, w = self.driver.v_max, self.driver.w_max
+            return f"baseline speed cap: {v:.2f} m/s, {w:.1f} rad/s (fixed)"
         v, w = C.SPEED_LEVELS[self.input.level]
         text = f"speed level {self.input.level + 1}/{n}: {v:.2f} m/s, {w:.1f} rad/s"
         if self.input.boosted:
@@ -1355,7 +1359,9 @@ def _banner(screen, font, text, color, y) -> None:
 
 
 def main(argv: list[str] | None = None) -> dict:
-    p = argparse.ArgumentParser(description="Drive the robot by hand.")
+    p = argparse.ArgumentParser(description="Drive the robot manually or with the autonomous baseline.")
+    p.add_argument("--driver", choices=("manual", "baseline"), default="manual",
+                   help="who drives the robot (default manual)")
     p.add_argument("--seed", type=int, default=C.HELDOUT_SEEDS[0], help="goal seed (start and goal positions)")
     p.add_argument("--view", type=int, default=0, help="0 chase, 1 top, 2 orbit, 3 robot camera")
     p.add_argument("--cats", type=int, default=DEFAULT_CATS, choices=range(0, MAX_CATS + 1),
@@ -1370,8 +1376,9 @@ def main(argv: list[str] | None = None) -> dict:
     a = p.parse_args(argv)
     if a.cat_seed < 0:
         p.error("--cat-seed must be 0 or more")
+    driver = BaselineDriver(C.SPEED_LEVELS[a.speed_level - 1]) if a.driver == "baseline" else None
     app = App(a.seed, a.screenshot, a.frames, parse_script(a.script) if a.script else None, a.view,
-              speed_level=a.speed_level - 1, cats=a.cats, cat_seed=a.cat_seed)
+              driver=driver, speed_level=a.speed_level - 1, cats=a.cats, cat_seed=a.cat_seed)
     summary = app.run()
     print("summary:", {k: (round(v, 3) if isinstance(v, float) else v) for k, v in summary.items()})
     return summary
