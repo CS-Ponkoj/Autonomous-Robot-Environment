@@ -31,7 +31,8 @@ def test_baseline_imports_nothing_privileged():
     assert not (imported & FORBIDDEN), imported & FORBIDDEN
     # robot_env.lidar: bridging dropped readings from the observation alone (no truth)
     # robot_env.sensing: depth points from the observation alone (no truth)
-    assert imported <= {"__future__", "math", "numpy", "robot_env.config", "robot_env.types", "robot_env.lidar",
+    # robot_env.kernels: compiled arithmetic only (the distance field), no state or truth
+    assert imported <= {"__future__", "math", "numpy", "robot_env.config", "robot_env.types", "robot_env.lidar", "robot_env.kernels",
                         "robot_env.sensing"}, imported
 
 
@@ -98,3 +99,43 @@ def test_baseline_explores_toward_the_frontier_when_no_route_is_known():
     d._seen_free[cx - 10: cx + 1, cy - 3: cy + 4] = True
     d._plan()
     assert np.isfinite(d.dist[cx, cy]) and d._target_heading() is not None
+
+
+def _wavefront_arrays(sources, blocked, rx, ry):
+    """The array version the compiled distance field replaced (the reference it must match)."""
+    from robot_env.baseline import _STEPS, _shift, LOOKAHEAD, SIZE
+    dist = np.where(sources, 0.0, np.inf)
+    reached = None
+    for k in range(4 * SIZE):
+        best = dist
+        for dx, dy, cost in _STEPS:
+            best = np.minimum(best, _shift(dist, dx, dy, np.inf) + cost)
+        best[blocked & ~sources] = np.inf
+        best[sources] = 0.0
+        if np.array_equal(best, dist):
+            break
+        dist = best
+        if 0 <= rx < SIZE and 0 <= ry < SIZE and np.isfinite(dist[rx, ry]):
+            reached = k if reached is None else reached
+            if k - reached > LOOKAHEAD + 2:
+                break
+    return dist
+
+
+def test_compiled_distance_field_matches_the_array_version():
+    from robot_env import kernels
+    from robot_env.baseline import _STEP_ARRAY, LOOKAHEAD, SIZE
+    rng = np.random.default_rng(7)
+    for case in range(12):
+        blocked = rng.random((SIZE, SIZE)) < (0.05 + 0.04 * case)
+        sources = np.zeros((SIZE, SIZE), bool)
+        if case % 3 == 2:  # a frontier: several sources
+            sources[rng.integers(0, SIZE, 6), rng.integers(0, SIZE, 6)] = True
+        else:
+            sources[rng.integers(SIZE), rng.integers(SIZE)] = True
+        rx, ry = (int(v) for v in rng.integers(0, SIZE, 2)) if case != 5 else (-1, 3)  # one robot off the grid
+        want = _wavefront_arrays(sources, blocked, rx, ry)
+        for impl in (kernels.wavefront, getattr(kernels.wavefront, "py_func", kernels.wavefront)):
+            got = impl(sources, blocked, rx, ry, _STEP_ARRAY, LOOKAHEAD + 2, 4 * SIZE)
+            assert np.array_equal(got, want), case
+        assert np.array_equal(BaselineDriver._wavefront(sources, blocked, rx, ry), want)

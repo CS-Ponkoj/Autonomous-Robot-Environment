@@ -570,5 +570,80 @@ def warm() -> float:
     posture(np.zeros((1, 3, 3)), one, 0.0, 0.0, 0, 0, 0.0, one, 0.0, 0.0, 0.0, 0.0, 0.0)
     flags = np.zeros(1, dtype=np.bool_)
     robot_contacts(np.zeros((1, 2), dtype=np.int32), flags, flags, flags)
+    wavefront(np.ones((2, 2), dtype=np.bool_), np.zeros((2, 2), dtype=np.bool_), 0, 0, np.zeros((1, 3)), 0, 1)
     WARM_SECONDS = time.perf_counter() - t
     return WARM_SECONDS
+
+
+@njit
+def wavefront(sources, blocked, rx, ry, steps, settle, max_iter):
+    """The baseline driver's grid distance field (robot_env/baseline.py): synchronous
+    relaxation over the 8 steps (dx, dy, cost) from the source cells, around blocked cells,
+    until nothing changes or the robot's cell (rx, ry) has been reached for more than `settle`
+    rounds. The same rounds, sums and stop rule as the array version, so the same field; a
+    round recomputes only the cells next to a cell the round before changed (no other cell
+    can change), so the work follows the moving front, not the whole grid."""
+    n, m = sources.shape
+    ns = steps.shape[0]
+    dist = np.empty((n, m))
+    for i in range(n):
+        for j in range(m):
+            if sources[i, j]:
+                dist[i, j] = 0.0
+            else:
+                dist[i, j] = np.inf
+    changed = np.empty((n * m, 2), np.int64)  # cells changed in the last round
+    k0 = 0
+    for i in range(n):
+        for j in range(m):
+            if sources[i, j]:
+                changed[k0, 0], changed[k0, 1] = i, j
+                k0 += 1
+    todo = np.empty((n * m, 2), np.int64)
+    stamp = np.full((n, m), -1, np.int64)
+    vals = np.empty(n * m)
+    inside = 0 <= rx < n and 0 <= ry < m
+    reached = -1
+    for k in range(max_iter):
+        # the cells this round may change: neighbours of last round's changes
+        t = 0
+        for c in range(k0):
+            i, j = changed[c, 0], changed[c, 1]
+            for s in range(ns):
+                a, b = i + int(steps[s, 0]), j + int(steps[s, 1])  # the cell that reads (i, j)
+                if 0 <= a < n and 0 <= b < m and stamp[a, b] != k:
+                    stamp[a, b] = k
+                    todo[t, 0], todo[t, 1] = a, b
+                    t += 1
+        # new values from the old field (all read before any is written: synchronous)
+        k1 = 0
+        for c in range(t):
+            i, j = todo[c, 0], todo[c, 1]
+            if sources[i, j]:
+                v = 0.0
+            elif blocked[i, j]:
+                v = np.inf
+            else:
+                v = dist[i, j]
+                for s in range(ns):
+                    a, b = i - int(steps[s, 0]), j - int(steps[s, 1])
+                    if 0 <= a < n and 0 <= b < m:
+                        w = dist[a, b] + steps[s, 2]
+                        if w < v:
+                            v = w
+            vals[c] = v
+        for c in range(t):
+            i, j = todo[c, 0], todo[c, 1]
+            if vals[c] != dist[i, j]:
+                dist[i, j] = vals[c]
+                changed[k1, 0], changed[k1, 1] = i, j
+                k1 += 1
+        k0 = k1
+        if k0 == 0:
+            break
+        if inside and dist[rx, ry] < np.inf:
+            if reached < 0:
+                reached = k
+            if k - reached > settle:
+                break
+    return dist

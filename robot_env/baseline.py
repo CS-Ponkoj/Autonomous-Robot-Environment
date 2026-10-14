@@ -35,7 +35,7 @@ import math
 
 import numpy as np
 
-from . import config as C
+from . import config as C, kernels
 from .lidar import bridge
 from .sensing import depth_points
 from .types import Command, Decision, Observation
@@ -67,6 +67,7 @@ _DISK_TIGHT = [(dx, dy) for dx in range(-INFLATE_TIGHT, INFLATE_TIGHT + 1) for d
 _APART = [(dx, dy) for dx in range(-DEPTH_APART, DEPTH_APART + 1) for dy in range(-DEPTH_APART, DEPTH_APART + 1)]
 _STEPS = [(-1, 0, 1.0), (1, 0, 1.0), (0, -1, 1.0), (0, 1, 1.0),
           (-1, -1, 1.414), (-1, 1, 1.414), (1, -1, 1.414), (1, 1, 1.414)]
+_STEP_ARRAY = np.array(_STEPS, dtype=float)
 
 
 def _shift(a: np.ndarray, dx: int, dy: int, fill) -> np.ndarray:
@@ -215,23 +216,9 @@ class BaselineDriver:
     @staticmethod
     def _wavefront(sources: np.ndarray, blocked: np.ndarray, rx: int, ry: int) -> np.ndarray:
         """Grid distance to the nearest source cell, around blocked cells; stops once the robot's
-        neighbourhood (rx, ry) has settled."""
-        dist = np.where(sources, 0.0, np.inf)
-        reached = None
-        for k in range(4 * SIZE):
-            best = dist
-            for dx, dy, cost in _STEPS:
-                best = np.minimum(best, _shift(dist, dx, dy, np.inf) + cost)
-            best[blocked & ~sources] = np.inf
-            best[sources] = 0.0
-            if np.array_equal(best, dist):
-                break
-            dist = best
-            if 0 <= rx < SIZE and 0 <= ry < SIZE and np.isfinite(dist[rx, ry]):
-                reached = k if reached is None else reached
-                if k - reached > LOOKAHEAD + 2:  # the robot's neighbourhood is settled: stop early
-                    break
-        return dist
+        neighbourhood (rx, ry) has settled (compiled: a decision in the window costs a frame
+        otherwise)."""
+        return kernels.wavefront(sources, blocked, int(rx), int(ry), _STEP_ARRAY, LOOKAHEAD + 2, 4 * SIZE)
 
     def _target_heading(self) -> float | None:
         if self.dist is None:
