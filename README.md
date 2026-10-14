@@ -157,6 +157,13 @@ collisions, interventions, goal distance, frame rate, real-time factor).
 **Autonomous driving:** the built-in rule-based baseline drives toward the goal without
 keyboard steering, using its sensor-built map, route planner, and the shared safety layer.
 
+**Manual or autonomous, on screen:** two buttons beside **Options**, **Manual** and
+**Autonomous**, show who is driving (the lit one). Click the other one, or press **M**, to hand
+the robot over at once, in the same run: Autonomous starts the baseline from where the robot is,
+capped at the current speed level; Manual stops the robot until you press a drive key.
+
+To start in autonomous mode from the command line:
+
 ```powershell
 .venv\Scripts\python run_sim.py --driver baseline --cats 0
 .venv\Scripts\python run_sim.py --driver baseline --cats 4 --cat-seed 16
@@ -249,6 +256,7 @@ the window means the robot is touching something.
 | T | Continue after a collision on or off (for testing). |
 | H | Panels: compact, full, none. |
 | Options button (or O) | Open or close the options beside the panels: click a number of cats (0 to 4) to restart with that many. Driving goes on while they are open; Esc closes them. |
+| Manual / Autonomous buttons (or M) | Choose who drives: you (keyboard and mouse) or the built-in baseline. The lit button is in charge; the switch takes effect at once, without a restart. |
 | F11 | Fullscreen on or off. |
 | F12 | Save a screenshot to `screenshots\`. |
 | Esc | Quit. |

@@ -19,7 +19,7 @@ import mujoco
 import numpy as np
 import pygame
 
-from . import config as C
+from . import config as C, kernels
 from .baseline import BaselineDriver
 from .layout import RoomMap, Task
 from .cats import DEFAULT_CATS, MAX_CATS
@@ -46,8 +46,10 @@ HELP = [
     "Space: emergency brake (release Space, keys and mouse, then press a drive key)",
     "Left-drag: rotate view    Wheel: zoom    C: change view",
     "R: restart    N: next goal    T: continue after contact on/off",
-    "Options button or O: options (number of cats)    F11: fullscreen    F12: screenshot    H: panels    Esc: quit",
+    "Manual / Autonomous buttons or M: who drives    Options button or O: options (number of cats)",
+    "F11: fullscreen    F12: screenshot    H: panels    Esc: quit",
 ]
+DRIVE_MODES = ("manual", "autonomous")
 SCREENSHOT_DIR = Path(__file__).resolve().parent.parent / "screenshots"
 
 
@@ -129,6 +131,33 @@ class OptionsMenu:
         screen.blit(font.render("Click to choose.  O or Esc: close", True, (170, 180, 195)), (x + 14, self.panel.bottom - 26))
 
 
+class DriveSwitch:
+    """Two buttons beside Options, Manual and Autonomous: the one lit is driving. Clicking the
+    other hands the robot over at once, in the same episode (no restart)."""
+
+    LABELS = {"manual": "Manual", "autonomous": "Autonomous"}
+
+    def __init__(self):
+        self.buttons = {"manual": pygame.Rect(0, 0, 80, 28), "autonomous": pygame.Rect(0, 0, 112, 28)}
+
+    def place(self, left: int, top: int) -> None:
+        for mode in DRIVE_MODES:
+            self.buttons[mode].topleft = (left, top)
+            left = self.buttons[mode].right + 4
+
+    def clicked(self, pos) -> str | None:
+        """The mode whose button is at pos, or None."""
+        return next((m for m, r in self.buttons.items() if r.collidepoint(pos)), None)
+
+    def draw(self, screen: pygame.Surface, font, mode: str) -> None:
+        for m, b in self.buttons.items():
+            on = m == mode
+            pygame.draw.rect(screen, (60, 90, 130) if on else (30, 36, 48), b, border_radius=5)
+            pygame.draw.rect(screen, (90, 220, 140) if on else (235, 240, 245), b, 2 if on else 1, border_radius=5)
+            label = font.render(self.LABELS[m], True, (235, 240, 245) if on else (170, 180, 195))
+            screen.blit(label, label.get_rect(center=b.center))
+
+
 @dataclass
 class ScriptStep:
     keys: frozenset[int]
@@ -140,7 +169,8 @@ def parse_script(text: str) -> list[ScriptStep]:
     names = {"W": pygame.K_w, "A": pygame.K_a, "S": pygame.K_s, "D": pygame.K_d,
              "UP": pygame.K_UP, "DOWN": pygame.K_DOWN, "LEFT": pygame.K_LEFT, "RIGHT": pygame.K_RIGHT,
              "SHIFT": pygame.K_LSHIFT, "SPACE": pygame.K_SPACE,
-             "C": pygame.K_c, "R": pygame.K_r, "N": pygame.K_n, "H": pygame.K_h, "T": pygame.K_t}
+             "C": pygame.K_c, "R": pygame.K_r, "N": pygame.K_n, "H": pygame.K_h, "T": pygame.K_t,
+             "M": pygame.K_m}
     steps = []
     for part in filter(None, (p.strip() for p in text.split(";"))):
         keys_text, dur = part.rsplit(":", 1)
@@ -780,11 +810,13 @@ class App:
         self.clock = pygame.time.Clock()
         self.cat_count, self.cat_seed = cats, cat_seed
         self.system = RobotSystem(cats=cats, cat_seed=cat_seed)
+        kernels.warm()  # compiled now, so switching to Autonomous never stalls a frame
         self.room = RoomMap(self.system.sim.model)
         self.menu = OptionsMenu([
             MenuOption("Cats", tuple(range(MAX_CATS + 1)), lambda: self.cat_count, self.set_cats,
                        "changing it restarts the simulation"),
         ])
+        self.drive_switch = DriveSwitch()
         self.renderer = None
         self._make_renderer()
         self._inset = None  # cached robot-camera inset and the simulated time it shows
@@ -853,6 +885,29 @@ class App:
         self._make_renderer()
         self.new_episode(self.seed)
 
+    @property
+    def drive_mode(self) -> str:
+        return "manual" if self.manual_driving else "autonomous"
+
+    def set_drive_mode(self, mode: str) -> None:
+        """Hand the robot to the keyboard and mouse ("manual") or to the built-in baseline driver
+        ("autonomous"), at once and in the same episode. The baseline starts fresh from where the
+        robot is, at the selected speed level's cap; held drive keys are released either way, so
+        nothing pressed before the switch carries on."""
+        if mode not in DRIVE_MODES:
+            raise ValueError(f"drive mode must be one of {DRIVE_MODES}")
+        if mode == self.drive_mode:
+            return
+        self.input.release_all()
+        if mode == "autonomous":
+            self.driver = BaselineDriver(C.SPEED_LEVELS[self.input.level])
+        else:
+            self.driver = ManualDriver(self.input)
+        self._next_decision = self.system.time  # the new driver decides on the next tick
+        self._last_sent = None
+        if self.system.log is not None:
+            self.system.log.event("driver_" + mode, self.system.time, driver=self.driver.name)
+
     def new_episode(self, seed: int) -> None:
         self.seed = seed
         task = self.room.sample_task(seed)
@@ -902,6 +957,12 @@ class App:
                 return False
             if self.display.handle_event(event):
                 self._make_renderer()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.hud != "none":
+                mode = self.drive_switch.clicked(self._surface_pos(event.pos))
+                if mode is not None:
+                    self.set_drive_mode(mode)
+                    self.view.ignore_drag = True
+                    continue
             if (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.hud != "none"
                     and self.menu.handle_click(self._surface_pos(event.pos))):
                 self.view.ignore_drag = True  # dragging on from the menu does not turn the view
@@ -916,6 +977,9 @@ class App:
                     if self.hud == "none":
                         self.hud = "compact"  # the options sit beside the panels: show them
                     self.menu.toggle()
+                    continue
+                if event.key == pygame.K_m:
+                    self.set_drive_mode("autonomous" if self.manual_driving else "manual")
                     continue
                 if event.key == pygame.K_c:
                     self.view.mode = (self.view.mode + 1) % len(VIEWS)
@@ -1021,6 +1085,8 @@ class App:
         if self.hud != "none":
             self.menu.button.top = 80 if self.hud == "compact" else 220  # under the status lines
             self.menu.draw_button(self.screen, self.font)
+            self.drive_switch.place(self.menu.button.right + 12, self.menu.button.top)
+            self.drive_switch.draw(self.screen, self.font, self.drive_mode)
             if self.menu.open:
                 self.menu.draw(self.screen, self.font)
 
@@ -1098,7 +1164,7 @@ class App:
                 f"   time {self.episode_time():5.1f}/{C.EPISODE_TIME_LIMIT:.0f} s",
                 f"safety: {safety}   collisions {s.collisions}   {self.clock.get_fps():3.0f} FPS",
             ], (24, 20))
-            _text_box(self.screen, self.font, ["H: more    C: view    O: options    F11: fullscreen    Esc: quit"],
+            _text_box(self.screen, self.font, ["H: more    M: manual/autonomous    C: view    O: options    F11: fullscreen    Esc: quit"],
                       (24, height - 36))
             self.draw_banners()
             return
