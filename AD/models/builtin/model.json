@@ -1,0 +1,3 @@
+{"id": "builtin", "family": "Rule-based planner (lidar map + wavefront route)", "params": 0, "disk_mb": 0,
+ "inputs": "lidar, depth, encoders, goal", "outputs": "continuous (v, omega)", "pretrained": "none (hand-written)",
+ "license": "MIT (this project)", "source": "robot_env/baseline.py"}
