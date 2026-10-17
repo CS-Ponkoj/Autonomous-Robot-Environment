@@ -1,0 +1,4 @@
+{"id": "ppo", "family": "PPO reinforcement learning (Stable-Baselines3) from the cloned 1D-CNN", "params": 195842, "disk_mb": 0.8,
+ "inputs": "72 lidar bins (circular conv), goal distance/bearing, contact (v and omega masked)",
+ "outputs": "continuous (v, omega) at speed level 2", "pretrained": "cnn dagger_cont_r3 (behavior cloning + DAgger)",
+ "license": "MIT (this project); Stable-Baselines3 is MIT", "source": "AD/models/ppo/"}
