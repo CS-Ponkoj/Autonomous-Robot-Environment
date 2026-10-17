@@ -1,0 +1,4 @@
+{"id": "cnn", "family": "1D-CNN sensor policy (behavior cloning, then DAgger)", "params": 196616, "disk_mb": 0.8,
+ "inputs": "72 lidar bins (circular conv), goal distance/bearing, v, omega, contact; optional stacked frames",
+ "outputs": "5 discrete actions or continuous (v, omega) at speed level 2", "pretrained": "none (trained from scratch)",
+ "license": "MIT (this project)", "source": "AD/models/cnn/"}
