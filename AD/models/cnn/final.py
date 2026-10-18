@@ -22,18 +22,25 @@ def driver_factory(model: str, run: str, device: str | None = None):
     if model == "dt":
         from ..dt.train import DTDriver
         return functools.partial(DTDriver, path, device=device)
+    if model == "cfc":
+        from ..cfc.model import CfCDriver
+        return functools.partial(CfCDriver, path, device=device)
+    if model == "hybrid":
+        from ..hybrid.policy import HybridDriver
+        return functools.partial(HybridDriver, path, device=device)
     raise ValueError(f"unknown model {model}")
 
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--model", required=True, choices=("cnn", "dt", "ppo"))
+    p.add_argument("--model", required=True, choices=("cnn", "dt", "ppo", "cfc", "hybrid"))
     p.add_argument("--run", required=True)
     p.add_argument("--workers", type=int, default=4)
+    p.add_argument("--device", default="cpu", choices=("cpu", "cuda"), help="where each worker runs the model")
     a = p.parse_args(argv)
     if any(e["model"] == a.model and e["run"] == a.run and e.get("final") for e in tracker.entries()):
         p.error("this run already has its held-out result (the test is run once)")
-    final = benchmark.run(driver_factory(a.model, a.run), workers=a.workers, final=True)
+    final = benchmark.run(driver_factory(a.model, a.run, a.device), workers=a.workers, final=True)
     score = benchmark.score(final)
     tracker.add_final(a.model, a.run, final, score)
     print({k: final[k] for k in ("no_cats", "4_cats", "latency_ms")}, "final score", score, flush=True)

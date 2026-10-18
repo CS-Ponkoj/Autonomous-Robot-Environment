@@ -15,11 +15,12 @@ from .final import driver_factory
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--model", required=True, choices=("cnn", "dt", "ppo"))
+    p.add_argument("--model", required=True, choices=("cnn", "dt", "ppo", "cfc", "hybrid"))
     p.add_argument("--run", required=True)
     p.add_argument("--seeds", default="2000-2019", help="practice seed range a-b")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--device", default="cpu", choices=("cpu", "cuda"), help="where each worker runs the model")
+    p.add_argument("--tag", default=None, help="name the entry <run>@<tag> instead of <run>@<first>-<last>")
     a = p.parse_args(argv)
     lo, hi = (int(v) for v in a.seeds.split("-"))
     seeds = tuple(range(lo, hi + 1))
@@ -27,8 +28,10 @@ def main(argv=None) -> int:
         p.error("these seeds include held-out test seeds; use final.py for the test (run once)")
     summary = benchmark.run(driver_factory(a.model, a.run, a.device), workers=a.workers, seeds=seeds)
     score = benchmark.score(summary)
-    tracker.log({"model": a.model, "run": f"{a.run}@{lo}-{hi}", "kind": "benchmark", "base": a.run, "bench": summary,
-                 "score": score, "notes": f"re-benchmark of {a.run} on practice seeds {lo}-{hi} ({len(seeds) * 2} drives)"})
+    tracker.log({"model": a.model, "run": f"{a.run}@{a.tag or f'{lo}-{hi}'}", "kind": "benchmark", "base": a.run,
+                 "bench": summary, "score": score,
+                 "notes": f"re-benchmark of {a.run} on practice seeds {lo}-{hi} ({len(seeds) * 2} drives)"
+                          + (f" [{a.tag}]" if a.tag else "")})
     print({k: summary[k] for k in ("no_cats", "4_cats", "latency_ms")}, "score", score, flush=True)
     return 0
 

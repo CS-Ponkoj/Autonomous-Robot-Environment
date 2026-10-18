@@ -31,7 +31,8 @@ def machine_lock(cmd: str, owner: str | None) -> None:
     if owner:
         import shutil
         import subprocess
-        bash = shutil.which("bash") or "bash"  # Git Bash (a bare "bash" can start WSL's on Windows)
+        git_bash = Path(r"C:\Program Files\Git\bin\bash.exe")  # a bare "bash" can find WSL's first
+        bash = str(git_bash) if git_bash.exists() else shutil.which("bash") or "bash"
         subprocess.run([bash, str(LOCK_SCRIPT), cmd, owner], check=cmd == "acquire")
 
 

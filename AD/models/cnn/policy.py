@@ -26,14 +26,17 @@ V_CAP, W_CAP = C.SPEED_LEVELS[LABEL_LEVEL]  # 0.30 m/s, 1.0 rad/s
 
 
 class CNNPolicy(nn.Module):
-    def __init__(self, head: str = "discrete", frames: int = 1, width: int = 32, odometry: bool = True):
+    def __init__(self, head: str = "discrete", frames: int = 1, width: int = 32, odometry: bool = True, extra: int = 0):
         """odometry=False hides the measured speed and turn rate from the network: cloned from a
         driver whose motion changes slowly, a policy that sees them learns to keep doing what it
-        is doing (the "copycat" shortcut) instead of reacting to the scan and the goal."""
+        is doing (the "copycat" shortcut) instead of reacting to the scan and the goal.
+        extra: values appended after each frame's FEATURES (the hybrid's route features), read by
+        the scalar branch next to the goal values."""
         super().__init__()
         assert head in ("discrete", "continuous")
-        self.head, self.frames, self.width, self.odometry = head, frames, width, odometry
-        mask = torch.ones(FEATURES)
+        self.head, self.frames, self.width, self.odometry, self.extra = head, frames, width, odometry, extra
+        self.n_in = FEATURES + extra  # values per frame
+        mask = torch.ones(self.n_in)
         if not odometry:
             mask[list(ODOMETRY)] = 0.0
         self.register_buffer("mask", mask)
@@ -46,7 +49,7 @@ class CNNPolicy(nn.Module):
             conv(w, 2 * w, 5, 2), nn.ReLU(),  # 36 bins
             conv(2 * w, 2 * w, 3, 2), nn.ReLU(),  # 18 bins
             nn.Flatten(), nn.Linear(2 * w * (LIDAR_BINS // 4), 128), nn.ReLU())
-        self.scalars = nn.Sequential(nn.Linear(frames * SCALARS, 64), nn.ReLU())
+        self.scalars = nn.Sequential(nn.Linear(frames * (SCALARS + extra), 64), nn.ReLU())
         self.trunk = nn.Sequential(nn.Linear(128 + 64, 128), nn.ReLU(),
                                    nn.Linear(128, len(ACTION_NAMES) if head == "discrete" else 2))
         self.register_buffer("caps", torch.tensor([V_CAP, W_CAP]))
@@ -54,7 +57,7 @@ class CNNPolicy(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """x: (B, frames * FEATURES), each frame laid out as features.vector. Discrete: action
         logits (B, 8). Continuous: (v, omega) (B, 2), inside the caps."""
-        x = x.view(x.shape[0], self.frames, FEATURES) * self.mask
+        x = x.view(x.shape[0], self.frames, self.n_in) * self.mask
         z = torch.cat([self.lidar(x[:, :, :LIDAR_BINS]), self.scalars(x[:, :, LIDAR_BINS:].flatten(1))], 1)
         out = self.trunk(z)
         return out if self.head == "discrete" else torch.tanh(out) * self.caps
@@ -80,14 +83,14 @@ def params(net: nn.Module) -> int:
 
 def save(net: CNNPolicy, path: Path, extra: dict | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({"head": net.head, "frames": net.frames, "width": net.width, "odometry": net.odometry,
+    torch.save({"head": net.head, "frames": net.frames, "width": net.width, "odometry": net.odometry, "extra": net.extra,
                 "state": net.state_dict(),
                 **(extra or {})}, path)
 
 
 def load(path) -> CNNPolicy:
     ck = torch.load(path, map_location="cpu", weights_only=False)
-    net = CNNPolicy(ck["head"], ck["frames"], ck.get("width", 32), ck.get("odometry", True))
+    net = CNNPolicy(ck["head"], ck["frames"], ck.get("width", 32), ck.get("odometry", True), ck.get("extra", 0))
     net.load_state_dict(ck["state"])
     return net.eval()
 

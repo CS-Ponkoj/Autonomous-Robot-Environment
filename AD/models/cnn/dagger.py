@@ -29,7 +29,8 @@ RUNS = train.RUNS
 
 def rollout(args) -> dict:
     """One episode with the policy driving and the built-in driver labelling every state.
-    args: (checkpoint, seed, beta[, kind]); kind "cnn" (default) or "cfc" (a recurrent policy)."""
+    args: (checkpoint, seed, beta[, kind]); kind "cnn" (default), "cfc" (a recurrent policy) or
+    "hybrid" (the CNN with the route sensor's values: the 82-value inputs are stored)."""
     ckpt, seed, beta = args[:3]
     kind = args[3] if len(args) > 3 else "cnn"
     from robot_env import config as C
@@ -42,6 +43,9 @@ def rollout(args) -> dict:
     if kind == "cfc":
         from ..cfc.model import CfCDriver
         policy = CfCDriver(ckpt, device="cpu")
+    elif kind == "hybrid":
+        from ..hybrid.policy import HybridDriver
+        policy = HybridDriver(ckpt, device="cpu")
     else:
         policy = CNNDriver(ckpt, device="cpu")  # many rollout workers: CPU (training stays on the GPU)
     expert = BaselineDriver(C.SPEED_LEVELS[LABEL_LEVEL])
@@ -59,7 +63,7 @@ def rollout(args) -> dict:
         label = expert.decide(obs)
         mine = policy.decide(obs)
         cmd = label.command if label else None
-        X.append(vector(obs))
+        X.append(policy.last_x if kind == "hybrid" else vector(obs))  # the hybrid stores its 82 inputs
         V.append((cmd.v, cmd.omega) if cmd else (0.0, 0.0))
         A.append(ACTION_INDEX[action_of(cmd)])
         system.apply(label if (label is not None and coin.random() < beta) else mine)
