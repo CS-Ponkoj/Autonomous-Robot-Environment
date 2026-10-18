@@ -1,0 +1,4 @@
+{"id": "hybrid", "family": "1D-CNN policy with the built-in planner's route as input (DAgger, then PPO)", "params": 196098, "disk_mb": 0.8,
+ "inputs": "72 lidar bins (circular conv), goal distance/bearing, contact (v and omega masked), plus the planner's route direction, route known, route length",
+ "outputs": "continuous (v, omega) at speed level 2", "pretrained": "cnn dagger_cont_r3 (widened with zero weights on the route inputs)",
+ "license": "MIT (this project)", "source": "AD/models/hybrid/"}
