@@ -1,0 +1,4 @@
+{"id": "mapcnn", "family": "CNN over a local occupancy map plus the 1D-CNN sensor branches (behavior cloning, then DAgger)", "params": 367010, "disk_mb": 1.5,
+ "inputs": "egocentric 32x32 map at 0.25 m (occupied, free, goal), built from the lidar bins and wheel odometry only; 72 lidar bins (circular conv), goal distance/bearing, contact; measured v and omega masked",
+ "outputs": "continuous (v, omega) at speed level 2", "pretrained": "none (trained from scratch)",
+ "license": "MIT (this project)", "source": "AD/models/mapcnn/"}
