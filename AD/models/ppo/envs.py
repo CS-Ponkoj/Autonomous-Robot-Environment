@@ -33,11 +33,18 @@ class FeatureEnv(gym.Env):
     metadata = {"render_modes": []}
 
     def __init__(self, discrete: bool = True, seeds=dataset.TRAIN, odometry: bool = False, cats: int = 0,
-                 cat_seed: int = 0, squash: bool = False):
+                 cat_seed: int = 0, squash: bool = False, route: bool = False):
+        """route=True: the hybrid's observation, the built-in planner's route (AD/models/hybrid/
+        route.py) appended (82 values); the planner reads the same observations every step."""
         self.discrete, self.odometry, self.squash = discrete, odometry, squash
         self.seeds = list(seeds)
         self.inner = RobotGoalEnv(cats=cats, cat_seed=cat_seed)
-        self.observation_space = spaces.Box(-1.5, 1.5, shape=(FEATURES,), dtype=np.float32)
+        self.sensor = None
+        n = FEATURES
+        if route:
+            from ..hybrid.route import ROUTE_FEATURES, RouteSensor
+            self.sensor, n = RouteSensor(), FEATURES + ROUTE_FEATURES
+        self.observation_space = spaces.Box(-1.5, 1.5, shape=(n,), dtype=np.float32)
         if discrete:
             self.action_space = spaces.Discrete(len(ACTION_NAMES))
         elif squash:  # raw (pre-tanh) values; tanh(3) is 0.995 of the cap
@@ -46,15 +53,20 @@ class FeatureEnv(gym.Env):
             self.action_space = spaces.Box(np.array([-V_CAP, -W_CAP], np.float32), np.array([V_CAP, W_CAP], np.float32))
 
     def _features(self) -> np.ndarray:
-        x = vector(self.inner.system.observe())
+        obs = self.inner.system.observe()
+        x = vector(obs)
         if not self.odometry:
             x[ODOMETRY] = 0.0  # features.ODOMETRY: the v and omega slice
+        if self.sensor is not None:
+            x = np.concatenate([x, self.sensor.read(obs)])
         return x
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
         task_seed = int(self.np_random.choice(self.seeds))  # seeded by reset(seed=...): reproducible
         self.inner.reset(options={"task_seed": task_seed})
+        if self.sensor is not None:
+            self.sensor.reset()
         return self._features(), {"task_seed": task_seed}
 
     def step(self, action):

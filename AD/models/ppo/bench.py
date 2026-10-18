@@ -9,18 +9,19 @@ import functools
 import json
 
 from ...common import benchmark, tracker
-from ..cnn.policy import CNNDriver
-from .train import RUNS
+from ..cnn.final import driver_factory
 
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--run", required=True)
     p.add_argument("--workers", type=int, default=2)
+    p.add_argument("--model", default="ppo", choices=("ppo", "hybrid"), help="hybrid: a PPO run from a hybrid base")
     a = p.parse_args(argv)
-    meta = json.loads((RUNS / a.run / "meta.json").read_text(encoding="utf-8"))
-    summary = benchmark.run(functools.partial(CNNDriver, str(RUNS / a.run / "model.pt"), device="cpu"), workers=a.workers)
-    entry = tracker.log({"model": "ppo", "run": a.run, "kind": "finetune", "base": meta["base"],
+    runs = tracker.AD / "models" / a.model / "runs"
+    meta = json.loads((runs / a.run / "meta.json").read_text(encoding="utf-8"))
+    summary = benchmark.run(driver_factory(a.model, a.run, "cpu"), workers=a.workers)
+    entry = tracker.log({"model": a.model, "run": a.run, "kind": "finetune", "base": meta["base"],
                          "data": f"{meta['timesteps']} PPO steps in robot_env ({meta['envs']} envs, cats {meta['cats']})",
                          "params": meta["params"], "train_s": meta["train_s"], "bench": summary,
                          "score": benchmark.score(summary),

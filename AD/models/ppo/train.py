@@ -32,11 +32,11 @@ RUNS = tracker.AD / "models" / "ppo" / "runs"
 CATS = (0, 4, 2, 4, 1, 3)  # per parallel environment (the practice benchmark uses 0 and 4)
 
 
-def make_env(rank: int, odometry: bool):
+def make_env(rank: int, odometry: bool, route: bool = False):
     def thunk():
         from .envs import FeatureEnv
         return FeatureEnv(discrete=False, odometry=odometry, cats=CATS[rank % len(CATS)], cat_seed=7000 + rank,
-                          squash=True)
+                          squash=True, route=route)
     return thunk
 
 
@@ -51,11 +51,11 @@ def extractor_class():
             base = load_cnn(ckpt)
             self.lidar, self.scalars, self.hidden = base.lidar, base.scalars, base.trunk[0]
             self.register_buffer("mask", base.mask.clone())
-            self.frames = base.frames
+            self.frames, self.n_in = base.frames, base.n_in
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
-            from ...common.features import FEATURES, LIDAR_BINS
-            x = x.view(x.shape[0], self.frames, FEATURES) * self.mask
+            from ...common.features import LIDAR_BINS
+            x = x.view(x.shape[0], self.frames, self.n_in) * self.mask
             z = torch.cat([self.lidar(x[:, :, :LIDAR_BINS]), self.scalars(x[:, :, LIDAR_BINS:].flatten(1))], 1)
             return torch.relu(self.hidden(z))
     return CNNFeatures
@@ -74,6 +74,7 @@ def to_cnn(model, base_ckpt: str) -> CNNPolicy:
 
 def callbacks(base_ckpt: str, a, t_start: float):
     from stable_baselines3.common.callbacks import BaseCallback
+    runs = tracker.AD / "models" / getattr(a, "out_model", "ppo") / "runs"
 
     class Warmup(BaseCallback):
         """Only the critic learns for the first `steps` steps."""
@@ -112,7 +113,7 @@ def callbacks(base_ckpt: str, a, t_start: float):
                 self.next += self.every
                 self.k += 1
                 run = f"{a.run_prefix}{self.k}"
-                save_cnn(to_cnn(self.model, base_ckpt), RUNS / run / "model.pt", {"run": run})
+                save_cnn(to_cnn(self.model, base_ckpt), runs / run / "model.pt", {"run": run})
                 buf = list(self.model.ep_info_buffer)
                 meta = {"run": run, "base": a.base, "timesteps": int(self.num_timesteps),
                         "train_s": round(time.time() - t_start, 1), "envs": a.envs, "cats": list(CATS[:a.envs]),
@@ -121,8 +122,8 @@ def callbacks(base_ckpt: str, a, t_start: float):
                         "recent_success": round(float(np.mean([e.get("is_success", 0) for e in buf])), 3) if buf else None,
                         "params": {"lr": a.lr, "n_steps": a.n_steps, "batch": a.batch, "epochs": a.epochs,
                                    "clip": a.clip, "gamma": a.gamma, "log_std_init": a.log_std, "warmup": a.warmup}}
-                (RUNS / run / "meta.json").write_text(json.dumps(meta, indent=1), encoding="utf-8")
-                self.model.save(RUNS / run / "sb3_model")  # to continue training from here
+                (runs / run / "meta.json").write_text(json.dumps(meta, indent=1), encoding="utf-8")
+                self.model.save(runs / run / "sb3_model")  # to continue training from here
                 print(f"checkpoint {run}: {meta}", flush=True)
             return True
 
@@ -145,6 +146,7 @@ def main(argv=None) -> int:
     p.add_argument("--gamma", type=float, default=0.99)
     p.add_argument("--log-std", type=float, default=-1.0, help="initial log std of the (pre-tanh) action noise")
     p.add_argument("--resume", default=None, help="a saved sb3_model.zip to continue from")
+    p.add_argument("--out-model", default="ppo", help="model folder for the checkpoints (hybrid for a hybrid base)")
     a = p.parse_args(argv)
     from stable_baselines3 import PPO
     from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
@@ -152,7 +154,8 @@ def main(argv=None) -> int:
     base_ckpt = str(tracker.AD / "models" / a.base.split("/")[0] / "runs" / a.base.split("/")[1] / "model.pt")
     base = load_cnn(base_ckpt)
     assert base.head == "continuous" and base.frames == 1, "PPO starts from a 1-frame continuous CNN"
-    env = VecMonitor(SubprocVecEnv([make_env(r, base.odometry) for r in range(a.envs)]), info_keywords=("is_success",))
+    route = base.extra > 0  # a hybrid base: the environments add the route sensor's values
+    env = VecMonitor(SubprocVecEnv([make_env(r, base.odometry, route) for r in range(a.envs)]), info_keywords=("is_success",))
     device = "cuda" if torch.cuda.is_available() else "cpu"
     if a.resume:
         model = PPO.load(a.resume, env=env, device=device)
