@@ -32,8 +32,9 @@ import numpy as np
 import torch
 
 from ...common import benchmark, dataset, tracker
+from ...common.features import FEATURES
 from .route import reset_driver, route_sources
-from .routekit import Episodes, source_spec, split_episodes
+from .routekit import Episodes, source_spec, spec_of, split_episodes
 
 FAMILIES = ("hybrid", "cfc", "dt", "mlp", "mapcnn")
 
@@ -83,8 +84,10 @@ def rollout(args) -> dict:
             outcome = "collision"
             break
     system.close()
-    return {"seed": seed, "outcome": outcome, "x": np.array(X, np.float32), "t": np.array(T, np.float32),
-            "route": np.array(R, np.float32).reshape(-1, 4), "cmd": np.array(V, np.float32)}
+    # fixed shapes even for an episode that ends at its first observation (no decisions)
+    return {"seed": seed, "outcome": outcome, "x": np.array(X, np.float32).reshape(-1, FEATURES),
+            "t": np.array(T, np.float32).reshape(-1), "route": np.array(R, np.float32).reshape(-1, 4),
+            "cmd": np.array(V, np.float32).reshape(-1, 2)}
 
 
 def collect(family, ckpt, seeds, beta, workers, out: Path, cats=None, route=None) -> dict:
@@ -106,7 +109,10 @@ def main(argv=None) -> int:
     p.add_argument("--episodes", type=int, default=60)
     p.add_argument("--beta", type=float, default=0.5, help="expert share in round 1, halved each round")
     p.add_argument("--cats", type=int, nargs="*", default=None, help="cat counts cycled over each round's episodes")
-    p.add_argument("--route", default="online", help=f"route source ({', '.join(route_sources())})")
+    p.add_argument("--route", default=None,
+                   help=f"route source ({', '.join(route_sources())}); default: --init's own, else online")
+    p.add_argument("--allow-route-change", action="store_true",
+                   help="allow --route to differ from the --init checkpoint's source (retrain on another source)")
     p.add_argument("--reuse-states", nargs="*", default=[], help="earlier episode files (.npz) to train on too")
     p.add_argument("--epochs", type=int, default=15, help="epochs (cnn, mlp, mapcnn)")
     p.add_argument("--steps", type=int, default=2000, help="optimizer steps (cfc, dt)")
@@ -121,9 +127,16 @@ def main(argv=None) -> int:
         p.error("give exactly one of --base and --init")
     fam = adapter(a.family)
     runs = runs_dir(a.family)
+    if a.init:  # the source the run was trained with, unless a change is asked for explicitly
+        own = spec_of(torch.load(runs / a.init / "model.pt", map_location="cpu", weights_only=False))["name"]
+        if a.route is None:
+            a.route = own
+        elif a.route != own and not a.allow_route_change:
+            p.error(f"--init {a.init} was trained with route source {own!r}, not {a.route!r} "
+                    "(add --allow-route-change to retrain it on another source)")
+    a.route = a.route or "online"
     spec = source_spec(a.route)
     torch.manual_seed(0)
-    rng = np.random.default_rng(0)
     fit_args = SimpleNamespace(epochs=a.epochs, steps=a.steps, batch=a.batch, device="cuda" if torch.cuda.is_available() else "cpu",
                                lr=a.lr or (3e-4 if a.family in ("cfc", "dt") else 5e-4))
     if a.init:
@@ -147,7 +160,7 @@ def main(argv=None) -> int:
             meta.write_text(json.dumps(info), encoding="utf-8")
             print(f"round {k}: collected {info} in {time.time() - t0:.0f} s (beta {beta:.2f})", flush=True)
         files.append(str(out))
-        train, valid = split_episodes(Episodes.load(files), rng)
+        train, valid = split_episodes(Episodes.load(files))  # the same held-out episodes every round
         net = fam.load(ckpt)
         t0 = time.time()
         net, offline = fam.fit(net, train, valid, fit_args)

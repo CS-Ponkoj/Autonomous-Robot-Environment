@@ -66,15 +66,22 @@ def source_spec(name: str) -> dict:
     return route_spec(make_route_source(name))
 
 
+OUTCOMES = ("timeout", "success", "collision")
+
+
 class Episodes:
-    """DAgger episodes in one .npz: x (N, 78), t (N,), route (N, 4), cmd (N, 2), lens (episodes,)."""
+    """DAgger episodes in one .npz: x (N, 78), t (N,), route (N, 4), cmd (N, 2), lens (episodes,),
+    outcome (episodes,: an index into OUTCOMES). Loaded episodes carry a key (file name and index)
+    that fixes their train or validation side for good (split_episodes)."""
 
     @staticmethod
     def save(path: Path, eps: list[dict]) -> None:
+        from ...common.features import FEATURES
         path.parent.mkdir(parents=True, exist_ok=True)
-        np.savez_compressed(path, x=np.concatenate([e["x"] for e in eps]), t=np.concatenate([e["t"] for e in eps]),
-                            route=np.concatenate([e["route"] for e in eps]), cmd=np.concatenate([e["cmd"] for e in eps]),
-                            lens=np.array([len(e["x"]) for e in eps]))
+        rows = lambda k, n: np.concatenate([np.asarray(e[k], np.float32).reshape(-1, n) for e in eps])  # noqa: E731
+        np.savez_compressed(path, x=rows("x", FEATURES), t=rows("t", 1)[:, 0], route=rows("route", 4), cmd=rows("cmd", 2),
+                            lens=np.array([len(np.asarray(e["x"]).reshape(-1, FEATURES)) for e in eps]),
+                            outcome=np.array([OUTCOMES.index(e.get("outcome", "timeout")) for e in eps]))
 
     @staticmethod
     def load(paths) -> list[dict]:
@@ -82,18 +89,29 @@ class Episodes:
         for f in paths:
             d = np.load(f)
             cut = np.cumsum(d["lens"])[:-1]
-            for x, t, r, c in zip(*(np.split(d[k], cut) for k in ("x", "t", "route", "cmd"))):
+            outcomes = d["outcome"] if "outcome" in d.files else None
+            for i, (x, t, r, c) in enumerate(zip(*(np.split(d[k], cut) for k in ("x", "t", "route", "cmd")))):
                 if len(x):
                     out.append({"x": x.astype(np.float32), "t": t.astype(np.float32),
-                                "route": r.astype(np.float32), "cmd": c.astype(np.float32)})
+                                "route": r.astype(np.float32), "cmd": c.astype(np.float32),
+                                "outcome": OUTCOMES[int(outcomes[i])] if outcomes is not None else None,
+                                "key": f"{Path(f).name}:{i}"})
         return out
 
 
-def split_episodes(eps: list[dict], rng: np.random.Generator, share: float = 0.1) -> tuple[list, list]:
-    """Hold out whole episodes (about `share`) for model selection."""
-    idx = rng.permutation(len(eps))
-    n = max(1, int(round(len(eps) * share))) if len(eps) > 1 else 0
-    return [eps[i] for i in idx[n:]], [eps[i] for i in idx[:n]]
+def split_episodes(eps: list[dict], share: float = 0.1) -> tuple[list, list]:
+    """Hold out whole episodes (about `share`) for model selection. The side of each episode is
+    fixed by a checksum of its key (file and index), so an episode validated in one round is never
+    trained on in a later one. Needs at least 2 episodes; at least one lands on each side."""
+    import zlib
+    if len(eps) < 2:
+        raise ValueError(f"route DAgger needs at least 2 episodes to hold one out (got {len(eps)})")
+    held = [zlib.crc32(e.get("key", str(i)).encode()) % 1000 < share * 1000 for i, e in enumerate(eps)]
+    if not any(held):  # small runs: the episode with the smallest checksum
+        held[min(range(len(eps)), key=lambda i: zlib.crc32(eps[i].get("key", str(i)).encode()))] = True
+    if all(held):
+        held[0] = False
+    return [e for e, h in zip(eps, held) if not h], [e for e, h in zip(eps, held) if h]
 
 
 def flat(eps: list[dict]) -> tuple[np.ndarray, np.ndarray]:

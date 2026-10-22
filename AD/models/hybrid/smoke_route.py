@@ -87,10 +87,33 @@ def check(families, rng, tmp: Path) -> int:
     ok = a.got == "plain reset" and b.got == (1.0, 2.0, 0.3)
     fails += not ok
     print("reset_driver:", a.got, "|", b.got, "PASS" if ok else "FAIL")
-    Episodes.save(tmp / "e.npz", _fake_episodes(rng, 3, 10))
-    lens = [len(e["x"]) for e in Episodes.load([tmp / "e.npz"])]
-    fails += lens != [10, 10, 10]
-    print("episodes round trip:", lens)
+    eps = _fake_episodes(rng, 3, 10)
+    eps[1]["outcome"] = "success"
+    empty = {"x": np.zeros(0, np.float32), "t": np.zeros(0, np.float32), "route": np.zeros(0, np.float32),
+             "cmd": np.zeros(0, np.float32), "outcome": "timeout"}  # an episode that ended at once
+    Episodes.save(tmp / "e.npz", eps + [empty])
+    back = Episodes.load([tmp / "e.npz"])
+    lens = [len(e["x"]) for e in back]
+    ok = lens == [10, 10, 10] and [e["outcome"] for e in back] == ["timeout", "success", "timeout"]
+    fails += not ok
+    print("episodes round trip (with an empty one, outcomes):", lens, [e["outcome"] for e in back], "PASS" if ok else "FAIL")
+    from .routekit import split_episodes
+    files = []
+    for k in range(3):  # held-out episodes stay held out as rounds add files
+        Episodes.save(tmp / f"r{k}.npz", _fake_episodes(rng, 30, 5))
+        files.append(tmp / f"r{k}.npz")
+        held = {e["key"] for e in split_episodes(Episodes.load(files))[1]}
+        if k == 0:
+            first = held
+    ok = first <= held and 0 < len(held) < 90
+    fails += not ok
+    print(f"fixed hold-out: {len(first)} of 30, then {len(held)} of 90, kept: {first <= held}", "PASS" if ok else "FAIL")
+    try:
+        split_episodes(Episodes.load([tmp / "e.npz"])[:1])
+        fails += 1
+        print("one-episode split: no error FAIL")
+    except ValueError as err:
+        print("one-episode split refused:", err, "PASS")
     for family in families:
         t0 = time.time()
         fam = importlib.import_module(f"AD.models.{family}.routed")
