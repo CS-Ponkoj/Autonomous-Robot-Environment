@@ -41,9 +41,11 @@ class CfCCell(nn.Module):
 
 
 class CfCPolicy(nn.Module):
-    def __init__(self, hidden: int = 64, width: int = 32):
+    def __init__(self, hidden: int = 64, width: int = 32, extra: int = 0):
+        """extra: values appended after FEATURES (the route input, AD/models/cfc/routed.py), read
+        by the scalar branch next to the goal values; 0 for the plain CfC (old checkpoints)."""
         super().__init__()
-        self.hidden_size, self.width = hidden, width
+        self.hidden_size, self.width, self.extra = hidden, width, extra
         w = width
 
         def conv(cin, cout, k, stride=1):
@@ -51,10 +53,10 @@ class CfCPolicy(nn.Module):
         self.lidar = nn.Sequential(conv(1, w, 5), nn.ReLU(), conv(w, 2 * w, 5, 2), nn.ReLU(),
                                    conv(2 * w, 2 * w, 3, 2), nn.ReLU(), nn.Flatten(),
                                    nn.Linear(2 * w * (LIDAR_BINS // 4), 96), nn.ReLU())
-        self.scalars = nn.Sequential(nn.Linear(SCALARS, 32), nn.ReLU())
+        self.scalars = nn.Sequential(nn.Linear(SCALARS + extra, 32), nn.ReLU())
         self.cell = CfCCell(128, hidden)
         self.head = nn.Linear(hidden, 2)
-        mask = torch.ones(FEATURES)
+        mask = torch.ones(FEATURES + extra)
         mask[ODOMETRY] = 0.0
         self.register_buffer("mask", mask)
         self.register_buffer("caps", torch.tensor([V_CAP, W_CAP]))
@@ -90,12 +92,13 @@ def params(net: nn.Module) -> int:
 
 def save(net: CfCPolicy, path: Path, extra: dict | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({"hidden": net.hidden_size, "width": net.width, "state": net.state_dict(), **(extra or {})}, path)
+    torch.save({"hidden": net.hidden_size, "width": net.width, "extra": net.extra, "state": net.state_dict(),
+                **(extra or {})}, path)
 
 
 def load(path) -> CfCPolicy:
     ck = torch.load(path, map_location="cpu", weights_only=False)
-    net = CfCPolicy(ck["hidden"], ck["width"])
+    net = CfCPolicy(ck["hidden"], ck["width"], ck.get("extra", 0))
     net.load_state_dict(ck["state"])
     return net.eval()
 
@@ -110,7 +113,7 @@ class CfCDriver:
         self.name = f"cfc:{Path(path).parent.name}"
         self.reset()
 
-    def reset(self) -> None:
+    def reset(self, initial_pose=None, **kw) -> None:
         self.h = self.net.initial(1, self.device)
 
     def decide(self, obs: Observation) -> Decision:
