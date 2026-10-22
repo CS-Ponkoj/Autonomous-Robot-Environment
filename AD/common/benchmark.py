@@ -33,8 +33,14 @@ def _episode(args) -> dict:
     system = RobotSystem(cats=cats, cat_seed=seed)
     task = RoomMap(system.sim.model).sample_task(seed)
     system.reset(*task.start, task.goal)
-    if hasattr(driver, "reset"):
-        driver.reset()
+    reset = getattr(driver, "reset", None)
+    if reset is not None:
+        import inspect
+        params = inspect.signature(reset).parameters
+        if "initial_pose" in params or any(p.kind == p.VAR_KEYWORD for p in params.values()):
+            reset(initial_pose=task.start)  # route and map drivers: the start pose on the map
+        else:
+            reset()
     start_goal, lat, outcome = system.observe().goal_distance, [], "timeout"
     tick = C.DECISION_PERIOD
     while system.time < C.EPISODE_TIME_LIMIT - 1e-9:
