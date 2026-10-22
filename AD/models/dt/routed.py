@@ -100,7 +100,11 @@ def _episodes(eps: list[dict]) -> list[dict]:
         dist = e["x"][:, DIST] * 10.0
         r = np.zeros(len(x), np.float32)
         r[:-1] = dist[:-1] - dist[1:]
-        r[-1] = GOAL_BONUS if dist[-1] <= C.GOAL_RADIUS + 0.15 else 0.0  # rollouts stop on arrival
+        if e.get("outcome") is not None:  # the rollout's own outcome (Episodes stores it)
+            arrived = e["outcome"] == "success"
+        else:  # episode files from before outcomes were stored: rollouts stop on arrival
+            arrived = dist[-1] <= C.GOAL_RADIUS + 0.15
+        r[-1] = GOAL_BONUS if arrived else 0.0
         out.append({"x": x, "a": (e["cmd"] / CAPS).astype(np.float32),
                     "rtg": np.cumsum(r[::-1])[::-1].astype(np.float32), "action": np.asarray(labels_of(e["cmd"]))})
     return out
