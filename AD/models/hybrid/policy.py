@@ -14,7 +14,8 @@ import torch
 from robot_env.types import Command, Decision, Observation
 
 from ..cnn.policy import SCALARS, CNNPolicy, load as load_cnn
-from .route import ROUTE_FEATURES, RouteSensor, hybrid_vector
+from .route import ROUTE_FEATURES
+from .routekit import RouteDriver, spec_of
 
 
 def widen(base: CNNPolicy) -> CNNPolicy:
@@ -35,25 +36,23 @@ def widen(base: CNNPolicy) -> CNNPolicy:
     return net.eval()
 
 
-class HybridDriver:
-    """A hybrid CNN as a robot_env driver: the route sensor reads every observation, the network
-    decides. `last_x` is the 82-value input of the latest decision (for DAgger)."""
+class HybridDriver(RouteDriver):
+    """A hybrid CNN as a robot_env driver: the route source reads every observation, the network
+    decides. route: run another source than the checkpoint's (e.g. "map"). `last_x` is the
+    82-value input of the latest decision and `last_route` its 4 route values (for DAgger)."""
 
-    def __init__(self, path, device: str | None = "cpu"):
+    def __init__(self, path, device: str | None = "cpu", route: str | None = None):
         torch.set_num_threads(1)
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.net = load_cnn(path).to(self.device)
         assert self.net.extra == ROUTE_FEATURES, "not a hybrid checkpoint"
-        self.sensor = RouteSensor()
+        self.spec = spec_of(torch.load(path, map_location="cpu", weights_only=False))
+        self._init_route(route)
         self.name = f"hybrid:{Path(path).parent.name}"
-        self.last_x = None
-
-    def reset(self) -> None:
-        self.sensor.reset()
 
     def decide(self, obs: Observation) -> Decision:
-        x = hybrid_vector(obs, self.sensor)
-        self.last_x = x
+        x = self.route_input(obs)
+        self.last_x = x  # all 82 values (what AD/models/cnn/dagger.py stores for kind "hybrid")
         with torch.no_grad():
             v, w = self.net(torch.from_numpy(x)[None].to(self.device))[0].cpu().tolist()
         return Decision(Command(v, w), obs.seq)

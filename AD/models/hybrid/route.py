@@ -1,6 +1,12 @@
-"""Design sketch (nothing trained): a hybrid input that tells a learned policy which way the
-built-in planner's route goes, so the policy decides how to drive (speed, turning, yielding to
-cats) while the planner supplies what a memoryless policy lacks: a map and a route.
+"""Route input for learned policies: which way a planner's route goes, so the policy decides how
+to drive (speed, turning, yielding to cats) while the planner supplies what a memoryless policy
+lacks: a map and a route.
+
+Route sources are pluggable. Each has reset(initial_pose=None, **kw) and read(obs) returning the
+4 numbers below, plus a NAME and a LEN_SCALE (metres per unit of route_len). Sources register
+by name (register_route_source) and are made with make_route_source(name); a route checkpoint
+stores the spec of the source it was trained with (route_spec), and drivers may run another
+source by name at evaluation. "online" is the built-in planner below (its map built live).
 
 The route sensor is the built-in driver itself, run alongside and fed the same observations every
 decision (its map and route come from lidar, depth and odometry only, never ground truth); its
@@ -10,8 +16,9 @@ commands are thrown away. From its plan it reads, every decision:
                         planned route, relative to the heading (the same point the built-in
                         driver steers for)
   route_known           1 if a route to the goal (or, failing that, to a frontier) exists, else 0
-  route_len             the planned route length to the goal in metres, / 10, capped at 1 (equal
-                        to the straight goal distance in open space, longer around walls)
+  route_len             the planned route length to the goal in metres, / LEN_SCALE (10 for
+                        "online"), capped at 1 (equal to the straight goal distance in open
+                        space, longer around walls)
 
 These 4 numbers are appended to AD.common.features.vector(obs) (78), so a hybrid policy reads 82.
 The CNN's scalar branch takes them like the goal values; a policy started from a cloned CNN
@@ -38,13 +45,17 @@ REPLAN_EVERY = 0.5  # s: at most one new route search per this much time (the pl
 
 
 class RouteSensor:
-    """The built-in planner run as a sensor: its route direction and length, every decision.
+    """The built-in planner run as a sensor ("online"): its route direction and length, every
+    decision. The initial pose is not needed (its map is built from the start of the episode).
 
     throttle=True (off by default): the planner replans at most once per REPLAN_EVERY, with one
     retry per search; left alone it also replans on every newly seen obstacle cell (nearly every
     decision with moving cats). With the compiled route search (robot_env.kernels.wavefront) that
     costs about 10 ms at the 95th percentile, so the default matches what the hybrid was trained
     with; the throttle is for slower machines."""
+
+    NAME = "online"
+    LEN_SCALE = 10.0  # m per unit of route_len (kept from the first hybrid checkpoints)
 
     def __init__(self, throttle: bool = False):
         self.planner = BaselineDriver(C.SPEED_LEVELS[LABEL_LEVEL])
@@ -68,7 +79,7 @@ class RouteSensor:
                     self._depth -= 1
             self.planner._plan = throttled
 
-    def reset(self) -> None:
+    def reset(self, initial_pose=None, **kw) -> None:
         self.planner.reset()
         self._last_plan, self._depth = -math.inf, 0
 
@@ -86,10 +97,59 @@ class RouteSensor:
         if p.dist is not None:
             cx, cy = p._cell(p.pose[0], p.pose[1])
             if 0 <= cx < p.dist.shape[0] and 0 <= cy < p.dist.shape[1] and np.isfinite(p.dist[cx, cy]):
-                out[3] = min(float(p.dist[cx, cy]) * CELL / 10.0, 1.0)
+                out[3] = min(float(p.dist[cx, cy]) * CELL / self.LEN_SCALE, 1.0)
         return out
 
 
-def hybrid_vector(obs: Observation, sensor: RouteSensor) -> np.ndarray:
+_SOURCES: dict = {RouteSensor.NAME: RouteSensor}
+# sources defined elsewhere, imported on first use (their modules import this one)
+_LAZY = {"map": ("AD.models.mapplan.driver", "MapRouteSensor")}  # the planner on the saved building map
+
+
+def register_route_source(name: str, cls) -> None:
+    """Make a route source available by name (a class with reset(initial_pose=None, **kw) and
+    read(obs) -> 4 values; its route-length scale as LEN_SCALE or an instance `scale`)."""
+    _SOURCES[name] = cls
+
+
+def route_sources() -> list[str]:
+    return sorted(set(_SOURCES) | set(_LAZY))
+
+
+def make_route_source(name: str = "online", **kw):
+    if name not in _SOURCES and name in _LAZY:
+        import importlib
+        module, cls = _LAZY[name]
+        register_route_source(name, getattr(importlib.import_module(module), cls))
+    if name not in _SOURCES:
+        raise ValueError(f"unknown route source {name!r}; known: {route_sources()}")
+    source = _SOURCES[name](**kw)
+    source.source_name = name  # the registered name (a subclass may still carry its parent's NAME)
+    return source
+
+
+def len_scale(source) -> float:
+    """Metres per unit of route_len for this source (an instance `scale` wins over LEN_SCALE)."""
+    return float(getattr(source, "scale", None) or source.LEN_SCALE)
+
+
+def route_spec(source) -> dict:
+    """What a checkpoint stores about the route source it was trained with."""
+    return {"name": getattr(source, "source_name", source.NAME), "len_scale": len_scale(source)}
+
+
+def reset_driver(driver, initial_pose=None) -> None:
+    """Reset any driver, passing the episode's start pose to those that take it (route drivers)."""
+    if not hasattr(driver, "reset"):
+        return
+    import inspect
+    params = inspect.signature(driver.reset).parameters
+    if initial_pose is not None and ("initial_pose" in params or any(p.kind == p.VAR_KEYWORD for p in params.values())):
+        driver.reset(initial_pose=initial_pose)
+    else:
+        driver.reset()
+
+
+def hybrid_vector(obs: Observation, sensor) -> np.ndarray:
     """features.vector(obs) with the route sensor's 4 values appended (82 numbers)."""
     return np.concatenate([vector(obs), sensor.read(obs)])
