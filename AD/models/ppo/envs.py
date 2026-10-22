@@ -33,17 +33,18 @@ class FeatureEnv(gym.Env):
     metadata = {"render_modes": []}
 
     def __init__(self, discrete: bool = True, seeds=dataset.TRAIN, odometry: bool = False, cats: int = 0,
-                 cat_seed: int = 0, squash: bool = False, route: bool = False):
-        """route=True: the hybrid's observation, the built-in planner's route (AD/models/hybrid/
-        route.py) appended (82 values); the planner reads the same observations every step."""
+                 cat_seed: int = 0, squash: bool = False, route: bool | str = False):
+        """route: a route source name ("online", "map"; True means "online"): the hybrid's
+        observation, that source's 4 route values (AD/models/hybrid/route.py) appended (82
+        values); the source reads the same observations every step."""
         self.discrete, self.odometry, self.squash = discrete, odometry, squash
         self.seeds = list(seeds)
         self.inner = RobotGoalEnv(cats=cats, cat_seed=cat_seed)
         self.sensor = None
         n = FEATURES
         if route:
-            from ..hybrid.route import ROUTE_FEATURES, RouteSensor
-            self.sensor, n = RouteSensor(), FEATURES + ROUTE_FEATURES
+            from ..hybrid.route import ROUTE_FEATURES, make_route_source
+            self.sensor, n = make_route_source("online" if route is True else route), FEATURES + ROUTE_FEATURES
         self.observation_space = spaces.Box(-1.5, 1.5, shape=(n,), dtype=np.float32)
         if discrete:
             self.action_space = spaces.Discrete(len(ACTION_NAMES))
@@ -66,7 +67,7 @@ class FeatureEnv(gym.Env):
         task_seed = int(self.np_random.choice(self.seeds))  # seeded by reset(seed=...): reproducible
         self.inner.reset(options={"task_seed": task_seed})
         if self.sensor is not None:
-            self.sensor.reset()
+            self.sensor.reset(initial_pose=self.inner.task.start)  # the map source needs it; online ignores it
         return self._features(), {"task_seed": task_seed}
 
     def step(self, action):
