@@ -53,9 +53,10 @@ def episodes(seeds) -> list[dict]:
     return out
 
 
-def make_model(hidden: int, layers: int, heads: int, k: int):
+def make_model(hidden: int, layers: int, heads: int, k: int, state_dim: int = FEATURES):
+    """state_dim: FEATURES (78), or 82 with the route input (AD/models/dt/routed.py)."""
     from transformers import DecisionTransformerConfig, DecisionTransformerModel
-    cfg = DecisionTransformerConfig(state_dim=FEATURES, act_dim=2, hidden_size=hidden, n_layer=layers, n_head=heads,
+    cfg = DecisionTransformerConfig(state_dim=state_dim, act_dim=2, hidden_size=hidden, n_layer=layers, n_head=heads,
                                     n_inner=4 * hidden, max_ep_len=MAX_EP_LEN, n_positions=3 * k + 3,
                                     action_tanh=True, resid_pdrop=0.1, attn_pdrop=0.1, embd_pdrop=0.1)
     return DecisionTransformerModel(cfg)
@@ -65,7 +66,7 @@ def batch(eps: list[dict], k: int, n: int, rng: np.random.Generator, device: str
     """n windows of k steps (left-padded at an episode's start), chosen in proportion to length."""
     lens = np.array([len(e["x"]) for e in eps])
     pick = rng.choice(len(eps), n, p=lens / lens.sum())
-    S = np.zeros((n, k, FEATURES), np.float32)
+    S = np.zeros((n, k, eps[0]["x"].shape[1]), np.float32)
     A = np.zeros((n, k, 2), np.float32)
     R = np.zeros((n, k, 1), np.float32)
     T = np.zeros((n, k), np.int64)
@@ -100,7 +101,7 @@ def evaluate(model, eps: list[dict], k: int, device: str, actions_in: bool = Tru
             n = len(e["x"])
             for start in range(0, n, 256):
                 idx = np.arange(start, min(n, start + 256))
-                S = np.zeros((len(idx), k, FEATURES), np.float32)
+                S = np.zeros((len(idx), k, e["x"].shape[1]), np.float32)
                 A = np.zeros((len(idx), k, 2), np.float32)
                 R = np.zeros((len(idx), k, 1), np.float32)
                 T = np.zeros((len(idx), k), np.int64)
@@ -133,18 +134,26 @@ class DTDriver:
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         ck = torch.load(path, map_location="cpu", weights_only=False)
         self.k, self.actions_in = ck["k"], ck.get("actions_in", True)
-        self.model = make_model(ck["hidden"], ck["layers"], ck["heads"], self.k)
+        self.state_dim = ck.get("state_dim", FEATURES)
+        self.model = make_model(ck["hidden"], ck["layers"], ck["heads"], self.k, self.state_dim)
         self.model.load_state_dict(ck["state"])
         self.model.to(self.device).eval()
         self.name = f"dt:{Path(path).parent.name}"
-        self.reset()
+        self._clear()
 
-    def reset(self) -> None:
+    def _clear(self) -> None:
         self.S, self.A, self.R = deque(maxlen=self.k), deque(maxlen=self.k), deque(maxlen=self.k)
         self.t, self.rtg, self.last = 0, None, None
 
+    def reset(self, initial_pose=None, **kw) -> None:
+        self._clear()
+
+    def _state(self, obs: Observation) -> np.ndarray:
+        """The model's state for this observation (the route DT appends the route values)."""
+        return vector(obs)
+
     def decide(self, obs: Observation) -> Decision:
-        x = vector(obs)
+        x = self._state(obs)
         dist = float(x[DIST]) * 10.0
         if self.rtg is None:
             self.rtg = dist + GOAL_BONUS  # the target: all the way, and arrive
@@ -155,7 +164,7 @@ class DTDriver:
         self.R.append(self.rtg / RTG_SCALE)
         self.A.append(np.zeros(2, np.float32))  # the action to predict
         m = len(self.S)
-        S = np.zeros((1, self.k, FEATURES), np.float32)
+        S = np.zeros((1, self.k, len(x)), np.float32)
         A = np.zeros((1, self.k, 2), np.float32)
         R = np.zeros((1, self.k, 1), np.float32)
         T = np.zeros((1, self.k), np.int64)
