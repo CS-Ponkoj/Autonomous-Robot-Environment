@@ -141,10 +141,29 @@ def save(net: TextNum, tok, run_dir: Path, extra: dict) -> None:
     (run_dir / "textnum.json").write_text(json.dumps({**net.cfg(), **extra}), encoding="utf-8")
 
 
+def autocast_dtype(device, precision: str = "auto"):
+    """The autocast dtype for training and driving alike: None (fp32) off the GPU or with fp32;
+    with auto, bf16 where the GPU has it natively (not emulated), else fp16."""
+    if torch.device(device).type != "cuda" or precision == "fp32":
+        return None
+    if precision == "auto":
+        return torch.bfloat16 if torch.cuda.is_bf16_supported(including_emulation=False) else torch.float16
+    return {"bf16": torch.bfloat16, "fp16": torch.float16}[precision]
+
+
+def load_head(net: TextNum, path) -> None:
+    """head.pt (everything but the encoder) into net; any other missing or extra key is an error."""
+    res = net.load_state_dict(torch.load(path, map_location="cpu"), strict=False)
+    missing = [k for k in res.missing_keys if not k.startswith("encoder.")]
+    assert not missing and not res.unexpected_keys, f"{path}: missing {missing}, unexpected {res.unexpected_keys}"
+
+
 _CACHE: dict[str, tuple] = {}  # one model per run and process (the benchmark makes a driver per episode)
 
 
 def load(run_dir, device: str):
+    """(tokenizer, model, settings) of a finished run. The weights stay fp32 and the driver runs
+    them under autocast_dtype, as in training (infer_fp32 in textnum.json: plain fp32)."""
     key = (str(Path(run_dir).resolve()), device)
     if key not in _CACHE:
         from transformers import AutoModel, AutoTokenizer
@@ -152,9 +171,7 @@ def load(run_dir, device: str):
         cfg = json.loads((run_dir / "textnum.json").read_text(encoding="utf-8"))
         enc = AutoModel.from_pretrained(run_dir / "encoder", dtype=torch.float32)
         net = TextNum(enc, cfg["head"], cfg["prefix"], cfg["width"], cfg["skip"])
-        net.load_state_dict(torch.load(run_dir / "head.pt", map_location="cpu"), strict=False)
-        if device == "cuda" and not cfg.get("infer_fp32", False):  # half precision unless the run asked for fp32
-            net.encoder.to(torch.float16 if not torch.cuda.is_bf16_supported() else torch.bfloat16)
+        load_head(net, run_dir / "head.pt")
         _CACHE[key] = (AutoTokenizer.from_pretrained(run_dir / "encoder"), net.to(device).eval(), cfg)
     return _CACHE[key]
 
@@ -166,12 +183,15 @@ def tokenize(tok, x: np.ndarray, max_len: int, device, len_scale: float = 10.0):
 
 @torch.no_grad()
 def predict(tok, net: TextNum, x: np.ndarray, max_len: int, device, len_scale: float = 10.0,
-            batch: int = 256) -> np.ndarray:
-    """(N, 2) commands (continuous) or (N, 8) logits (discrete) for 82-value inputs."""
+            batch: int = 256, dtype=None) -> np.ndarray:
+    """(N, 2) commands (continuous) or (N, 8) logits (discrete) for 82-value inputs, under
+    autocast in dtype (None: as the caller has set it, fp32 by default)."""
     out = []
+    dev_type = torch.device(device).type
     for i in range(0, len(x), batch):
         ids, mask = tokenize(tok, x[i:i + batch], max_len, device, len_scale)
-        out.append(net(ids, mask, torch.from_numpy(x[i:i + batch]).to(device)).float().cpu())
+        with torch.autocast(dev_type, dtype=dtype or torch.float32, enabled=dtype is not None):
+            out.append(net(ids, mask, torch.from_numpy(x[i:i + batch]).to(device)).float().cpu())
     return torch.cat(out).numpy()
 
 
@@ -185,13 +205,15 @@ class TextNumDriver:
     """A trained text-plus-numbers model as a robot_env driver: the route source reads every
     observation, the model decides (GPU if any). last_x is the latest 82-value input (DAgger)."""
 
-    def __init__(self, run_dir: str, name: str = "textnum", device: str | None = None):
+    def __init__(self, run_dir: str, name: str = "textnum", device: str | None = None, route: str | None = None):
+        """route: drive with another route source than the run's (DAgger moving a model to a new
+        source); the text then states that source's route lengths."""
         torch.set_num_threads(1)
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.tok, self.net, self.cfg = load(run_dir, self.device)
-        spec = self.cfg.get("route", {"name": "online", "len_scale": 10.0})
-        self.route, _ = route_source(spec["name"])
-        self.len_scale = float(spec["len_scale"])
+        self.route, self.spec = route_source(route or self.cfg.get("route", {"name": "online"})["name"])
+        self.len_scale = float(self.spec["len_scale"])
+        self.dtype = None if self.cfg.get("infer_fp32", False) else autocast_dtype(self.device)
         self.name = f"{name}:{Path(run_dir).name}"
         self.last_x = None
 
@@ -206,5 +228,5 @@ class TextNumDriver:
     def decide(self, obs: Observation) -> Decision:
         x = np.concatenate([vector(obs), np.asarray(self.route.read(obs), np.float32)])
         self.last_x = x
-        y = predict(self.tok, self.net, x[None], self.cfg["max_len"], self.device, self.len_scale)[0]
+        y = predict(self.tok, self.net, x[None], self.cfg["max_len"], self.device, self.len_scale, dtype=self.dtype)[0]
         return Decision(command_of(self.net, y), obs.seq)
