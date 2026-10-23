@@ -125,6 +125,7 @@ def make_route_source(name: str = "online", **kw):
         raise ValueError(f"unknown route source {name!r}; known: {route_sources()}")
     source = _SOURCES[name](**kw)
     source.source_name = name  # the registered name (a subclass may still carry its parent's NAME)
+    source.source_kwargs = dict(kw)  # what it was made with (route_spec records the map it used)
     return source
 
 
@@ -133,9 +134,41 @@ def len_scale(source) -> float:
     return float(getattr(source, "scale", None) or source.LEN_SCALE)
 
 
+def _map_details(source) -> dict:
+    """For the "map" source: which saved map (its folder name, e.g. map_v2) and whether drift
+    correction was on, so a checkpoint stays tied to its map if the default map changes."""
+    from pathlib import Path
+    path = getattr(source, "source_kwargs", {}).get("map_path")
+    if path is None:
+        from AD.models.mapplan.savedmap import DEFAULT
+        path = DEFAULT
+    planner = getattr(source, "planner", None)
+    return {"map": Path(path).parent.name, "match": bool(getattr(planner, "match", False))}
+
+
 def route_spec(source) -> dict:
-    """What a checkpoint stores about the route source it was trained with."""
-    return {"name": getattr(source, "source_name", source.NAME), "len_scale": len_scale(source)}
+    """What a checkpoint stores about the route source it was trained with: its name and route
+    length scale, and for "map" the saved map's id and drift correction (or whatever the source's
+    own describe() returns)."""
+    name = getattr(source, "source_name", source.NAME)
+    spec = {"name": name, "len_scale": len_scale(source)}
+    if callable(getattr(source, "describe", None)):
+        spec.update(source.describe())
+    elif name == "map":
+        spec.update(_map_details(source))
+    return spec
+
+
+def source_from_spec(spec: dict):
+    """The route source a checkpoint was trained with, as it was: for "map", the same saved map
+    (AD/models/mapplan/runs/<map>/map.npz) and drift correction; older specs without these get the
+    current defaults."""
+    name = spec.get("name", "online")
+    if name == "map" and "map" in spec:
+        from AD.models.mapplan.savedmap import DEFAULT
+        return make_route_source(name, map_path=DEFAULT.parent.parent / spec["map"] / "map.npz",
+                                 match=bool(spec.get("match", True)))
+    return make_route_source(name)
 
 
 def reset_driver(driver, initial_pose=None) -> None:

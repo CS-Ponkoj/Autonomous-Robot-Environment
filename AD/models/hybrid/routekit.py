@@ -19,7 +19,7 @@ from torch import nn
 from robot_env.types import Observation
 
 from ...common.features import vector
-from .route import ROUTE_FEATURES, make_route_source, route_spec
+from .route import ROUTE_FEATURES, make_route_source, route_spec, source_from_spec
 
 DEFAULT_SPEC = {"name": "online", "len_scale": 10.0}  # checkpoints from before route specs existed
 
@@ -42,8 +42,13 @@ class RouteDriver:
     _init_route(route) in __init__, then route_input(obs) in decide()."""
 
     def _init_route(self, route: str | None) -> None:
-        name = route or self.spec.get("name", "online")
-        self.source = make_route_source(name)
+        """route None (or the trained source's own name): the source exactly as the checkpoint
+        records it (for "map": the same saved map and drift correction); another name: that
+        source with its current defaults."""
+        if route is None or route == self.spec.get("name", "online"):
+            self.source = source_from_spec(self.spec)
+        else:
+            self.source = make_route_source(route)
         self.last_x = self.last_route = None
 
     def reset(self, initial_pose=None, **kw) -> None:
