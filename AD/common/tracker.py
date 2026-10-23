@@ -2,23 +2,32 @@
 
 Each entry is one row of AD/private/experiments.jsonl (local only) and a copy in the model's
 own folder (AD/<model>/runs/<run>/result.json). AD/LEADERBOARD.md (local only) is rebuilt from
-the whole log after every entry, best first."""
+the whole log after every entry, best first.
+
+Several computers share the project folder through a synced drive, so each computer appends only
+to its own log: the main computer (MAIN_HOST) to experiments.jsonl, any other to
+experiments_<host>.jsonl. Reading merges them all. A held-out result for an earlier entry is
+appended as a "final_of" record (applied to that entry when reading), so no computer rewrites a
+file another one writes. Only the main computer rebuilds the board (one writer per file)."""
 
 from __future__ import annotations
 
 import json
+import socket
 import time
 from pathlib import Path
 
 AD = Path(__file__).resolve().parent.parent
-LOG = AD / "private" / "experiments.jsonl"
+MAIN_HOST = "Ponkoj-PC"  # the computer that owns experiments.jsonl and the board
+HOST = socket.gethostname()
+LOG = AD / "private" / ("experiments.jsonl" if HOST == MAIN_HOST else f"experiments_{HOST}.jsonl")
 BOARD = AD / "LEADERBOARD.md"
 
 
 def log(entry: dict) -> dict:
     """entry: model, run, kind ("benchmark", "finetune"), and any of base, data, params,
     offline (accuracy on held-out recordings), bench (common.benchmark summary), score, notes."""
-    entry = {"time": time.strftime("%Y-%m-%d %H:%M"), **entry}
+    entry = {"time": time.strftime("%Y-%m-%d %H:%M"), **entry, "host": HOST}
     LOG.parent.mkdir(exist_ok=True)
     with open(LOG, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
@@ -30,9 +39,17 @@ def log(entry: dict) -> dict:
 
 
 def entries() -> list[dict]:
-    if not LOG.exists():
-        return []
-    return [json.loads(line) for line in LOG.read_text(encoding="utf-8").splitlines() if line.strip()]
+    """Every computer's log merged (main first, then the others by name), with the held-out
+    "final_of" records applied to their entries."""
+    files = sorted(LOG.parent.glob("experiments*.jsonl"), key=lambda f: (f.name != "experiments.jsonl", f.name))
+    rows = [json.loads(line) for f in files for line in f.read_text(encoding="utf-8").splitlines() if line.strip()]
+    out = [e for e in rows if e.get("kind") != "final_of"]
+    for r in rows:
+        if r.get("kind") == "final_of":
+            for e in out:
+                if e["model"] == r["model"] and e["run"] == r["run"]:
+                    e["final"], e["final_score"] = r["final"], r["final_score"]
+    return out
 
 
 def cards() -> dict:
@@ -59,6 +76,8 @@ def _goals(b, key):
 
 
 def write_board() -> None:
+    if HOST != MAIN_HOST:
+        return  # one writer per file: the main computer rebuilds the board (from every log)
     rows = entries()
     info = cards()
     benched = [e for e in rows if e.get("bench") or e.get("final")]
@@ -119,10 +138,11 @@ def write_board() -> None:
 
 
 def add_final(model: str, run: str, final: dict, final_score: float) -> None:
-    """Attach a held-out test result to an earlier entry (model, run) and rebuild the board."""
-    rows = entries()
-    for e in rows:
-        if e["model"] == model and e["run"] == run:
-            e["final"], e["final_score"] = final, final_score
-    LOG.write_text("".join(json.dumps(e) + "\n" for e in rows), encoding="utf-8")
+    """Attach a held-out test result to an earlier entry (model, run): appended to this computer's
+    log as a "final_of" record (entries() applies it), then the board is rebuilt."""
+    rec = {"time": time.strftime("%Y-%m-%d %H:%M"), "kind": "final_of", "model": model, "run": run,
+           "final": final, "final_score": final_score, "host": HOST}
+    LOG.parent.mkdir(exist_ok=True)
+    with open(LOG, "a", encoding="utf-8") as f:
+        f.write(json.dumps(rec) + "\n")
     write_board()
