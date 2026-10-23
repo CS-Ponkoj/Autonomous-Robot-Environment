@@ -2,6 +2,7 @@
 
     python -m AD.models.mapplan.build --seeds 6000-6039 --workers 4 --out map_v1
     python -m AD.models.mapplan.build --seeds 6000-6039 --snapshot 40 --out map_v1_s40
+    python -m AD.models.mapplan.build --seeds 6040-6079 --prior map_v1 --out map_v2
 
 Each mapping drive is a task (start and goal) driven by the built-in driver without cats, with
 its own lidar, depth and odometry. Its static map (cells seen occupied over CONFIRM_SPAN, nothing
@@ -11,6 +12,10 @@ building frame with the drive's start pose, and added as one vote per drive and 
 the vote result (SavedMap.finish). Every map cell samples the drive's grid at its own centre, so
 each drive gives each cell at most one vote and leaves no holes between cells. Drives that ended
 in a collision do not vote.
+
+With --prior <map>, each mapping drive starts from that saved map with drift correction on
+(MapDriver, match=True: the robot keeps its pose aligned with the walls it already knows, as a
+robot does when it maps a building it has partly mapped), and votes only what it saw itself.
 
 Seeds 6000-6039 are used by nothing else (benchmarks use 1000-1009 and 2000-2019, recordings
 10000-10599). The report (runs/<out>/report.json) gives, per drive, the outcome and the
@@ -53,7 +58,7 @@ def _sample_drive_grid(grid: np.ndarray, pose0) -> np.ndarray:
 
 
 def _drive(args) -> dict:
-    seed, snapshot = args
+    seed, snapshot, prior = args
     from robot_env import config as C
     from robot_env.baseline import CONFIRM_SPAN, BaselineDriver
     from robot_env.layout import RoomMap
@@ -62,7 +67,12 @@ def _drive(args) -> dict:
     system = RobotSystem(cats=0, cat_seed=seed)
     task = RoomMap(system.sim.model).sample_task(seed)
     system.reset(*task.start, task.goal)
-    driver = BaselineDriver()
+    if prior:
+        from .driver import MapDriver
+        driver = MapDriver(prior, match=True)
+        driver.reset(initial_pose=task.start)
+    else:
+        driver = BaselineDriver()
     outcome = "timeout"
     end = min(snapshot, C.EPISODE_TIME_LIMIT) if snapshot else C.EPISODE_TIME_LIMIT
     while system.time < end - 1e-9:
@@ -78,8 +88,12 @@ def _drive(args) -> dict:
     if outcome == "timeout" and snapshot and system.time < C.EPISODE_TIME_LIMIT - 1e-9:
         outcome = "snapshot"
     taken = system.time
-    static = (driver._last - driver._first >= CONFIRM_SPAN) & ~(driver._refused > taken)
-    free = driver._seen_free & ~static
+    if prior:
+        static = driver.own_static(taken)
+        free = driver.own_free & ~static
+    else:
+        static = (driver._last - driver._first >= CONFIRM_SPAN) & ~(driver._refused > taken)
+        free = driver._seen_free & ~static
     occ_v = _sample_drive_grid(static, task.start)
     free_v = _sample_drive_grid(free, task.start) & ~occ_v
     # drift: the driver's pose placed with the start pose, against the true pose (evaluation only)
@@ -118,7 +132,8 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--seeds", default="6000-6039", help="seed range a-b, or one seed")
     p.add_argument("--snapshot", type=float, default=None, help="take each drive's map at this many seconds")
-    p.add_argument("--workers", type=int, default=4)
+    p.add_argument("--prior", default=None, help="a map folder: map with it and drift correction on")
+    p.add_argument("--workers", type=int, default=2)
     p.add_argument("--out", default="map_v1")
     p.add_argument("--min-votes", type=int, default=2)
     p.add_argument("--min-share", type=float, default=0.3)
@@ -127,7 +142,7 @@ def main(argv=None) -> int:
     seeds = range(int(lo), int(hi or lo) + 1)
     t0 = time.time()
     with ProcessPoolExecutor(max(a.workers, 1), max_tasks_per_child=1) as pool:
-        drives = list(pool.map(_drive, [(s, a.snapshot) for s in seeds]))
+        drives = list(pool.map(_drive, [(s, a.snapshot, str(RUNS / a.prior / "map.npz") if a.prior else None) for s in seeds]))
     m = SavedMap.empty()
     for d in drives:
         occ, free = d.pop("occ"), d.pop("free")
@@ -138,7 +153,7 @@ def main(argv=None) -> int:
     out = RUNS / a.out
     m.save(out / "map.npz")
     drift = np.array([d["drift_m"] for d in drives])
-    report = {"seeds": a.seeds, "snapshot_s": a.snapshot, "drives": len(drives), "build_s": round(time.time() - t0, 1),
+    report = {"seeds": a.seeds, "snapshot_s": a.snapshot, "prior": a.prior, "drives": len(drives), "build_s": round(time.time() - t0, 1),
               "outcomes": {k: sum(d["outcome"] == k for d in drives) for k in ("success", "timeout", "snapshot", "collision")},
               "drift_m": {"median": round(float(np.median(drift)), 3), "max": round(float(drift.max()), 3)},
               "drift_deg": {"median": float(np.median([d["drift_deg"] for d in drives])),

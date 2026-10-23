@@ -19,7 +19,7 @@ from robot_env.baseline import CELL, SIZE
 
 HALF = 6.0  # m: the map covers -HALF..HALF on both axes (the floor is 10 x 10 m)
 N = int(round(2 * HALF / CELL))  # cells per side
-DEFAULT = Path(__file__).resolve().parent / "runs" / "map_v1" / "map.npz"
+DEFAULT = Path(__file__).resolve().parent / "runs" / "map_v2" / "map.npz"  # built with drift correction (build.py --prior map_v1)
 
 
 @dataclass

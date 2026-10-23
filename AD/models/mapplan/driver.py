@@ -60,6 +60,7 @@ class MapDriver(BaselineDriver):
         super().reset()
         self._placed = initial_pose is not None
         self._next_match = 0.0
+        self.own_free = np.zeros((SIZE, SIZE), bool)  # cells this drive's own rays saw free (map building)
         if not self._placed:
             return  # BaselineDriver.__init__ resets without a pose; decide() refuses to drive unplaced
         occ, free = to_driver_frame(self.saved, tuple(float(v) for v in initial_pose))
@@ -89,6 +90,22 @@ class MapDriver(BaselineDriver):
             v, w = obs.velocity_estimate
             obs = replace(obs, velocity_estimate=(v * (1.0 + self.odo_bias[0]), w + self.odo_bias[1]))
         super()._integrate(obs)
+
+    def _map(self, obs: Observation) -> bool:
+        """BaselineDriver's mapping, with the cells this drive's rays see free also kept apart from
+        the saved map's (own_free), so a map built from drives with a saved map counts only what
+        each drive saw itself."""
+        full = self._seen_free
+        self._seen_free = self.own_free
+        try:
+            return super()._map(obs)
+        finally:
+            self.own_free = self._seen_free
+            self._seen_free = full | self.own_free
+
+    def own_static(self, now: float) -> np.ndarray:
+        """Cells this drive itself confirmed occupied (static, not refused), in its own grid."""
+        return ((self._last - self._first >= CONFIRM_SPAN) & (self._last > 0.0) & ~(self._refused > now))
 
     # ----- drift correction (match=True) -----
     def _integrate_then_match(self, obs: Observation) -> None:
@@ -150,7 +167,7 @@ class MapRouteSensor(RouteSensor):
     NAME = "map"
     LEN_SCALE = 20.0
 
-    def __init__(self, map_path=None, scale: float = LEN_SCALE, match: bool = False):
+    def __init__(self, map_path=None, scale: float = LEN_SCALE, match: bool = True):
         # RouteSensor.__init__ builds an online planner; this sensor needs the map planner instead
         self.planner = MapDriver(map_path, C.SPEED_LEVELS[LABEL_LEVEL], match=match)
         self.throttle = False
