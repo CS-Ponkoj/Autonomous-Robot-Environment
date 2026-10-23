@@ -56,33 +56,73 @@ def recordings(seeds, stride: int, limit: int = 0) -> dict:
     return {"x": textnum.no_route(d["x"][idx]), "cmd": d["cmd"][idx].astype(np.float32)}
 
 
+ONLINE = {"name": "online", "len_scale": 10.0}  # the route spec of files and checkpoints older than the registry
+
+
+def file_spec(f) -> dict | None:
+    """The route source a state file was collected with: from its .json note, else from the run
+    its round produced (<dir>_r<k>/textnum.json, or the route_spec in <dir>_r<k>/model.pt, which
+    hybrid checkpoints from before the registry lack: online); None if nothing tells."""
+    import re
+    f = Path(f)
+    meta = f.with_suffix(".json")
+    if meta.exists():
+        spec = json.loads(meta.read_text(encoding="utf-8")).get("route")
+        if spec:
+            return spec
+    m = re.search(r"_r(\d+)$", f.stem)
+    if m:
+        run = f.parent.parent / f"{f.parent.name}_r{m.group(1)}"
+        if (run / "textnum.json").exists():
+            return json.loads((run / "textnum.json").read_text(encoding="utf-8")).get("route", ONLINE)
+        if (run / "model.pt").exists():
+            return torch.load(run / "model.pt", map_location="cpu", weights_only=False).get("route_spec", ONLINE)
+    return None
+
+
+def read_states(f) -> tuple[np.ndarray, np.ndarray]:
+    """(x (N, 82), cmd (N, 2)) of a state file: this module's DAgger states (x already 82 wide) or
+    route DAgger episode files (AD/models/hybrid/routekit.py: x (N, 78) and route (N, 4))."""
+    e = np.load(f)
+    x = np.concatenate([e["x"], e["route"]], 1) if "route" in e.files else e["x"]
+    assert x.shape[1] == INPUTS, f"{f}: {x.shape[1]} inputs, not {INPUTS}"
+    return x.astype(np.float32), e["cmd"].astype(np.float32)
+
+
+def check_sources(files, spec: dict, unchecked=()) -> None:
+    """Every state file must come from the training run's route source (route values from another
+    source mean something else); files in `unchecked` were allowed explicitly."""
+    for f in files:
+        if f in unchecked:
+            continue
+        fs = file_spec(f)
+        if fs is None:
+            raise SystemExit(f"{f}: cannot tell which route source collected it (no .json note, no round checkpoint)")
+        differ = [k for k in set(fs) & set(spec) if (float(fs[k]) != float(spec[k]) if k == "len_scale" else fs[k] != spec[k])]
+        if fs["name"] != spec["name"] or differ:  # every field both specs carry (name, scale, map id ...) must agree
+            raise SystemExit(f"{f}: collected with route source {fs}, but this run uses {spec}")
+
+
 def states(files, valid: bool, limit: int = 0) -> dict:
+    """The state files' rows (every 10th row is validation). limit: at most this many rows in all,
+    taken evenly from every file (so a smoke test still sees each DAgger round)."""
     xs, cs = [], []
     for f in files:
-        e = np.load(f)
-        assert e["x"].shape[1] == INPUTS, f"{f}: {e['x'].shape[1]} inputs, not {INPUTS}"
-        keep = (np.arange(len(e["x"])) % 10 == 0) == valid  # every 10th row is validation
+        x, cmd = read_states(f)
+        e = {"x": x, "cmd": cmd}
+        keep = np.flatnonzero((np.arange(len(e["x"])) % 10 == 0) == valid)
+        if limit:
+            keep = keep[np.linspace(0, len(keep) - 1, min(len(keep), max(limit // len(files), 1))).astype(int)]
         xs.append(e["x"][keep]), cs.append(e["cmd"][keep])
     if not xs:
         return {"x": np.zeros((0, INPUTS), np.float32), "cmd": np.zeros((0, 2), np.float32)}
-    out = {"x": np.concatenate(xs).astype(np.float32), "cmd": np.concatenate(cs).astype(np.float32)}
-    if limit:
-        out = {k: v[:limit] for k, v in out.items()}
-    return out
+    return {"x": np.concatenate(xs).astype(np.float32), "cmd": np.concatenate(cs).astype(np.float32)}
 
 
 def join(rec: dict, st: dict, rec_weight: float) -> dict:
     x, cmd = np.concatenate([rec["x"], st["x"]]), np.concatenate([rec["cmd"], st["cmd"]])
     w = np.concatenate([np.full(len(rec["x"]), rec_weight, np.float32), np.ones(len(st["x"]), np.float32)])
     return {"x": x, "cmd": cmd, "action": np.asarray(labels_of(cmd)), "w": w, "n_rec": len(rec["x"]), "n_states": len(st["x"])}
-
-
-def amp_dtype(precision: str, dev):
-    if dev.type != "cuda" or precision == "fp32":
-        return None
-    if precision == "auto":
-        return torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-    return {"bf16": torch.bfloat16, "fp16": torch.float16}[precision]
 
 
 def evaluate(tok, net, d: dict, a, dev, dtype, len_scale: float) -> dict:
@@ -110,7 +150,10 @@ def add_train_args(p):
     p.add_argument("--prefix", type=int, default=4, help="numeric prefix embeddings")
     p.add_argument("--width", type=int, default=32, help="lidar conv width")
     p.add_argument("--no-skip", action="store_true", help="the head sees only the encoder (ablation)")
-    p.add_argument("--route", default="online", help="route source name (AD/models/hybrid/route.py)")
+    p.add_argument("--route", default=None, help="route source name (AD/models/hybrid/route.py); default "
+                   "online, or with --init that run's source")
+    p.add_argument("--allow-route-change", action="store_true",
+                   help="with --init: train on another route source than the init run's (logged)")
     p.add_argument("--epochs", type=float, default=2.0)
     p.add_argument("--lr", type=float, default=5e-5, help="encoder learning rate")
     p.add_argument("--head-lr", type=float, default=1e-3, help="numeric branch and head learning rate")
@@ -118,7 +161,7 @@ def add_train_args(p):
     p.add_argument("--accum", type=int, default=1)
     p.add_argument("--warmup", type=float, default=0.06)
     p.add_argument("--wd", type=float, default=0.01)
-    p.add_argument("--max-len", type=int, default=48)
+    p.add_argument("--max-len", type=int, default=None, help="text tokens (default 48, or with --init that run's)")
     p.add_argument("--train", default=None, help="recording seed range a-b (default: dataset.TRAIN)")
     p.add_argument("--valid", default=None, help="recording seed range a-b (default: dataset.VALID)")
     p.add_argument("--stride", type=int, default=2, help="keep every k-th recorded row")
@@ -153,7 +196,7 @@ def make_model(a, dev):
         cfg = json.loads((init / "textnum.json").read_text(encoding="utf-8"))
         tok = AutoTokenizer.from_pretrained(init / "encoder")
         net = textnum.build(str(init / "encoder"), head=cfg["head"], prefix=cfg["prefix"], width=cfg["width"], skip=cfg["skip"])
-        net.load_state_dict(torch.load(init / "head.pt", map_location="cpu"), strict=False)
+        textnum.load_head(net, init / "head.pt")
     else:
         base = a.base or textnum.base_of(a.model)
         tok = AutoTokenizer.from_pretrained(base)
@@ -173,18 +216,39 @@ def make_model(a, dev):
     return tok, net.to(dev)
 
 
+def inherit(a) -> None:
+    """Fill --route and --max-len: with --init from that run (an explicit different value is an
+    error: a continued model must read the same route and text; --allow-route-change lets a run
+    move to another route source on purpose), else the defaults."""
+    init = json.loads((Path(a.init) / "textnum.json").read_text(encoding="utf-8")) if a.init else {}
+    route, max_len = init.get("route", {}).get("name"), init.get("max_len")
+    a.route_changed_from = None
+    for name, given, theirs in (("--route", a.route, route), ("--max-len", a.max_len, max_len)):
+        if given is not None and theirs is not None and given != theirs:
+            if name == "--route" and a.allow_route_change:
+                a.route_changed_from = theirs
+                print(f"route source changed on purpose: {theirs} (--init run) -> {given}", flush=True)
+                continue
+            raise SystemExit(f"{name} {given} differs from the --init run's {theirs}")
+    a.route = a.route or route or "online"
+    a.max_len = a.max_len or max_len or 48
+
+
 def train(argv=None) -> int:
     p = argparse.ArgumentParser(description="train a text-plus-numbers model")
     add_train_args(p)
     a = p.parse_args(argv)
     torch.manual_seed(a.seed)
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    dtype = amp_dtype(a.precision, dev)
+    dtype = textnum.autocast_dtype(dev, a.precision)
+    inherit(a)
     _, spec = textnum.route_source(a.route)
     use_hybrid = a.hybrid_states == "on" or (a.hybrid_states == "auto" and spec["name"] == "online")
     if use_hybrid and spec["name"] != "online":
         print(f"warning: the hybrid states hold online route values, mixed here with route source {spec['name']!r}", flush=True)
-    files = (sorted(glob.glob(str(HYBRID_STATES / "states_r*.npz"))) if use_hybrid else []) + list(a.extra)
+    hybrid_files = sorted(glob.glob(str(HYBRID_STATES / "states_r*.npz"))) if use_hybrid else []
+    files = hybrid_files + list(a.extra)
+    check_sources(files, spec, unchecked=set(hybrid_files) if a.hybrid_states == "on" else ())
     sources = {"recordings": not a.no_recordings, "hybrid_states": use_hybrid,
                "state_files": [str(Path(f).relative_to(tracker.AD)) if Path(f).is_relative_to(tracker.AD) else str(f)
                                for f in files]}
@@ -328,7 +392,7 @@ def train(argv=None) -> int:
 
 def rollout(args) -> dict:
     """One episode with the text model driving and the built-in driver labelling every state."""
-    run_dir, model, seed, beta, device = args
+    run_dir, model, seed, beta, device, cats, route = args
     import random
 
     from robot_env import config as C
@@ -338,9 +402,9 @@ def rollout(args) -> dict:
 
     from ..features import LABEL_LEVEL
 
-    policy = TextNumDriver(run_dir, model, device=device)
+    policy = TextNumDriver(run_dir, model, device=device, route=route)
     expert = BaselineDriver(C.SPEED_LEVELS[LABEL_LEVEL])
-    system = RobotSystem(cats=seed % 5, cat_seed=seed)
+    system = RobotSystem(cats=seed % 5 if cats is None else cats, cat_seed=seed)
     task = RoomMap(system.sim.model).sample_task(seed)
     system.reset(*task.start, task.goal)
     policy.reset(initial_pose=task.start)
@@ -355,6 +419,7 @@ def rollout(args) -> dict:
         mine = policy.decide(obs)
         cmd = label.command if label else None
         X.append(policy.last_x)
+        # no expert decision (None): labelled stop, as the recordings and the cnn and hybrid rollouts do
         V.append((cmd.v, cmd.omega) if cmd else (0.0, 0.0))
         system.apply(label if (label is not None and coin.random() < beta) else mine)
         system.advance(C.DECISION_PERIOD)
@@ -363,13 +428,15 @@ def rollout(args) -> dict:
             break
     system.close()
     return {"seed": seed, "outcome": outcome, "x": np.array(X, np.float32).reshape(-1, INPUTS),
-            "cmd": np.array(V, np.float32).reshape(-1, 2)}
+            "cmd": np.array(V, np.float32).reshape(-1, 2), "route": policy.spec}
 
 
 def dagger(argv=None) -> int:
     """DAgger rounds: the model drives training layouts (its own states), the built-in driver labels
     them, and the model is fine-tuned on everything so far; each round is benchmarked and logged as
-    <run>_r<k>. Options not listed here go to every round's training (for example --lora 16)."""
+    <run>_r<k>. --cats 3 4 4 cycles cat counts over a round's episodes (default seed % 5, as
+    recorded; cats are the weak spot). Options not listed here go to every round's training (for
+    example --lora 16)."""
     p = argparse.ArgumentParser(description=dagger.__doc__.splitlines()[0])
     p.add_argument("--model", required=True, help="model folder in AD/models (encoder: textnum.base_of)")
     p.add_argument("--base-run", required=True, help="the finished run of this model to start from")
@@ -383,6 +450,10 @@ def dagger(argv=None) -> int:
     p.add_argument("--device", default=None, help="rollout device (default: the GPU if any)")
     p.add_argument("--first-seed", type=int, default=240, help="offset into the training seeds (the hybrid used 120-239)")
     p.add_argument("--start-round", type=int, default=1, help="resume after the earlier rounds")
+    p.add_argument("--cats", type=int, nargs="*", default=None,
+                   help="cat counts cycled over each round's episodes (default seed %% 5, as recorded)")
+    p.add_argument("--route", default=None, help="drive and train with this route source (default: the base "
+                   "run's); a different one moves the model to it (--allow-route-change in round 1)")
     a, passthrough = p.parse_known_args(argv)
     runs = MODELS / a.model / "runs"
     hidden = json.loads((runs / a.base_run / "encoder" / "config.json").read_text(encoding="utf-8"))["hidden_size"]
@@ -404,18 +475,23 @@ def dagger(argv=None) -> int:
         else:
             t0 = time.time()
             with ProcessPoolExecutor(workers, max_tasks_per_child=1) as ex:  # a fresh process per episode (sim memory)
-                eps = list(ex.map(rollout, [(str(ckpt), a.model, s, beta, device) for s in seeds]))
+                eps = list(ex.map(rollout, [(str(ckpt), a.model, s, beta, device, a.cats[i % len(a.cats)] if a.cats else None,
+                                             a.route) for i, s in enumerate(seeds)]))
             np.savez_compressed(out, x=np.concatenate([e["x"] for e in eps]), cmd=np.concatenate([e["cmd"] for e in eps]))
-            info = {"states": int(sum(len(e["x"]) for e in eps)),
+            info = {"states": int(sum(len(e["x"]) for e in eps)), "cats": a.cats, "route": eps[0]["route"],
                     "outcomes": {o: sum(e["outcome"] == o for e in eps) for o in ("success", "collision", "timeout")}}
             meta.write_text(json.dumps(info), encoding="utf-8")
             print(f"round {k}: collected {info} in {time.time() - t0:.0f} s (beta {beta:.2f})", flush=True)
         files.append(str(out))
         run = f"{a.run}_r{k}"
+        ckpt_route = json.loads((Path(ckpt) / "textnum.json").read_text(encoding="utf-8")).get("route", ONLINE)["name"]
+        route_args = ["--route", a.route] if a.route else []
+        if a.route and a.route != ckpt_route:
+            route_args.append("--allow-route-change")  # round 1 moves the model to the new source
         rc = train(["--model", a.model, "--run", run, "--init", str(ckpt), "--epochs", str(a.epochs), "--lr", str(a.lr),
-                    "--resume", *passthrough, "--extra", *files,  # --resume: a rerun continues a capped round
+                    *route_args, "--resume", *passthrough, "--extra", *files,  # --resume: a rerun continues a capped round
                     "--notes", f"DAgger round {k} from {a.base_run}: +{info['states']} states (policy episodes "
-                               f"{info['outcomes']}, beta {beta:.2f})"])
+                               f"{info['outcomes']}, beta {beta:.2f}, cats {info.get('cats') or 'seed % 5'})"])
         if rc:
             print(f"round {k} training stopped with exit {rc}; rerun with --start-round {k} (its states are kept)", flush=True)
             return rc
