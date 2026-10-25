@@ -1,0 +1,3 @@
+{"id": "mlp", "family": "MLP policy (behavior cloning)", "params": 153864, "disk_mb": 0.4,
+ "inputs": "sensor vector: 72 lidar sectors, goal, speed, contact", "outputs": "8 discrete actions",
+ "pretrained": "none (trained from scratch here)", "license": "MIT (this project)", "source": "AD/models/mlp"}
