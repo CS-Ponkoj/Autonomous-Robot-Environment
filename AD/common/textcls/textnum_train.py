@@ -48,12 +48,17 @@ def seed_range(text, default):
     return range(a, b + 1)
 
 
-def recordings(seeds, stride: int, limit: int = 0) -> dict:
+def recordings(seeds, stride: int, limit: int = 0, history: int = 1) -> dict:
+    """The recorded rows (every stride-th), with history built from each seed's full sequence first."""
     d = dataset.load(seeds)
+    x = textnum.no_route(d["x"])
+    if history > 1:
+        cut = np.flatnonzero(d["seed"][1:] != d["seed"][:-1]) + 1  # where a new seed's episode starts
+        x = textnum.with_history(x, np.diff(np.r_[0, cut, len(x)]).tolist(), history)
     idx = np.arange(len(d["cmd"]))[::max(stride, 1)]
     if limit:
         idx = idx[:limit]
-    return {"x": textnum.no_route(d["x"][idx]), "cmd": d["cmd"][idx].astype(np.float32)}
+    return {"x": x[idx], "cmd": d["cmd"][idx].astype(np.float32)}
 
 
 ONLINE = {"name": "online", "len_scale": 10.0}  # the route spec of files and checkpoints older than the registry
@@ -80,12 +85,18 @@ def file_spec(f) -> dict | None:
     return None
 
 
-def read_states(f) -> tuple[np.ndarray, np.ndarray]:
-    """(x (N, 82), cmd (N, 2)) of a state file: this module's DAgger states (x already 82 wide) or
-    route DAgger episode files (AD/models/hybrid/routekit.py: x (N, 78) and route (N, 4))."""
+def read_states(f, history: int = 1) -> tuple[np.ndarray, np.ndarray]:
+    """(x (N, row_size(history)), cmd (N, 2)) of a state file: this module's DAgger states (x 82
+    wide) or route DAgger episode files (AD/models/hybrid/routekit.py: x (N, 78) and route (N, 4)).
+    history > 1 needs the file's episode lengths ("lens"), which states saved before it lack."""
     e = np.load(f)
     x = np.concatenate([e["x"], e["route"]], 1) if "route" in e.files else e["x"]
     assert x.shape[1] == INPUTS, f"{f}: {x.shape[1]} inputs, not {INPUTS}"
+    if history > 1:
+        if "lens" not in e.files:
+            raise SystemExit(f"{f}: no episode lengths (lens), so its rows cannot get a scan history; "
+                             "use files collected with history support, or --history 1")
+        x = textnum.with_history(x.astype(np.float32), e["lens"].tolist(), history)
     return x.astype(np.float32), e["cmd"].astype(np.float32)
 
 
@@ -93,6 +104,10 @@ def check_sources(files, spec: dict, unchecked=()) -> None:
     """Every state file must come from the training run's route source (route values from another
     source mean something else); files in `unchecked` were allowed explicitly."""
     for f in files:
+        meta = Path(f).with_suffix(".json")
+        note = json.loads(meta.read_text(encoding="utf-8")).get("label_inconsistent") if meta.exists() else None
+        if note:  # marked unusable (labels from another planner than the route input): never trained on
+            raise SystemExit(f"{f}: marked label-inconsistent ({note})")
         if f in unchecked:
             continue
         fs = file_spec(f)
@@ -103,19 +118,20 @@ def check_sources(files, spec: dict, unchecked=()) -> None:
             raise SystemExit(f"{f}: collected with route source {fs}, but this run uses {spec}")
 
 
-def states(files, valid: bool, limit: int = 0) -> dict:
-    """The state files' rows (every 10th row is validation). limit: at most this many rows in all,
-    taken evenly from every file (so a smoke test still sees each DAgger round)."""
+def states(files, valid: bool, limit: int = 0, history: int = 1) -> dict:
+    """The state files' rows (every 10th row is validation; the history is built before the split).
+    limit: at most this many rows in all, taken evenly from every file (so a smoke test still sees
+    each DAgger round)."""
     xs, cs = [], []
     for f in files:
-        x, cmd = read_states(f)
+        x, cmd = read_states(f, history)
         e = {"x": x, "cmd": cmd}
         keep = np.flatnonzero((np.arange(len(e["x"])) % 10 == 0) == valid)
         if limit:
             keep = keep[np.linspace(0, len(keep) - 1, min(len(keep), max(limit // len(files), 1))).astype(int)]
         xs.append(e["x"][keep]), cs.append(e["cmd"][keep])
     if not xs:
-        return {"x": np.zeros((0, INPUTS), np.float32), "cmd": np.zeros((0, 2), np.float32)}
+        return {"x": np.zeros((0, textnum.row_size(history)), np.float32), "cmd": np.zeros((0, 2), np.float32)}
     return {"x": np.concatenate(xs).astype(np.float32), "cmd": np.concatenate(cs).astype(np.float32)}
 
 
@@ -150,6 +166,9 @@ def add_train_args(p):
     p.add_argument("--prefix", type=int, default=4, help="numeric prefix embeddings")
     p.add_argument("--width", type=int, default=32, help="lidar conv width")
     p.add_argument("--no-skip", action="store_true", help="the head sees only the encoder (ablation)")
+    p.add_argument("--history", type=int, default=None,
+                   help="lidar scans the numeric branch reads (default 1, or with --init that run's; a larger "
+                        "value widens an --init run, which then drives as before until trained)")
     p.add_argument("--route", default=None, help="route source name (AD/models/hybrid/route.py); default "
                    "online, or with --init that run's source")
     p.add_argument("--allow-route-change", action="store_true",
@@ -183,7 +202,8 @@ def add_train_args(p):
     p.add_argument("--resume", action="store_true")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--no-bench", action="store_true")
-    p.add_argument("--bench-seeds", default=None, help="benchmark only these practice seeds a-b (smoke tests)")
+    p.add_argument("--bench-seeds", default=None, help="benchmark only these practice seeds a-b (smoke tests only: "
+                   "needs --no-log, since every logged or compared score uses the fixed seed sets)")
     p.add_argument("--final", action="store_true", help="also the held-out test layouts (finished models only)")
     p.add_argument("--no-log", action="store_true", help="do not log the run (smoke tests)")
     p.add_argument("--notes", default="")
@@ -195,12 +215,14 @@ def make_model(a, dev):
         init = Path(a.init)
         cfg = json.loads((init / "textnum.json").read_text(encoding="utf-8"))
         tok = AutoTokenizer.from_pretrained(init / "encoder")
-        net = textnum.build(str(init / "encoder"), head=cfg["head"], prefix=cfg["prefix"], width=cfg["width"], skip=cfg["skip"])
+        net = textnum.build(str(init / "encoder"), head=cfg["head"], prefix=cfg["prefix"], width=cfg["width"],
+                            skip=cfg["skip"], history=cfg.get("history", 1))
         textnum.load_head(net, init / "head.pt")
+        net = textnum.widen(net, a.history)  # unchanged unless --history asks for more scans
     else:
         base = a.base or textnum.base_of(a.model)
         tok = AutoTokenizer.from_pretrained(base)
-        net = textnum.build(base, head=a.head, prefix=a.prefix, width=a.width, skip=not a.no_skip)
+        net = textnum.build(base, head=a.head, prefix=a.prefix, width=a.width, skip=not a.no_skip, history=a.history)
     if a.freeze:
         from .train import freeze
         freeze(net.encoder, a.freeze)
@@ -232,12 +254,19 @@ def inherit(a) -> None:
             raise SystemExit(f"{name} {given} differs from the --init run's {theirs}")
     a.route = a.route or route or "online"
     a.max_len = a.max_len or max_len or 48
+    theirs = init.get("history", 1)  # history: inherited, and may only grow (widen keeps the model's behaviour)
+    if a.history is not None and a.history < theirs:
+        raise SystemExit(f"--history {a.history} is below the --init run's {theirs}")
+    a.history = a.history or theirs
+    a.widened_from = theirs if a.init and a.history > theirs else None
 
 
 def train(argv=None) -> int:
     p = argparse.ArgumentParser(description="train a text-plus-numbers model")
     add_train_args(p)
     a = p.parse_args(argv)
+    if a.bench_seeds and not a.no_log:  # every logged score is on the same drives (benchmark.DEV)
+        raise SystemExit("--bench-seeds is for smoke tests: add --no-log")
     torch.manual_seed(a.seed)
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     dtype = textnum.autocast_dtype(dev, a.precision)
@@ -252,10 +281,11 @@ def train(argv=None) -> int:
     sources = {"recordings": not a.no_recordings, "hybrid_states": use_hybrid,
                "state_files": [str(Path(f).relative_to(tracker.AD)) if Path(f).is_relative_to(tracker.AD) else str(f)
                                for f in files]}
-    empty = {"x": np.zeros((0, INPUTS), np.float32), "cmd": np.zeros((0, 2), np.float32)}
-    tr = join(empty if a.no_recordings else recordings(seed_range(a.train, dataset.TRAIN), a.stride, a.limit),
-              states(files, False, a.limit), a.rec_weight)
-    va = join(recordings(seed_range(a.valid, dataset.VALID), a.valid_stride, a.limit), states(files, True, a.limit), 1.0)
+    H = a.history  # noqa: N806 (scans per row)
+    empty = {"x": np.zeros((0, textnum.row_size(H)), np.float32), "cmd": np.zeros((0, 2), np.float32)}
+    tr = join(empty if a.no_recordings else recordings(seed_range(a.train, dataset.TRAIN), a.stride, a.limit, H),
+              states(files, False, a.limit, H), a.rec_weight)
+    va = join(recordings(seed_range(a.valid, dataset.VALID), a.valid_stride, a.limit, H), states(files, True, a.limit, H), 1.0)
     print(f"{tr['n_rec']} recorded + {tr['n_states']} state rows to train on, {len(va['x'])} to validate; "
           f"{len(files)} state files", flush=True)
     tok, net = make_model(a, dev)
@@ -392,7 +422,7 @@ def train(argv=None) -> int:
 
 def rollout(args) -> dict:
     """One episode with the text model driving and the built-in driver labelling every state."""
-    run_dir, model, seed, beta, device, cats, route = args
+    run_dir, model, seed, beta, device, cats, route, expert_kind = args
     import random
 
     from robot_env import config as C
@@ -403,11 +433,19 @@ def rollout(args) -> dict:
     from ..features import LABEL_LEVEL
 
     policy = TextNumDriver(run_dir, model, device=device, route=route)
-    expert = BaselineDriver(C.SPEED_LEVELS[LABEL_LEVEL])
+    if expert_kind == "map":  # the planner on the saved map: its labels follow the same route as the map input
+        from ...models.mapplan.driver import MapDriver
+        # the same planner settings as the policy's route source (map2: off-map obstacles forgotten once seen gone)
+        expert = MapDriver(None, C.SPEED_LEVELS[LABEL_LEVEL], match=bool(policy.spec.get("match", True)),
+                           nonmap_ttl=policy.spec.get("nonmap_ttl"), nonmap_clear=bool(policy.spec.get("nonmap_clear", False)))
+    else:
+        expert = BaselineDriver(C.SPEED_LEVELS[LABEL_LEVEL])
     system = RobotSystem(cats=seed % 5 if cats is None else cats, cat_seed=seed)
     task = RoomMap(system.sim.model).sample_task(seed)
     system.reset(*task.start, task.goal)
     policy.reset(initial_pose=task.start)
+    if expert_kind == "map":
+        expert.reset(initial_pose=task.start)  # a map planner drives only once placed on its map
     coin = random.Random(seed * 7919 + int(beta * 1000))
     X, V, outcome = [], [], "timeout"
     while system.time < C.EPISODE_TIME_LIMIT - 1e-9:
@@ -428,7 +466,7 @@ def rollout(args) -> dict:
             break
     system.close()
     return {"seed": seed, "outcome": outcome, "x": np.array(X, np.float32).reshape(-1, INPUTS),
-            "cmd": np.array(V, np.float32).reshape(-1, 2), "route": policy.spec}
+            "cmd": np.array(V, np.float32).reshape(-1, 2), "route": policy.spec, "expert": expert_kind}
 
 
 def dagger(argv=None) -> int:
@@ -454,11 +492,21 @@ def dagger(argv=None) -> int:
                    help="cat counts cycled over each round's episodes (default seed %% 5, as recorded)")
     p.add_argument("--route", default=None, help="drive and train with this route source (default: the base "
                    "run's); a different one moves the model to it (--allow-route-change in round 1)")
+    p.add_argument("--expert", choices=("online", "map"), default=None,
+                   help="who labels the states: the built-in planner (online) or the planner on the saved map "
+                        "(map); default: map with the map route, else online (labels must follow the input's route)")
+    p.add_argument("--extra", nargs="*", default=[], help="more state files for every round's training (checked)")
+    p.add_argument("--min-score", type=float, default=None,
+                   help="stop after a round whose practice score is below this (exit 4)")
     a, passthrough = p.parse_known_args(argv)
     runs = MODELS / a.model / "runs"
     hidden = json.loads((runs / a.base_run / "encoder" / "config.json").read_text(encoding="utf-8"))["hidden_size"]
     workers = a.workers or (1 if hidden >= LARGE_HIDDEN else 2)
     device = a.device or ("cuda" if torch.cuda.is_available() else "cpu")
+    base_route = json.loads((runs / a.base_run / "textnum.json").read_text(encoding="utf-8")).get("route", ONLINE)["name"]
+    expert = a.expert or ("map" if (a.route or base_route) in ("map", "map2") else "online")
+    if expert != ("map" if (a.route or base_route) in ("map", "map2") else "online"):
+        print(f"warning: expert {expert} labels states whose route input comes from {a.route or base_route}", flush=True)
     pool = list(dataset.TRAIN)
     files, ckpt, beta = [], runs / a.base_run, a.beta
     for k in range(1, a.start_round):
@@ -476,9 +524,10 @@ def dagger(argv=None) -> int:
             t0 = time.time()
             with ProcessPoolExecutor(workers, max_tasks_per_child=1) as ex:  # a fresh process per episode (sim memory)
                 eps = list(ex.map(rollout, [(str(ckpt), a.model, s, beta, device, a.cats[i % len(a.cats)] if a.cats else None,
-                                             a.route) for i, s in enumerate(seeds)]))
-            np.savez_compressed(out, x=np.concatenate([e["x"] for e in eps]), cmd=np.concatenate([e["cmd"] for e in eps]))
-            info = {"states": int(sum(len(e["x"]) for e in eps)), "cats": a.cats, "route": eps[0]["route"],
+                                             a.route, expert) for i, s in enumerate(seeds)]))
+            np.savez_compressed(out, x=np.concatenate([e["x"] for e in eps]), cmd=np.concatenate([e["cmd"] for e in eps]),
+                                lens=np.array([len(e["x"]) for e in eps]))  # episode lengths: a scan history can be built
+            info = {"states": int(sum(len(e["x"]) for e in eps)), "cats": a.cats, "route": eps[0]["route"], "expert": expert,
                     "outcomes": {o: sum(e["outcome"] == o for e in eps) for o in ("success", "collision", "timeout")}}
             meta.write_text(json.dumps(info), encoding="utf-8")
             print(f"round {k}: collected {info} in {time.time() - t0:.0f} s (beta {beta:.2f})", flush=True)
@@ -489,12 +538,19 @@ def dagger(argv=None) -> int:
         if a.route and a.route != ckpt_route:
             route_args.append("--allow-route-change")  # round 1 moves the model to the new source
         rc = train(["--model", a.model, "--run", run, "--init", str(ckpt), "--epochs", str(a.epochs), "--lr", str(a.lr),
-                    *route_args, "--resume", *passthrough, "--extra", *files,  # --resume: a rerun continues a capped round
+                    *route_args, "--resume", *passthrough, "--extra", *a.extra, *files,  # --resume: a rerun continues a capped round
                     "--notes", f"DAgger round {k} from {a.base_run}: +{info['states']} states (policy episodes "
-                               f"{info['outcomes']}, beta {beta:.2f}, cats {info.get('cats') or 'seed % 5'})"])
+                               f"{info['outcomes']}, beta {beta:.2f}, cats {info.get('cats') or 'seed % 5'}, "
+                               f"expert {info.get('expert', 'online')})"])
         if rc:
             print(f"round {k} training stopped with exit {rc}; rerun with --start-round {k} (its states are kept)", flush=True)
             return rc
+        if a.min_score is not None:
+            result = runs / run / "result.json"
+            score = json.loads(result.read_text(encoding="utf-8")).get("score") if result.exists() else None
+            if score is None or score < a.min_score:
+                print(f"round {k} scored {score}, below --min-score {a.min_score}: stopping", flush=True)
+                return 4
         ckpt, beta = runs / run, beta / 2
     return 0
 
