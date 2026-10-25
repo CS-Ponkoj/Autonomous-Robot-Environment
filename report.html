@@ -83,6 +83,9 @@ details .tw{padding:0 12px 12px}
 .pill.bad{background:var(--cattint);color:var(--bad)}
 .foot{color:var(--muted);font-size:14px;padding-top:40px}
 @media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+a{color:var(--robot);text-underline-offset:3px}
+a:focus-visible{outline:2px solid var(--robot);outline-offset:2px;border-radius:3px}
+.repo{font-size:16px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -99,6 +102,7 @@ details .tw{padding:0 12px 12px}
     <div class="stat"><b>129</b><span>logged training and test runs, 13 model families</span></div>
     <div class="stat"><b>2 ms</b><span>decision time of the best model</span></div>
   </div>
+  <p class="repo">Project repository: <a href="https://github.com/CS-Ponkoj/Autonomous-Robot-Environment">github.com/CS-Ponkoj/Autonomous-Robot-Environment</a></p>
 </header>
 
 <section>
@@ -602,7 +606,7 @@ details .tw{padding:0 12px 12px}
   <div class="col" style="display:flex;flex-direction:column;gap:14px">
     <p class="eyebrow">Where things are</p>
     <div class="tw"><table><tbody>
-      <tr><td>Code, one branch per model family</td><td>GitHub <b>CS-Ponkoj/Autonomous-Robot-Environment</b>, branches such as hybrid, dt, mapcnn, cfc, mlp, mapplan, modernbert; main holds only the environment</td></tr>
+      <tr><td>Code, one branch per model family</td><td>GitHub <a href="https://github.com/CS-Ponkoj/Autonomous-Robot-Environment"><b>CS-Ponkoj/Autonomous-Robot-Environment</b></a>, branches such as hybrid, dt, mapcnn, cfc, mlp, mapplan, modernbert; main holds only the environment</td></tr>
       <tr><td>Best model</td><td>AD/models/hybrid/runs/hmap2_r1 (route map2, saved map map_v2)</td></tr>
       <tr><td>Weights, data, maps</td><td>Kept locally in the project folder, never published</td></tr>
       <tr><td>Full history</td><td>AD/STATUS.md (dated log), AD/LEADERBOARD.md, AD/PROJECT_REPORT.md</td></tr>
