@@ -89,9 +89,16 @@ class Episodes:
                             outcome=np.array([OUTCOMES.index(e.get("outcome", "timeout")) for e in eps]))
 
     @staticmethod
-    def load(paths) -> list[dict]:
+    def load(paths, allow_inconsistent: bool = False) -> list[dict]:
+        """Episodes of these files; a file whose .json is marked label_inconsistent (its expert
+        planned another route than the policy read) is refused unless allow_inconsistent (analysis)."""
+        import json
         out = []
         for f in paths:
+            meta = Path(f).with_suffix(".json")
+            mark = json.loads(meta.read_text(encoding="utf-8")).get("label_inconsistent") if meta.exists() else None
+            if mark and not allow_inconsistent:
+                raise ValueError(f"{f} is marked label_inconsistent: {mark}")
             d = np.load(f)
             cut = np.cumsum(d["lens"])[:-1]
             outcomes = d["outcome"] if "outcome" in d.files else None

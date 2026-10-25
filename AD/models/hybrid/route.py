@@ -103,7 +103,8 @@ class RouteSensor:
 
 _SOURCES: dict = {RouteSensor.NAME: RouteSensor}
 # sources defined elsewhere, imported on first use (their modules import this one)
-_LAZY = {"map": ("AD.models.mapplan.driver", "MapRouteSensor")}  # the planner on the saved building map
+_LAZY = {"map": ("AD.models.mapplan.driver", "MapRouteSensor"),  # the planner on the saved building map
+         "map2": ("AD.models.mapplan.driver", "MapRouteSensorTTL")}  # the same, obstacles off the map lapse
 
 
 def register_route_source(name: str, cls) -> None:
@@ -143,7 +144,11 @@ def _map_details(source) -> dict:
         from AD.models.mapplan.savedmap import DEFAULT
         path = DEFAULT
     planner = getattr(source, "planner", None)
-    return {"map": Path(path).parent.name, "match": bool(getattr(planner, "match", False))}
+    out = {"map": Path(path).parent.name, "match": bool(getattr(planner, "match", False))}
+    if getattr(planner, "nonmap_ttl", None) is not None:
+        out["nonmap_ttl"] = float(planner.nonmap_ttl)
+        out["nonmap_clear"] = bool(getattr(planner, "nonmap_clear", False))
+    return out
 
 
 def route_spec(source) -> dict:
@@ -154,7 +159,7 @@ def route_spec(source) -> dict:
     spec = {"name": name, "len_scale": len_scale(source)}
     if callable(getattr(source, "describe", None)):
         spec.update(source.describe())
-    elif name == "map":
+    elif name in ("map", "map2"):
         spec.update(_map_details(source))
     return spec
 
@@ -164,10 +169,13 @@ def source_from_spec(spec: dict):
     (AD/models/mapplan/runs/<map>/map.npz) and drift correction; older specs without these get the
     current defaults."""
     name = spec.get("name", "online")
-    if name == "map" and "map" in spec:
+    if name in ("map", "map2") and "map" in spec:
         from AD.models.mapplan.savedmap import DEFAULT
+        kw = {}
+        if name == "map2" and "nonmap_ttl" in spec:
+            kw = {"nonmap_ttl": float(spec["nonmap_ttl"]), "nonmap_clear": bool(spec.get("nonmap_clear", False))}
         return make_route_source(name, map_path=DEFAULT.parent.parent / spec["map"] / "map.npz",
-                                 match=bool(spec.get("match", True)))
+                                 match=bool(spec.get("match", True)), **kw)
     return make_route_source(name)
 
 
