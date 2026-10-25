@@ -1,4 +1,0 @@
-{"id": "minilm", "family": "MiniLM-L6 sentence encoder with numeric prefix embeddings (text plus numbers)", "params": 22700000, "disk_mb": 91,
- "inputs": "short scene text (goal, contact, route) as tokens; 72 lidar bins (circular conv) and the route values as prefix embeddings",
- "outputs": "continuous (v, omega) at speed level 2 (or one of the 8 actions)", "pretrained": "sentence-transformers/all-MiniLM-L6-v2",
- "license": "Apache-2.0 (model card: license apache-2.0, checked 2026-10-22)", "source": "AD/common/textcls/textnum.py"}

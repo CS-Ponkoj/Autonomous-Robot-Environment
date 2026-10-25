@@ -1,4 +1,0 @@
-{"id": "dt", "family": "Decision Transformer (Hugging Face transformers, offline RL by sequence modelling)", "params": 791377, "disk_mb": 3,
- "inputs": "last 20 steps of the 78-number state, actions and return-to-go (goal progress)",
- "outputs": "continuous (v, omega) at speed level 2", "pretrained": "none (trained from scratch)",
- "license": "MIT (this project); transformers is Apache-2.0", "source": "AD/models/dt/"}

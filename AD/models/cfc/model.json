@@ -1,4 +1,0 @@
-{"id": "cfc", "family": "CfC recurrent policy (closed-form continuous-time network, behavior cloning)", "params": 191618, "disk_mb": 0.8,
- "inputs": "72 lidar bins (circular conv) and goal distance/bearing, contact (v and omega masked); memory across the episode",
- "outputs": "continuous (v, omega) at speed level 2", "pretrained": "none (trained from scratch)",
- "license": "MIT (this project); cell after Hasani et al. 2022, written in PyTorch", "source": "AD/models/cfc/"}

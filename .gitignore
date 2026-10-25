@@ -10,15 +10,9 @@ qa_output/
 _private/
 data/
 logs/
-/models/
+models/
 MUJOCO_LOG.TXT
 
 # Working notes stay local; README.md is the only published Markdown file
 *.md
 !README.md
-
-# Decision-model work: private notes, data and model weights stay local
-AD/private/
-
-# Each model has its own folder in AD/models; training runs and weights stay local
-AD/models/*/runs/
