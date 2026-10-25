@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Teaching a Robot to Drive</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one reading column (~760px) with wide figures that break out to ~1100px; the robot is blue, the cats are orange, everywhere */
+:root{
+  --paper:#F5F4EE; --sheet:#FFFFFF; --ink:#16213A; --muted:#55607A; --rule:#DAD7CC;
+  --robot:#2C66B8; --cat:#C96A1E; --good:#2F7D4F; --bad:#B4432F; --tint:#EEF2F8; --cattint:#FBF0E6;
+  --display:'Archivo', 'Arial Narrow', Arial, sans-serif; --body:'IBM Plex Sans', Arial, sans-serif; --mono:'IBM Plex Mono', 'Courier New', monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#11182A; --sheet:#18213A; --ink:#E9ECF3; --muted:#A3ADC4; --rule:#2C3754;
+  --robot:#7FAEF0; --cat:#F0A262; --good:#6CC596; --bad:#F08A76; --tint:#1D2944; --cattint:#2E2621; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#11182A; --sheet:#18213A; --ink:#E9ECF3; --muted:#A3ADC4; --rule:#2C3754;
+  --robot:#7FAEF0; --cat:#F0A262; --good:#6CC596; --bad:#F08A76; --tint:#1D2944; --cattint:#2E2621; color-scheme:dark}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.6;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:0 64px}
+.wrap{max-width:1100px;margin:0 auto}
+.col{max-width:760px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(40px,7vw,76px);font-weight:800;letter-spacing:-0.5px}
+h2{font-size:clamp(28px,4vw,40px);font-weight:800;margin-top:8px}
+h3{font-size:22px;font-weight:700}
+p{margin:0}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:var(--cat)}
+section{display:flex;flex-direction:column;gap:18px;padding-block:56px 8px;border-top:1px solid var(--rule)}
+header.hero{display:flex;flex-direction:column;gap:22px;padding-block:64px 48px}
+.lede{font-size:21px;color:var(--muted);max-width:720px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-top:10px}
+.stat{background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat b{font-family:var(--display);font-size:38px;line-height:1.05;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:14px;line-height:1.35}
+.stat.key b{color:var(--robot)}
+figure{margin:8px 0 0;display:flex;flex-direction:column;gap:8px}
+figure img{width:100%;height:auto;border-radius:8px;border:1px solid var(--rule);background:var(--sheet);display:block}
+figcaption{font-size:14px;color:var(--muted)}
+.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;align-items:start}
+.tw{overflow-x:auto;min-width:0}
+table{border-collapse:collapse;width:100%;font-size:15px;font-variant-numeric:tabular-nums}
+th{font-family:var(--mono);font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:500;padding:8px 10px;border-bottom:2px solid var(--rule)}
+td{padding:8px 10px;border-bottom:1px solid var(--rule);vertical-align:top}
+td.n,th.n{text-align:right;white-space:nowrap}
+tr.hl td{background:var(--tint);font-weight:600}
+tr.ref td{color:var(--muted);font-style:italic}
+.card{background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:20px 22px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.callout{background:var(--cattint);border-left:4px solid var(--cat);padding:14px 18px;border-radius:0 8px 8px 0}
+.callout.blue{background:var(--tint);border-left-color:var(--robot)}
+.steps{display:flex;flex-direction:column;gap:0;counter-reset:s;border-left:2px solid var(--rule);margin-left:10px}
+.step{position:relative;padding:0 0 22px 28px;display:flex;flex-direction:column;gap:4px}
+.step::before{counter-increment:s;content:counter(s);position:absolute;left:-14px;top:0;width:26px;height:26px;border-radius:50%;background:var(--robot);color:var(--paper);font:600 13px/26px var(--mono);text-align:center}
+.step .when{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.step .gain{font-weight:600;color:var(--good)}
+.chart{background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:16px;overflow-x:auto}
+.chart svg{width:100%;height:auto;min-width:560px;display:block}
+.chart text{fill:var(--ink);font-family:var(--body);font-size:13px}
+.chart .mut{fill:var(--muted)}
+.chart .grid{stroke:var(--rule);stroke-width:1}
+.b-robot{fill:var(--robot)} .b-cat{fill:var(--cat)} .b-muted{fill:var(--rule)} .b-good{fill:var(--good)} .b-bad{fill:var(--bad)}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:14px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+ul.tight{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+details{background:var(--sheet);border:1px solid var(--rule);border-radius:10px;margin-top:10px}
+summary{cursor:pointer;padding:14px 18px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:baseline;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+";font-family:var(--mono);color:var(--robot);width:12px}
+details[open] summary::before{content:"\2212"}
+summary:focus-visible{outline:2px solid var(--robot);outline-offset:2px;border-radius:8px}
+.fam{font-family:var(--display);font-weight:700;font-size:18px}
+.cnt{color:var(--muted);font-size:14px}
+.best{font-family:var(--mono);font-size:13px;color:var(--good)}
+table.cat{font-size:13px} table.cat td.run{font-family:var(--mono);font-size:12px;white-space:nowrap} table.cat td.note{color:var(--muted);min-width:260px}
+details .tw{padding:0 12px 12px}
+.pill{display:inline-block;font-family:var(--mono);font-size:12px;padding:2px 8px;border-radius:999px;background:var(--tint);color:var(--robot)}
+.pill.cat{background:var(--cattint);color:var(--cat)}
+.pill.bad{background:var(--cattint);color:var(--bad)}
+.foot{color:var(--muted);font-size:14px;padding-top:40px}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header class="hero">
+  <p class="eyebrow">Autonomous Robot Environment · Decision models · October 16 to 25, 2026</p>
+  <h1>Teaching a robot to drive</h1>
+  <p class="lede">A small robot crosses a simulated office while cats wander around. We built and tested 13 kinds of “brains” for it. The best one now reaches the goal in 57 of 60 test drives, beats the hand-written driver, and has never hit anything.</p>
+  <div class="stats">
+    <div class="stat key"><b>57 / 60</b><span>test drives reached by the best model (was 34)</span></div>
+    <div class="stat"><b>0</b><span>collisions, across every model and every test</span></div>
+    <div class="stat"><b>9 / 10</b><span>cat drives reached on the final exam (was 4)</span></div>
+    <div class="stat"><b>129</b><span>logged training and test runs, 13 model families</span></div>
+    <div class="stat"><b>2 ms</b><span>decision time of the best model</span></div>
+  </div>
+</header>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">The goal</p>
+    <h2>Drive to the goal, around walls and cats, without a crash</h2>
+    <p>Every drive, the robot starts somewhere in a five-room office (office, lab, corridor, storage, reception) and must reach a goal in another room within 130 seconds. In half of the test drives, four cats roam the rooms, sit in doorways and get in the way. A <b>decision model</b> reads the robot’s sensors and decides, ten times a second, how fast to drive and how much to turn. A built-in safety layer stops the robot if it is about to hit something; every time it has to step in counts as an “intervention”.</p>
+    <p>Rules we kept throughout: the simulated environment is never changed; every model drives through the same plug as the robot’s hand-written driver; every model is tested on exactly the same drives.</p>
+  </div>
+  <div class="gallery">
+    <figure><img src="https://cs-ponkoj.github.io/Autonomous-Robot-Environment/floor_top.png" alt="The office floor from above: five rooms joined by doorways"><figcaption>The office floor from above.</figcaption></figure>
+    <figure><img src="https://cs-ponkoj.github.io/Autonomous-Robot-Environment/robot_closeup.png" alt="The two-wheeled robot close up"><figcaption>The robot: two wheels, a 360° lidar, a camera, wheel encoders.</figcaption></figure>
+    <figure><img src="https://cs-ponkoj.github.io/Autonomous-Robot-Environment/cats_robot_camera.png" alt="Four cats seen through the robot's camera"><figcaption>Four cats, seen by the robot’s camera.</figcaption></figure>
+    <figure><img src="https://cs-ponkoj.github.io/Autonomous-Robot-Environment/doorway.gif" alt="Animation: a cat gives way in the lab doorway"><figcaption>A cat in a doorway: the hardest moment for any driver.</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">How we measure</p>
+    <h2>Sixty fixed test drives, the same for every model</h2>
+    <p>Each drive number fixes the start, the goal, how many cats there are and how they behave. So every model faces identical situations.</p>
+    <div class="tw"><table>
+      <thead><tr><th>Test set</th><th>Drives</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr><td>Practice</td><td>Layouts 2000 to 2009, each with 0 and with 4 cats (20)</td><td>Comparing during training</td></tr>
+        <tr><td>40-drive check</td><td>Layouts 2000 to 2019 (40); 2010 to 2019 were never used for tuning</td><td>A larger, fairer check</td></tr>
+        <tr><td>Held-out exam</td><td>Layouts 1000 to 1009, 0 and 4 cats (20)</td><td>The final test, run once per finished model</td></tr>
+      </tbody></table></div>
+    <div class="callout blue"><p><b>Score</b> = (goals reached − 2 × collisions) ÷ drives. 1.0 is perfect; a crash costs double. The test is <b>latency-aware</b>: the world keeps moving while a model thinks, so a slow model really drives worse. “All 60” means the 40-drive check plus the held-out exam.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">The journey</p>
+    <h2>Ten days, in order</h2>
+    <div class="steps">
+      <div class="step"><span class="when">Oct 16 to 19 · phase 1</span><h3>36 models, one clear winner, and a wall</h3><p>Every family was tried. A CNN that also reads the planner’s route (hppo_c3) won with 0.70 on the exam. Text models never reached a goal. Cats stopped almost everyone.</p></div>
+      <div class="step"><span class="when">Oct 22</span><h3>New plan: a planner beside every model</h3><p>The owner asked for 10 more families with improvements: a planner gives each model the route, and text models get all 72 lidar readings as numbers.</p></div>
+      <div class="step"><span class="when">Oct 22</span><h3>The robot maps the building itself</h3><p>40 mapping drives gave map v1. A saved map first made driving <i>worse</i> (0.80 → 0.50) because the robot’s position drifts. Matching each scan to the map fixed it.</p><p class="gain">Map v2, built with drift correction: wrong walls 11% → 3%; built-in driver 0.85.</p></div>
+      <div class="step"><span class="when">Oct 22</span><h3>The best model, given the map route, untouched</h3><p class="gain">hppo_c3 with the map route: exam 0.70 → 0.80, with no retraining.</p></div>
+      <div class="step"><span class="when">Oct 23</span><h3>A hidden labelling bug</h3><p>Retraining on the map kept collapsing. The teacher that labels each moment used a different planner than the model saw: it turned toward the model’s route only 13 to 18% of the time.</p><p class="gain">Fixed: 100% agreement. MiniLM jumped to 0.85 on practice.</p></div>
+      <div class="step"><span class="when">Oct 23 to 24</span><h3>All ten families retrained on the map route</h3><p>ModernBERT reached 0.80 on the exam, the first text model to tie the best learned driver. Cats remained the shared weak spot (4 to 6 of 10).</p></div>
+      <div class="step"><span class="when">Oct 24</span><h3>The cat problem was the planner</h3><p>A replay showed the robot knew where it was (2 to 5 cm), but its route pointed 150° away. The planner kept a cat that rested half a second as a permanent wall.</p><p class="gain">Forget off-map obstacles once seen gone: built-in driver 0.775 → 0.925 on 40 drives.</p></div>
+      <div class="step"><span class="when">Oct 24 to 25</span><h3>One gentle retraining round on the fixed route</h3><p class="gain">Hybrid 57/60, DT 55, mapcnn 55, CfC 54, ModernBERT 53, MLP 51. Built-in driver: 54.</p></div>
+      <div class="step"><span class="when">Oct 25</span><h3>A last idea, honestly tested</h3><p>Giving the text model its last four lidar scans did not help (0.825 vs 0.90). Work wrapped up.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">Phase 1 · October 16 to 19</p>
+    <h2>Every approach we tried first</h2>
+    <p>Thirty-six models across nine families. Most learned by copying the built-in driver (behaviour cloning), then improved on their own mistakes (DAgger, where the model drives and a teacher labels what it should have done), and some by trial and error (PPO).</p>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Family</th><th>Approach</th><th>Best result</th><th>What we learned</th></tr></thead>
+    <tbody>
+      <tr class="ref"><td>Built-in driver</td><td>Hand-written rules: lidar map built while driving, wavefront route planner</td><td>Exam 0.65</td><td>The reference to beat</td></tr>
+      <tr><td>MLP</td><td>Small fully connected net, copy the driver</td><td>Practice 0.10</td><td>Too little structure for lidar</td></tr>
+      <tr><td>1D-CNN</td><td>Convolution over the 72 lidar readings, copy then DAgger</td><td>Exam 0.25</td><td>Good at avoiding, bad at finding the way</td></tr>
+      <tr><td>Decision Transformer</td><td>Sequence model over the last 20 steps (offline RL)</td><td>Exam 0.25</td><td>Same: no idea where the goal’s path goes</td></tr>
+      <tr><td>CfC</td><td>Liquid-time recurrent network, copy then DAgger</td><td>Practice 0.30</td><td>Memory alone does not plan routes</td></tr>
+      <tr><td>PPO</td><td>Reinforcement learning from the CNN</td><td>Exam 0.25</td><td>Reward helped a little; drift after ~150k steps</td></tr>
+      <tr><td>mapcnn</td><td>CNN over a local 8 × 8 m occupancy map it builds</td><td>Practice 0.40</td><td>A local map cannot see dead ends further away</td></tr>
+      <tr class="hl"><td>Hybrid (hppo_c3)</td><td>CNN plus the planner’s route as 4 numbers, DAgger then PPO</td><td>Exam 0.70</td><td>The route was the missing piece</td></tr>
+      <tr><td>Text models</td><td>ModernBERT, DeBERTa, ModernBERT-large, Laya reading the scene as text</td><td>0 to 1 goal in 20</td><td>8 rough distances as words, slow, copy-only</td></tr>
+    </tbody></table></div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">The core idea of phase 2</p>
+    <h2>A planner beside every model</h2>
+    <p>The model never sees the map. A planner holds the map, plans the route every half second, and hands the model four numbers. The model combines them with its own sensors and decides the actual speed and turn. It can ignore the route, for example to wait for a cat.</p>
+  </div>
+  <div class="chart">
+    <svg viewBox="0 0 760 210" role="img" aria-label="Diagram: saved map and lidar feed the planner, which gives 4 route numbers to the decision model; the model also reads the sensors and outputs speed and turn">
+      <rect x="10" y="20" width="150" height="56" rx="8" class="b-muted"/><text x="85" y="53" text-anchor="middle">Saved map</text>
+      <rect x="10" y="120" width="150" height="56" rx="8" class="b-muted"/><text x="85" y="145" text-anchor="middle">Sensors: lidar,</text><text x="85" y="163" text-anchor="middle">goal, contact</text>
+      <rect x="230" y="20" width="160" height="56" rx="8" class="b-robot" opacity="0.18"/><text x="310" y="45" text-anchor="middle">Planner</text><text x="310" y="63" text-anchor="middle" class="mut">route every 0.5 s</text>
+      <rect x="460" y="70" width="170" height="70" rx="8" class="b-robot"/><text x="545" y="102" text-anchor="middle" style="fill:var(--paper)">Decision model</text><text x="545" y="122" text-anchor="middle" style="fill:var(--paper)">10 decisions / s</text>
+      <rect x="670" y="80" width="80" height="50" rx="8" class="b-cat" opacity="0.25"/><text x="710" y="101" text-anchor="middle">speed</text><text x="710" y="119" text-anchor="middle">+ turn</text>
+      <path d="M160 48 H230" stroke="var(--muted)" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+      <path d="M160 148 H200 V60 H230" stroke="var(--muted)" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+      <path d="M390 48 H425 V95 H460" stroke="var(--robot)" stroke-width="3" fill="none" marker-end="url(#ah)"/>
+      <text x="398" y="38" class="mut">4 numbers</text>
+      <path d="M160 160 H440 V125 H460" stroke="var(--muted)" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+      <path d="M630 105 H670" stroke="var(--muted)" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/></marker></defs>
+    </svg>
+  </div>
+  <div class="col"><div class="tw"><table>
+    <thead><tr><th>The 4 route numbers</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>Direction (sine and cosine)</td><td>Which way the route goes, 0.5 m ahead, relative to where the robot faces. Two numbers avoid a jump at ±180°.</td></tr>
+      <tr><td>Route known</td><td>1 if the planner found a route to the goal, 0 if not.</td></tr>
+      <tr><td>Route length</td><td>Distance to the goal along the route. Much longer than the straight line means a wall is in the way.</td></tr>
+    </tbody></table></div></div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">Step 1 · the saved map</p>
+    <h2>The robot maps the building itself</h2>
+    <p>The building never changes, so a real robot would keep a map. We let the robot build one from its own lidar on 40 mapping drives, never copying the simulator’s floor plan, which we kept only to check accuracy. The second map was built while correcting drift against the first.</p>
+  </div>
+  <figure><img src="https://cs-ponkoj.github.io/Autonomous-Robot-Environment/report_maps.png" alt="Three maps side by side: the simulator's floor plan, the robot's first map with blurry doubled walls, and the second, sharper map"><figcaption>Dark = wall, white = open floor, beige = never seen. Map v2 is much closer to the real floor plan.</figcaption></figure>
+  <div class="col"><div class="tw"><table>
+    <thead><tr><th>Map</th><th class="n">Wrong wall cells</th><th class="n">Open floor mapped</th><th class="n">Robot drift while mapping</th></tr></thead>
+    <tbody>
+      <tr><td>Map v1 (40 drives)</td><td class="n">11%</td><td class="n">94%</td><td class="n">26 cm, 3.3°</td></tr>
+      <tr class="hl"><td>Map v2 (40 drives, drift-corrected)</td><td class="n">3%</td><td class="n">97%</td><td class="n">6 cm, 1.2°</td></tr>
+    </tbody></table></div></div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">Step 2 · drift correction</p>
+    <h2>A map only helps if the robot knows where it is on it</h2>
+    <p>Odometry drifts by a few degrees per drive. Without correction, the saved walls and the live readings no longer line up, doorways look closed, and a saved map makes driving worse, even a perfect one. Every half second the robot now matches its lidar scan to the saved walls and corrects its position.</p>
+  </div>
+  <div class="chart">
+    <svg viewBox="0 0 760 270" role="img" aria-label="Bar chart of the built-in driver's practice score: no saved map 0.80; floor plan without correction 0.65; map v1 without correction 0.50; map v1 with correction 0.70; floor plan with correction 0.80; map v2 with correction 0.85">
+      <line class="grid" x1="300" y1="10" x2="300" y2="240"/><line class="grid" x1="410" y1="10" x2="410" y2="240"/><line class="grid" x1="520" y1="10" x2="520" y2="240"/><line class="grid" x1="630" y1="10" x2="630" y2="240"/><line class="grid" x1="740" y1="10" x2="740" y2="240"/>
+      <text x="300" y="260" text-anchor="middle" class="mut">0</text><text x="410" y="260" text-anchor="middle" class="mut">0.25</text><text x="520" y="260" text-anchor="middle" class="mut">0.50</text><text x="630" y="260" text-anchor="middle" class="mut">0.75</text><text x="740" y="260" text-anchor="middle" class="mut">1.00</text>
+      <text x="290" y="34" text-anchor="end">No saved map</text><rect x="300" y="18" width="352" height="24" class="b-muted"/><text x="660" y="35">0.80</text>
+      <text x="290" y="72" text-anchor="end">Floor plan, no correction</text><rect x="300" y="56" width="286" height="24" class="b-cat"/><text x="594" y="73">0.65</text>
+      <text x="290" y="110" text-anchor="end">Map v1, no correction</text><rect x="300" y="94" width="220" height="24" class="b-cat"/><text x="528" y="111">0.50</text>
+      <text x="290" y="148" text-anchor="end">Map v1 + correction</text><rect x="300" y="132" width="308" height="24" class="b-robot"/><text x="616" y="149">0.70</text>
+      <text x="290" y="186" text-anchor="end">Floor plan + correction</text><rect x="300" y="170" width="352" height="24" class="b-robot"/><text x="660" y="187">0.80</text>
+      <text x="290" y="224" text-anchor="end">Map v2 + correction</text><rect x="300" y="208" width="374" height="24" class="b-robot"/><text x="682" y="225">0.85</text>
+    </svg>
+    <p class="legend"><span><i style="background:var(--rule)"></i>no map</span><span><i style="background:var(--cat)"></i>map, no drift correction</span><span><i style="background:var(--robot)"></i>map + drift correction</span><span>Built-in driver, 20 practice drives</span></p>
+  </div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">Step 3 · text models that drive</p>
+    <h2>From words to “words plus numbers”</h2>
+    <p>In phase 1, text models read eight rough distances as a sentence. A doorway inside a 45° slice looked like a wall, so they never found the way. In phase 2 they read a short sentence (goal, contact, route) while all 72 lidar readings and the route enter as numbers through a small extra layer.</p>
+    <p class="callout blue">The first one, MiniLM, reached 0.55 on practice in its very first run: the first text model ever to reach goals. ModernBERT, DeBERTa, Laya and ModernBERT-large followed.</p>
+  </div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">Step 4 · a hidden bug</p>
+    <h2>The teacher and the student saw different routes</h2>
+    <p>When a model learns from its own mistakes, a teacher labels what it should have done. The teacher used the planner <i>without</i> the map, while the model saw the route <i>with</i> the map. Where the two chose different ways around a wall, the labels told the model to steer against its own input. Four training runs collapsed (0.00 to 0.20) before we found it.</p>
+  </div>
+  <div class="chart">
+    <svg viewBox="0 0 760 160" role="img" aria-label="Bar chart: share of moments where the teacher turns toward the model's route. Old teacher, hybrid run: 18 percent. Old teacher, MiniLM run: 13 percent. Fixed teacher: 100 percent.">
+      <line class="grid" x1="300" y1="10" x2="300" y2="130"/><line class="grid" x1="520" y1="10" x2="520" y2="130"/><line class="grid" x1="740" y1="10" x2="740" y2="130"/>
+      <text x="300" y="150" text-anchor="middle" class="mut">0%</text><text x="520" y="150" text-anchor="middle" class="mut">50%</text><text x="740" y="150" text-anchor="middle" class="mut">100%</text>
+      <text x="290" y="34" text-anchor="end">Old teacher, hybrid run</text><rect x="300" y="18" width="79" height="24" class="b-bad"/><text x="387" y="35">18%</text>
+      <text x="290" y="72" text-anchor="end">Old teacher, MiniLM run</text><rect x="300" y="56" width="57" height="24" class="b-bad"/><text x="365" y="73">13%</text>
+      <text x="290" y="110" text-anchor="end">Fixed teacher (map planner)</text><rect x="300" y="94" width="440" height="24" class="b-good"/><text x="660" y="111" style="fill:var(--paper)">100%</text>
+    </svg>
+    <p class="legend"><span>Share of turning moments where the teacher turns toward the model’s route</span></p>
+  </div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">Step 5 · the cat problem</p>
+    <h2>A resting cat became a permanent wall</h2>
+    <p>Replaying a failed drive showed the robot knew exactly where it was, yet its route pointed 150° away from the goal. The planner kept any obstacle seen for half a second for the rest of the drive. A cat that sat briefly in a doorway closed that doorway forever.</p>
+    <p>A simple timer fixed the cats but made the robot forget real furniture missing from the map, and loop back into it. The rule that worked: forget an obstacle that is not on the map only after the robot has <b>seen it gone</b> (a lidar beam passes through its spot), plus five seconds.</p>
+  </div>
+  <div class="chart">
+    <svg viewBox="0 0 760 290" role="img" aria-label="Grouped bar chart, built-in driver with map v2 over 40 drives, goals out of 20 without cats and with 4 cats. Never forget: 20 and 11. Forget after 5 seconds: 15 and 19. After 15 seconds: 19 and 13. After 30 seconds: 18 and 14. Forget once seen gone: 20 and 17.">
+      <line class="grid" x1="50" y1="240" x2="750" y2="240"/><line class="grid" x1="50" y1="150" x2="750" y2="150"/><line class="grid" x1="50" y1="60" x2="750" y2="60"/>
+      <text x="40" y="244" text-anchor="end" class="mut">0</text><text x="40" y="154" text-anchor="end" class="mut">10</text><text x="40" y="64" text-anchor="end" class="mut">20</text>
+      <rect x="80" y="60" width="44" height="180" class="b-robot"/><rect x="130" y="141" width="44" height="99" class="b-cat"/><text x="102" y="54" text-anchor="middle">20</text><text x="152" y="135" text-anchor="middle">11</text><text x="127" y="262" text-anchor="middle">Never forget</text><text x="127" y="280" text-anchor="middle" class="mut">0.775</text>
+      <rect x="216" y="105" width="44" height="135" class="b-robot"/><rect x="266" y="69" width="44" height="171" class="b-cat"/><text x="238" y="99" text-anchor="middle">15</text><text x="288" y="63" text-anchor="middle">19</text><text x="263" y="262" text-anchor="middle">After 5 s</text><text x="263" y="280" text-anchor="middle" class="mut">0.85</text>
+      <rect x="352" y="69" width="44" height="171" class="b-robot"/><rect x="402" y="123" width="44" height="117" class="b-cat"/><text x="374" y="63" text-anchor="middle">19</text><text x="424" y="117" text-anchor="middle">13</text><text x="399" y="262" text-anchor="middle">After 15 s</text><text x="399" y="280" text-anchor="middle" class="mut">0.80</text>
+      <rect x="488" y="78" width="44" height="162" class="b-robot"/><rect x="538" y="114" width="44" height="126" class="b-cat"/><text x="510" y="72" text-anchor="middle">18</text><text x="560" y="108" text-anchor="middle">14</text><text x="535" y="262" text-anchor="middle">After 30 s</text><text x="535" y="280" text-anchor="middle" class="mut">0.80</text>
+      <rect x="624" y="60" width="44" height="180" class="b-robot"/><rect x="674" y="87" width="44" height="153" class="b-cat"/><text x="646" y="54" text-anchor="middle">20</text><text x="696" y="81" text-anchor="middle">17</text><text x="671" y="262" text-anchor="middle" style="font-weight:600">Seen gone + 5 s</text><text x="671" y="280" text-anchor="middle" style="font-weight:600">0.925</text>
+    </svg>
+    <p class="legend"><span><i style="background:var(--robot)"></i>goals without cats (of 20)</span><span><i style="background:var(--cat)"></i>goals with 4 cats (of 20)</span><span>Built-in driver + map v2, 40 drives; score under each group</span></p>
+  </div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">Step 6 · results</p>
+    <h2>One gentle retraining round, and the learned models pass the hand-written driver</h2>
+    <p>Each model drove 40 practice drives with the fixed route, the corrected teacher labelled every moment, and the model was fine-tuned once, gently. Then every model took the same 60 test drives.</p>
+  </div>
+  <div class="chart">
+    <svg viewBox="0 0 760 360" role="img" aria-label="Bar chart of goals reached out of 60 test drives: hybrid 57, mapcnn 55, Decision Transformer 55, CfC 54, built-in driver with map2 54, ModernBERT 53, MLP 51, built-in driver without a map 39, hppo_c3 without a map 34">
+      <line class="grid" x1="260" y1="8" x2="260" y2="322"/><line class="grid" x1="370" y1="8" x2="370" y2="322"/><line class="grid" x1="480" y1="8" x2="480" y2="322"/><line class="grid" x1="590" y1="8" x2="590" y2="322"/><line class="grid" x1="700" y1="8" x2="700" y2="322"/>
+      <text x="260" y="342" text-anchor="middle" class="mut">0</text><text x="370" y="342" text-anchor="middle" class="mut">15</text><text x="480" y="342" text-anchor="middle" class="mut">30</text><text x="590" y="342" text-anchor="middle" class="mut">45</text><text x="700" y="342" text-anchor="middle" class="mut">60</text>
+      <text x="250" y="31" text-anchor="end" style="font-weight:600">Hybrid (hppo_c3 network)</text><rect x="260" y="14" width="418" height="26" class="b-robot"/><text x="686" y="32" style="font-weight:600">57</text>
+      <text x="250" y="65" text-anchor="end">mapcnn</text><rect x="260" y="48" width="403" height="26" class="b-robot"/><text x="671" y="66">55</text>
+      <text x="250" y="99" text-anchor="end">Decision Transformer</text><rect x="260" y="82" width="403" height="26" class="b-robot"/><text x="671" y="100">55</text>
+      <text x="250" y="133" text-anchor="end">CfC</text><rect x="260" y="116" width="396" height="26" class="b-robot"/><text x="664" y="134">54</text>
+      <text x="250" y="167" text-anchor="end">Built-in driver + map2</text><rect x="260" y="150" width="396" height="26" class="b-muted"/><text x="664" y="168">54</text>
+      <text x="250" y="201" text-anchor="end">ModernBERT (text)</text><rect x="260" y="184" width="389" height="26" class="b-robot"/><text x="657" y="202">53</text>
+      <text x="250" y="235" text-anchor="end">MLP</text><rect x="260" y="218" width="374" height="26" class="b-robot"/><text x="642" y="236">51</text>
+      <text x="250" y="269" text-anchor="end">Built-in driver, no map</text><rect x="260" y="252" width="286" height="26" class="b-muted"/><text x="554" y="270">39</text>
+      <text x="250" y="303" text-anchor="end">hppo_c3, no map (start)</text><rect x="260" y="286" width="249" height="26" class="b-cat"/><text x="517" y="304">34</text>
+    </svg>
+    <p class="legend"><span><i style="background:var(--robot)"></i>learned model, route map2 + 1 retraining round</span><span><i style="background:var(--rule)"></i>built-in driver</span><span><i style="background:var(--cat)"></i>best model at the start of phase 2</span><span>Goals out of 60 test drives (40-drive check + held-out exam)</span></p>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Model</th><th>Best run</th><th class="n">40-drive check</th><th class="n">Held-out exam</th><th class="n">All 60</th><th class="n">Decision time</th></tr></thead>
+    <tbody>
+      <tr class="hl"><td>Hybrid (hppo_c3 network)</td><td>hmap2_r1</td><td class="n">0.95 (20 + 18)</td><td class="n">0.95 (10 + 9)</td><td class="n">57</td><td class="n">2 ms</td></tr>
+      <tr><td>mapcnn</td><td>mapcnnmap2_r1</td><td class="n">0.90 (19 + 17)</td><td class="n">0.95 (10 + 9)</td><td class="n">55</td><td class="n">3 ms</td></tr>
+      <tr><td>Decision Transformer</td><td>dtmap2_r1</td><td class="n">0.90 (18 + 18)</td><td class="n">0.95 (10 + 9)</td><td class="n">55</td><td class="n">5 ms</td></tr>
+      <tr><td>CfC</td><td>cfcmap2_r1</td><td class="n">0.925 (20 + 17)</td><td class="n">0.85 (9 + 8)</td><td class="n">54</td><td class="n">2 ms</td></tr>
+      <tr class="ref"><td>Built-in driver + map2</td><td>reference</td><td class="n">0.925 (20 + 17)</td><td class="n">0.85 (8 + 9)</td><td class="n">54</td><td class="n">2 ms</td></tr>
+      <tr><td>ModernBERT-base (text)</td><td>tnm2_r1</td><td class="n">0.90 (19 + 17)</td><td class="n">0.85 (10 + 7)</td><td class="n">53</td><td class="n">25 ms</td></tr>
+      <tr><td>MLP</td><td>mlpmap2_r1</td><td class="n">0.85 (19 + 15)</td><td class="n">0.85 (9 + 8)</td><td class="n">51</td><td class="n">2 ms</td></tr>
+      <tr><td>DeBERTa-v3-small (text)</td><td>tnmde_r2, route map</td><td class="n">0.725 (19 + 10)</td><td class="n">0.75 (10 + 5)</td><td class="n">44</td><td class="n">17 ms</td></tr>
+      <tr><td>MiniLM (text)</td><td>tnmde_r2, route map</td><td class="n">0.75 (19 + 11)</td><td class="n">0.65 (9 + 4)</td><td class="n">43</td><td class="n">11 ms</td></tr>
+      <tr><td>Laya (text, LoRA)</td><td>tnmde_r1, route map</td><td class="n">0.675 (19 + 8)</td><td class="n">0.70 (9 + 5)</td><td class="n">41</td><td class="n">27 ms</td></tr>
+      <tr class="ref"><td>Built-in driver, no map</td><td>reference</td><td class="n">0.60 (26 goals, 1 crash)</td><td class="n">0.65 (9 + 4)</td><td class="n">39</td><td class="n">1 ms</td></tr>
+      <tr class="ref"><td>hppo_c3, no map (phase 1 best)</td><td>hppo_c3</td><td class="n">0.50 (20 goals)</td><td class="n">0.70 (10 + 4)</td><td class="n">34</td><td class="n">2 ms</td></tr>
+    </tbody></table></div>
+  <p class="foot" style="padding-top:0">In brackets: goals without cats + goals with 4 cats. Every model above had 0 collisions on these tests except where noted. DeBERTa, MiniLM and Laya were not given the final map2 round (DeBERTa’s map2 round over-fitted; the text line closed with ModernBERT).</p>
+  <div class="two">
+    <figure><img src="https://cs-ponkoj.github.io/Autonomous-Robot-Environment/report_path.png" alt="Top-down map with the best model's path in blue from start to goal around walls, and four cats' tracks in orange"><figcaption>The best model on drive 2005 with four cats: its path in blue, the cats in orange, the goal ring in green. Reached in 78 s.</figcaption></figure>
+    <div class="card"><h3>What the gain is made of</h3>
+      <ul class="tight">
+        <li><b>Saved map + drift correction:</b> the route no longer misleads in rooms the robot has not seen yet.</li>
+        <li><b>Matching teacher:</b> retraining improves models instead of breaking them.</li>
+        <li><b>Planner fix:</b> cats no longer become walls; cat drives on the exam went from 4 to 9 of 10.</li>
+        <li><b>One gentle round:</b> models adapt to the new route; no-cat drives recovered (DT 17 → 18, ModernBERT 16 → 19 of 20).</li>
+      </ul>
+      <p class="callout" style="margin-top:6px">The best model is the same small network as at the start (about 196,000 parameters). What changed is the information it gets and how it was taught.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">Text models and Laya</p>
+    <h2>Text models can drive now, but small specialised models still win</h2>
+    <p>The best text model, ModernBERT-base, reached 53 of 60, tied the built-in driver on the exam and drove very smoothly (12 interventions in 20 exam drives). It is 10 to 15 times slower per decision than the small models.</p>
+    <p><b>The Laya question.</b> To isolate Laya’s own pretraining we trained its generic counterpart, ModernBERT-large, with the identical recipe and identical training data. Laya was ahead by one drive in 20 at both stages (0.65 vs 0.60, then 0.80 vs 0.75): consistent, but within chance on 20 drives. Laya also scored below the smaller, fully trained ModernBERT-base on the exam (0.70 vs 0.80). Our reading: for driving through this interface, Laya’s pretraining adds at most a small edge.</p>
+  </div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">What did not work</p>
+    <h2>Failures, and what each one taught us</h2>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>Attempt</th><th>Result</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Text models reading 8 distances as words (phase 1)</td><td><span class="pill bad">0 goals</span></td><td>Doorways vanished inside 45° slices; no route; slow</td></tr>
+      <tr><td>Saved map without drift correction</td><td><span class="pill bad">0.80 → 0.50</span></td><td>Saved walls and live readings drifted apart</td></tr>
+      <tr><td>Map-route retraining with the old teacher (4 runs)</td><td><span class="pill bad">0.00 to 0.20</span></td><td>Labels contradicted the model’s own route input</td></tr>
+      <tr><td>Text model trained on old recordings without route values</td><td><span class="pill bad">0 / 20</span></td><td>Opposite turns for the same inputs averaged to standing still</td></tr>
+      <tr><td>mapcnn first map round</td><td><span class="pill bad">0.00, then 0.80</span></td><td>One over-strong fit on little data; recovered with more data</td></tr>
+      <tr><td>Forgetting off-map obstacles on a pure timer</td><td><span class="pill cat">cats fixed, 5 no-cat drives lost</span></td><td>Real unmapped furniture was forgotten too</td></tr>
+      <tr><td>DeBERTa retraining on map2</td><td><span class="pill bad">0.80 → 0.725</span></td><td>Over-fitted its 40 training drives</td></tr>
+      <tr><td>Text model with the last 4 lidar scans</td><td><span class="pill cat">0.825 vs 0.90</span></td><td>The planner fix had already removed most of the cat problem</td></tr>
+      <tr><td>Training on the lab PC</td><td><span class="pill bad">3 hard crashes</span></td><td>Windows “Kernel-Power 41”: power or hardware failure under load</td></tr>
+    </tbody></table></div>
+  <div class="col"><p class="callout">A recurring lesson: practice scores flattered by 0.05 to 0.20. Only the 40-drive check and the held-out exam decided rankings, and each finished model took the exam once.</p></div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">Every run</p>
+    <h2>The complete log: 129 runs in 13 families</h2>
+    <p>Open a family to see every training and test run, in date order. Practice score and goals are on the 20 practice drives unless the run name ends in @2000-2019 (40 drives); the held-out column shows the single exam result where one was taken.</p>
+  </div>
+  <details><summary><span class="fam">Built-in driver (reference)</span><span class="cnt">12 runs</span><span class="best">best held-out 0.85</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-16</td><td class="run">reference</td><td class="n">0.80</td><td class="n">10/10</td><td class="n">6/10</td><td class="n"><b>0.65</b></td><td class="note">the reference: its own actions are the labels</td></tr>
+<tr><td>10-17</td><td class="run">reference@2000-2019</td><td class="n">0.60</td><td class="n">19/20</td><td class="n">7/20</td><td class="n"></td><td class="note">practice re-benchmark (seeds 2000-2019)</td></tr>
+<tr><td>10-22</td><td class="run">map_floorplan</td><td class="n">0.65</td><td class="n">8/10</td><td class="n">5/10</td><td class="n"></td><td class="note">built-in driver starting from the saved building map (simulator floor plan: comparison only)</td></tr>
+<tr><td>10-22</td><td class="run">map_map_v1</td><td class="n">0.50</td><td class="n">5/10</td><td class="n">5/10</td><td class="n"></td><td class="note">built-in driver starting from the saved building map</td></tr>
+<tr><td>10-22</td><td class="run">map_map_v1_s40</td><td class="n">0.55</td><td class="n">6/10</td><td class="n">5/10</td><td class="n"></td><td class="note">built-in driver starting from the saved building map</td></tr>
+<tr><td>10-22</td><td class="run">map_floorplan_match</td><td class="n">0.80</td><td class="n">10/10</td><td class="n">6/10</td><td class="n"></td><td class="note">built-in driver starting from the saved building map (simulator floor plan: comparison only)</td></tr>
+<tr><td>10-22</td><td class="run">map_map_v1_match</td><td class="n">0.70</td><td class="n">7/10</td><td class="n">7/10</td><td class="n"></td><td class="note">built-in driver starting from the saved building map</td></tr>
+<tr><td>10-22</td><td class="run">map_map_v2_match</td><td class="n">0.85</td><td class="n">10/10</td><td class="n">7/10</td><td class="n"><b>0.85</b></td><td class="note">built-in driver starting from the saved building map</td></tr>
+<tr><td>10-24</td><td class="run">map_map_v2_match_ttl5</td><td class="n">0.85</td><td class="n">15/20</td><td class="n">19/20</td><td class="n"></td><td class="note">built-in driver starting from the saved building map</td></tr>
+<tr><td>10-24</td><td class="run">map_map_v2_match_ttl15</td><td class="n">0.80</td><td class="n">19/20</td><td class="n">13/20</td><td class="n"></td><td class="note">built-in driver starting from the saved building map</td></tr>
+<tr><td>10-24</td><td class="run">map_map_v2_match_ttl30</td><td class="n">0.80</td><td class="n">18/20</td><td class="n">14/20</td><td class="n"></td><td class="note">built-in driver starting from the saved building map</td></tr>
+<tr><td>10-24</td><td class="run">map_map_v2_match_ttl5_clear</td><td class="n">0.93</td><td class="n">20/20</td><td class="n">17/20</td><td class="n"><b>0.85</b></td><td class="note">built-in driver starting from the saved building map</td></tr>
+</tbody></table></div></details>
+<details><summary><span class="fam">Hybrid CNN + route</span><span class="cnt">17 runs</span><span class="best">best held-out 0.95</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-17</td><td class="run">hybrid_dagger_r1</td><td class="n">0.50</td><td class="n">7/10</td><td class="n">3/10</td><td class="n"></td><td class="note">hybrid DAgger round 1: +50834 states (policy episodes {&#x27;success&#x27;: 25, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 35}, beta 0.50)</td></tr>
+<tr><td>10-17</td><td class="run">hybrid_dagger_r2</td><td class="n">0.70</td><td class="n">10/10</td><td class="n">4/10</td><td class="n"></td><td class="note">hybrid DAgger round 2: +44985 states (policy episodes {&#x27;success&#x27;: 34, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 26}, beta 0.25)</td></tr>
+<tr><td>10-17</td><td class="run">hybrid_dagger_r1@clean</td><td class="n">0.45</td><td class="n">6/10</td><td class="n">3/10</td><td class="n"></td><td class="note">re-benchmark of hybrid_dagger_r1 on practice seeds 2000-2009 (20 drives) [clean]</td></tr>
+<tr><td>10-17</td><td class="run">hybrid_dagger_r2@clean</td><td class="n">0.55</td><td class="n">7/10</td><td class="n">4/10</td><td class="n"></td><td class="note">re-benchmark of hybrid_dagger_r2 on practice seeds 2000-2009 (20 drives) [clean]</td></tr>
+<tr><td>10-17</td><td class="run">hppo_c3</td><td class="n">0.60</td><td class="n">8/10</td><td class="n">4/10</td><td class="n"><b>0.70</b></td><td class="note">PPO from hybrid/hybrid_dagger_r2; training return 10.509, training success 0.72 (last 100 episodes)</td></tr>
+<tr><td>10-17</td><td class="run">hppo_c1</td><td class="n">0.55</td><td class="n">7/10</td><td class="n">4/10</td><td class="n"></td><td class="note">PPO from hybrid/hybrid_dagger_r2; training return 10.61, training success 0.773 (last 97 episodes)</td></tr>
+<tr><td>10-17</td><td class="run">hppo_c3@2000-2019</td><td class="n">0.50</td><td class="n">15/20</td><td class="n">5/20</td><td class="n"></td><td class="note">re-benchmark of hppo_c3 on practice seeds 2000-2019 (40 drives)</td></tr>
+<tr><td>10-22</td><td class="run">hppo_c3@labpc</td><td class="n">0.60</td><td class="n">8/10</td><td class="n">4/10</td><td class="n"></td><td class="note">re-benchmark of hppo_c3 on practice seeds 2000-2009 (20 drives) [labpc]</td></tr>
+<tr><td>10-22</td><td class="run">hmap_r1</td><td class="n">0.10</td><td class="n">1/10</td><td class="n">1/10</td><td class="n"></td><td class="note">route DAgger round 1 (hybrid, source map): +27804 states (policy episodes {&#x27;success&#x27;: 26, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 14}, beta 0.50, cats...</td></tr>
+<tr><td>10-22</td><td class="run">hppo_c3@map</td><td class="n">0.80</td><td class="n">9/10</td><td class="n">7/10</td><td class="n"></td><td class="note">re-benchmark of hppo_c3 on practice seeds 2000-2009 (20 drives) [map]</td></tr>
+<tr><td>10-22</td><td class="run">hppo_c3@map40</td><td class="n">0.70</td><td class="n">17/20</td><td class="n">11/20</td><td class="n"></td><td class="note">re-benchmark of hppo_c3 on practice seeds 2000-2019 (40 drives) [map40]</td></tr>
+<tr><td>10-22</td><td class="run">hppo_c3_map</td><td class="n">0.80</td><td class="n">9/10</td><td class="n">7/10</td><td class="n"><b>0.80</b></td><td class="note">hppo_c3 weights, map route source (map_v2, drift correction on): a different driver, same network</td></tr>
+<tr><td>10-23</td><td class="run">hmapg_r1</td><td class="n">0.75</td><td class="n">9/10</td><td class="n">6/10</td><td class="n"></td><td class="note">route DAgger round 1 (hybrid, source map, expert map): +23012 states (policy episodes {&#x27;success&#x27;: 30, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 10}, bet...</td></tr>
+<tr><td>10-24</td><td class="run">hppo_c3_map@map2_40</td><td class="n">0.82</td><td class="n">18/20</td><td class="n">15/20</td><td class="n"></td><td class="note">re-benchmark of hppo_c3_map on practice seeds 2000-2019 (40 drives) [map2_40]</td></tr>
+<tr><td>10-24</td><td class="run">hppo_c3_map2</td><td class="n">0.82</td><td class="n">18/20</td><td class="n">15/20</td><td class="n"><b>0.85</b></td><td class="note">hppo_c3_map weights driven with route map2 (off-map obstacles forgotten once seen gone); 40-drive practice result</td></tr>
+<tr><td>10-25</td><td class="run">hmap2_r1</td><td class="n">1.00</td><td class="n">10/10</td><td class="n">10/10</td><td class="n"><b>0.95</b></td><td class="note">route DAgger round 1 (hybrid, source map2, expert map): +20750 states (policy episodes {&#x27;success&#x27;: 34, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 6}, bet...</td></tr>
+<tr><td>10-25</td><td class="run">hmap2_r1@2000-2019</td><td class="n">0.95</td><td class="n">20/20</td><td class="n">18/20</td><td class="n"></td><td class="note">re-benchmark of hmap2_r1 on practice seeds 2000-2019 (40 drives)</td></tr>
+</tbody></table></div></details>
+<details><summary><span class="fam">Decision Transformer</span><span class="cnt">12 runs</span><span class="best">best held-out 0.95</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-16</td><td class="run">dt_k20</td><td class="n">0.30</td><td class="n">4/10</td><td class="n">2/10</td><td class="n"></td><td class="note">first full-data DT: context 20, hidden 128, 3 layers, progress reward plus arrival bonus</td></tr>
+<tr><td>10-16</td><td class="run">dt_noact</td><td class="n">0.40</td><td class="n">3/10</td><td class="n">5/10</td><td class="n"><b>0.25</b></td><td class="note">DT without its own past actions (tests the copycat explanation of dt_k20&#x27;s interventions); benchmarked on CPU drivers</td></tr>
+<tr><td>10-16</td><td class="run">dt_noact@2000-2019</td><td class="n">0.25</td><td class="n">5/20</td><td class="n">5/20</td><td class="n"></td><td class="note">re-benchmark of dt_noact on practice seeds 2000-2019 (40 drives)</td></tr>
+<tr><td>10-24</td><td class="run">dtmap_r1</td><td class="n">0.85</td><td class="n">9/10</td><td class="n">8/10</td><td class="n"></td><td class="note">route DAgger round 1 (dt, source map, expert map): +18793 states (policy episodes {&#x27;success&#x27;: 35, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 5}, beta 0.5...</td></tr>
+<tr><td>10-24</td><td class="run">dtmap_r2</td><td class="n">0.80</td><td class="n">9/10</td><td class="n">7/10</td><td class="n"><b>0.75</b></td><td class="note">route DAgger round 2 (dt, source map, expert map): +20605 states (policy episodes {&#x27;success&#x27;: 30, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 10}, beta 0....</td></tr>
+<tr><td>10-24</td><td class="run">dtmap_r1@2000-2019</td><td class="n">0.70</td><td class="n">18/20</td><td class="n">10/20</td><td class="n"></td><td class="note">re-benchmark of dtmap_r1 on practice seeds 2000-2019 (40 drives)</td></tr>
+<tr><td>10-24</td><td class="run">dtmap_r2@2000-2019</td><td class="n">0.80</td><td class="n">20/20</td><td class="n">12/20</td><td class="n"></td><td class="note">re-benchmark of dtmap_r2 on practice seeds 2000-2019 (40 drives)</td></tr>
+<tr><td>10-24</td><td class="run">dtmap_r2@map2_40</td><td class="n">0.82</td><td class="n">17/20</td><td class="n">16/20</td><td class="n"></td><td class="note">re-benchmark of dtmap_r2 on practice seeds 2000-2019 (40 drives) [map2_40]</td></tr>
+<tr><td>10-24</td><td class="run">dtmap_r2_map2</td><td class="n">0.82</td><td class="n">17/20</td><td class="n">16/20</td><td class="n"><b>0.90</b></td><td class="note">dtmap_r2 weights driven with route map2 (off-map obstacles forgotten once seen gone); 40-drive practice result</td></tr>
+<tr><td>10-24</td><td class="run">dtmap2_r1</td><td class="n">0.95</td><td class="n">9/10</td><td class="n">10/10</td><td class="n"><b>0.95</b></td><td class="note">route DAgger round 1 (dt, source map2, expert map): +19270 states (policy episodes {&#x27;success&#x27;: 34, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 6}, beta 0....</td></tr>
+<tr><td>10-24</td><td class="run">dtmap2_r2</td><td class="n">0.90</td><td class="n">9/10</td><td class="n">9/10</td><td class="n"></td><td class="note">route DAgger round 2 (dt, source map2, expert map): +16870 states (policy episodes {&#x27;success&#x27;: 36, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 4}, beta 0....</td></tr>
+<tr><td>10-24</td><td class="run">dtmap2_r1@2000-2019</td><td class="n">0.90</td><td class="n">18/20</td><td class="n">18/20</td><td class="n"></td><td class="note">re-benchmark of dtmap2_r1 on practice seeds 2000-2019 (40 drives)</td></tr>
+</tbody></table></div></details>
+<details><summary><span class="fam">Local-map CNN</span><span class="cnt">7 runs</span><span class="best">best held-out 0.95</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-17</td><td class="run">bc</td><td class="n">0.25</td><td class="n">3/10</td><td class="n">2/10</td><td class="n"></td><td class="note"></td></tr>
+<tr><td>10-17</td><td class="run">dagger_r1</td><td class="n">0.40</td><td class="n">4/10</td><td class="n">4/10</td><td class="n"></td><td class="note">DAgger round 1 from bc: +62679 states (policy episodes {&#x27;success&#x27;: 42, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 38}, beta 0.50)</td></tr>
+<tr><td>10-24</td><td class="run">mapcnnmap_r1</td><td class="n">0.00</td><td class="n">0/10</td><td class="n">0/10</td><td class="n"></td><td class="note">route DAgger round 1 (mapcnn, source map, expert map): +19666 states (policy episodes {&#x27;success&#x27;: 31, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 9}, beta...</td></tr>
+<tr><td>10-24</td><td class="run">mapcnnmap_r2</td><td class="n">0.80</td><td class="n">9/10</td><td class="n">7/10</td><td class="n"><b>0.75</b></td><td class="note">route DAgger round 2 (mapcnn, source map, expert map): +32014 states (policy episodes {&#x27;success&#x27;: 22, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 18}, bet...</td></tr>
+<tr><td>10-24</td><td class="run">mapcnnmap_r2@2000-2019</td><td class="n">0.65</td><td class="n">16/20</td><td class="n">10/20</td><td class="n"></td><td class="note">re-benchmark of mapcnnmap_r2 on practice seeds 2000-2019 (40 drives)</td></tr>
+<tr><td>10-25</td><td class="run">mapcnnmap2_r1</td><td class="n">0.90</td><td class="n">10/10</td><td class="n">8/10</td><td class="n"><b>0.95</b></td><td class="note">route DAgger round 1 (mapcnn, source map2, expert map): +20219 states (policy episodes {&#x27;success&#x27;: 35, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 5}, bet...</td></tr>
+<tr><td>10-25</td><td class="run">mapcnnmap2_r1@2000-2019</td><td class="n">0.90</td><td class="n">19/20</td><td class="n">17/20</td><td class="n"></td><td class="note">re-benchmark of mapcnnmap2_r1 on practice seeds 2000-2019 (40 drives)</td></tr>
+</tbody></table></div></details>
+<details><summary><span class="fam">CfC (liquid-time network)</span><span class="cnt">10 runs</span><span class="best">best held-out 0.85</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-16</td><td class="run">cfc_bc</td><td class="n">0.20</td><td class="n">2/10</td><td class="n">2/10</td><td class="n"></td><td class="note">CfC (plain PyTorch cell), behavior cloning, v/omega masked, memory across the episode</td></tr>
+<tr><td>10-17</td><td class="run">dagger_cfc_r1</td><td class="n">0.10</td><td class="n">1/10</td><td class="n">1/10</td><td class="n"></td><td class="note">CfC DAgger round 1 from cfc_bc: +24640 states (policy episodes {&#x27;success&#x27;: 27, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 13}, beta 0.50)</td></tr>
+<tr><td>10-17</td><td class="run">dagger_cfc_r2</td><td class="n">0.25</td><td class="n">3/10</td><td class="n">2/10</td><td class="n"></td><td class="note">CfC DAgger round 2 from cfc_bc: +30984 states (policy episodes {&#x27;success&#x27;: 22, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 18}, beta 0.25)</td></tr>
+<tr><td>10-17</td><td class="run">dagger_cfc_r3</td><td class="n">0.30</td><td class="n">2/10</td><td class="n">4/10</td><td class="n"></td><td class="note">CfC DAgger round 3 from cfc_bc: +35785 states (policy episodes {&#x27;success&#x27;: 16, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 24}, beta 0.12)</td></tr>
+<tr><td>10-17</td><td class="run">dagger_cfc_r3@2000-2019</td><td class="n">0.23</td><td class="n">4/20</td><td class="n">5/20</td><td class="n"></td><td class="note">re-benchmark of dagger_cfc_r3 on practice seeds 2000-2019 (40 drives)</td></tr>
+<tr><td>10-23</td><td class="run">cfcmap_r1</td><td class="n">0.35</td><td class="n">4/10</td><td class="n">3/10</td><td class="n"></td><td class="note">route DAgger round 1 (cfc, source map, expert map): +29549 states (policy episodes {&#x27;success&#x27;: 23, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 17}, beta 0...</td></tr>
+<tr><td>10-24</td><td class="run">cfcmap_r2</td><td class="n">0.70</td><td class="n">9/10</td><td class="n">5/10</td><td class="n"><b>0.65</b></td><td class="note">route DAgger round 2 (cfc, source map, expert map): +32532 states (policy episodes {&#x27;success&#x27;: 22, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 18}, beta 0...</td></tr>
+<tr><td>10-24</td><td class="run">cfcmap_r2@map40</td><td class="n">0.65</td><td class="n">17/20</td><td class="n">9/20</td><td class="n"></td><td class="note">re-benchmark of cfcmap_r2 on practice seeds 2000-2019 (40 drives) [map40]</td></tr>
+<tr><td>10-25</td><td class="run">cfcmap2_r1</td><td class="n">1.00</td><td class="n">10/10</td><td class="n">10/10</td><td class="n"><b>0.85</b></td><td class="note">route DAgger round 1 (cfc, source map2, expert map): +18865 states (policy episodes {&#x27;success&#x27;: 35, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 5}, beta 0...</td></tr>
+<tr><td>10-25</td><td class="run">cfcmap2_r1@2000-2019</td><td class="n">0.93</td><td class="n">20/20</td><td class="n">17/20</td><td class="n"></td><td class="note">re-benchmark of cfcmap2_r1 on practice seeds 2000-2019 (40 drives)</td></tr>
+</tbody></table></div></details>
+<details><summary><span class="fam">MLP</span><span class="cnt">7 runs</span><span class="best">best held-out 0.85</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-16</td><td class="run">mlp_noodo</td><td class="n">0.05</td><td class="n">0/10</td><td class="n">1/10</td><td class="n"></td><td class="note">behavior cloning, 8 discrete actions, no speed inputs</td></tr>
+<tr><td>10-16</td><td class="run">mlp_cont</td><td class="n">0.10</td><td class="n">1/10</td><td class="n">1/10</td><td class="n"></td><td class="note">behavior cloning, continuous (v, omega), no speed inputs</td></tr>
+<tr><td>10-23</td><td class="run">mlpmap_r1</td><td class="n">0.45</td><td class="n">5/10</td><td class="n">4/10</td><td class="n"></td><td class="note">route DAgger round 1 (mlp, source map, expert map): +23373 states (policy episodes {&#x27;success&#x27;: 30, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 10}, beta 0...</td></tr>
+<tr><td>10-23</td><td class="run">mlpmap_r2</td><td class="n">0.70</td><td class="n">10/10</td><td class="n">4/10</td><td class="n"><b>0.85</b></td><td class="note">route DAgger round 2 (mlp, source map, expert map): +24249 states (policy episodes {&#x27;success&#x27;: 28, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 12}, beta 0...</td></tr>
+<tr><td>10-24</td><td class="run">mlpmap_r2@map40</td><td class="n">0.60</td><td class="n">17/20</td><td class="n">7/20</td><td class="n"></td><td class="note">re-benchmark of mlpmap_r2 on practice seeds 2000-2019 (40 drives) [map40]</td></tr>
+<tr><td>10-25</td><td class="run">mlpmap2_r1</td><td class="n">0.90</td><td class="n">10/10</td><td class="n">8/10</td><td class="n"><b>0.85</b></td><td class="note">route DAgger round 1 (mlp, source map2, expert map): +22727 states (policy episodes {&#x27;success&#x27;: 31, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 9}, beta 0...</td></tr>
+<tr><td>10-25</td><td class="run">mlpmap2_r1@2000-2019</td><td class="n">0.85</td><td class="n">19/20</td><td class="n">15/20</td><td class="n"></td><td class="note">re-benchmark of mlpmap2_r1 on practice seeds 2000-2019 (40 drives)</td></tr>
+</tbody></table></div></details>
+<details><summary><span class="fam">1D-CNN</span><span class="cnt">12 runs</span><span class="best">best held-out 0.25</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-16</td><td class="run">pilot_disc</td><td class="n">0.00</td><td class="n">0/10</td><td class="n">0/10</td><td class="n"></td><td class="note">pilot: trained on seeds 10000-10149, validated on 10150-10189 (the full recording is still running)</td></tr>
+<tr><td>10-16</td><td class="run">pilot_disc_noodo</td><td class="n">0.10</td><td class="n">1/10</td><td class="n">1/10</td><td class="n"></td><td class="note">pilot without the measured v and omega (pilot_disc spun in place: copycat shortcut)</td></tr>
+<tr><td>10-16</td><td class="run">bc_disc</td><td class="n">0.15</td><td class="n">1/10</td><td class="n">2/10</td><td class="n"></td><td class="note">full data, no v/omega</td></tr>
+<tr><td>10-16</td><td class="run">bc_disc_f4</td><td class="n">0.05</td><td class="n">0/10</td><td class="n">1/10</td><td class="n"></td><td class="note">full data, no v/omega, 4 stacked frames</td></tr>
+<tr><td>10-16</td><td class="run">bc_disc_reached</td><td class="n">0.15</td><td class="n">1/10</td><td class="n">2/10</td><td class="n"></td><td class="note">full data, no v/omega, only episodes the expert completed</td></tr>
+<tr><td>10-16</td><td class="run">bc_cont</td><td class="n">0.40</td><td class="n">4/10</td><td class="n">4/10</td><td class="n"></td><td class="note">full data, no v/omega, continuous (v, omega) head</td></tr>
+<tr><td>10-16</td><td class="run">dagger_cont_r1</td><td class="n">0.35</td><td class="n">4/10</td><td class="n">3/10</td><td class="n"></td><td class="note">DAgger round 1 from bc_cont: +31937 states (policy episodes {&#x27;success&#x27;: 19, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 21}, beta 0.50)</td></tr>
+<tr><td>10-16</td><td class="run">dagger_cont_r2</td><td class="n">0.30</td><td class="n">4/10</td><td class="n">2/10</td><td class="n"></td><td class="note">DAgger round 2 from bc_cont: +31187 states (policy episodes {&#x27;success&#x27;: 23, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 17}, beta 0.25)</td></tr>
+<tr><td>10-16</td><td class="run">dagger_cont_r3</td><td class="n">0.50</td><td class="n">5/10</td><td class="n">5/10</td><td class="n"><b>0.25</b></td><td class="note">DAgger round 3 from bc_cont: +40202 states (policy episodes {&#x27;success&#x27;: 14, &#x27;collision&#x27;: 0, &#x27;timeout&#x27;: 26}, beta 0.12)</td></tr>
+<tr><td>10-16</td><td class="run">dagger_cont_r3@2000-2019</td><td class="n">0.28</td><td class="n">5/20</td><td class="n">6/20</td><td class="n"></td><td class="note">re-benchmark of dagger_cont_r3 on practice seeds 2000-2019 (40 drives)</td></tr>
+<tr><td>10-16</td><td class="run">bc_cont@2000-2019</td><td class="n">0.17</td><td class="n">5/20</td><td class="n">2/20</td><td class="n"></td><td class="note">re-benchmark of bc_cont on practice seeds 2000-2019 (40 drives)</td></tr>
+<tr><td>10-16</td><td class="run">dagger_cont_r1@2000-2019</td><td class="n">0.23</td><td class="n">6/20</td><td class="n">3/20</td><td class="n"></td><td class="note">re-benchmark of dagger_cont_r1 on practice seeds 2000-2019 (40 drives)</td></tr>
+</tbody></table></div></details>
+<details><summary><span class="fam">PPO (reinforcement learning)</span><span class="cnt">6 runs</span><span class="best">best held-out 0.25</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-16</td><td class="run">ppo_r1</td><td class="n">0.40</td><td class="n">4/10</td><td class="n">4/10</td><td class="n"><b>0.25</b></td><td class="note">PPO from cnn/dagger_cont_r3; training return 5.182, training success 0.42 (last 100 episodes)</td></tr>
+<tr><td>10-16</td><td class="run">ppo_r2</td><td class="n">0.25</td><td class="n">3/10</td><td class="n">2/10</td><td class="n"></td><td class="note">PPO from cnn/dagger_cont_r3; training return 5.064, training success 0.38 (last 100 episodes)</td></tr>
+<tr><td>10-16</td><td class="run">ppo_r3</td><td class="n">0.20</td><td class="n">2/10</td><td class="n">2/10</td><td class="n"></td><td class="note">PPO from cnn/dagger_cont_r3; training return 3.544, training success 0.31 (last 100 episodes)</td></tr>
+<tr><td>10-17</td><td class="run">ppo_r1@2000-2019</td><td class="n">0.33</td><td class="n">6/20</td><td class="n">7/20</td><td class="n"></td><td class="note">re-benchmark of ppo_r1 on practice seeds 2000-2019 (40 drives)</td></tr>
+<tr><td>10-17</td><td class="run">ppo2_r1</td><td class="n">0.25</td><td class="n">2/10</td><td class="n">3/10</td><td class="n"></td><td class="note">PPO from ppo/ppo_r1; training return 5.508, training success 0.46 (last 100 episodes)</td></tr>
+<tr><td>10-17</td><td class="run">ppo2_r1@2000-2019</td><td class="n">0.17</td><td class="n">3/20</td><td class="n">4/20</td><td class="n"></td><td class="note">re-benchmark of ppo2_r1 on practice seeds 2000-2019 (40 drives)</td></tr>
+</tbody></table></div></details>
+<details><summary><span class="fam">ModernBERT-base (text)</span><span class="cnt">16 runs</span><span class="best">best held-out 0.85</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-16</td><td class="run">ft1</td><td class="n">0.00</td><td class="n">0/10</td><td class="n">0/10</td><td class="n"></td><td class="note">ModernBERT-base fine-tuned on scene text</td></tr>
+<tr><td>10-16</td><td class="run">ft1_speed</td><td class="n">0.00</td><td class="n">0/10</td><td class="n">0/10</td><td class="n"></td><td class="note">ModernBERT-base fine-tuned on scene text; control-with-speed</td></tr>
+<tr><td>10-17</td><td class="run">ft2</td><td class="n">0.05</td><td class="n">0/10</td><td class="n">1/10</td><td class="n"></td><td class="note">ModernBERT-base fine-tuned on scene text; weighted-classes</td></tr>
+<tr><td>10-23</td><td class="run">tn1</td><td class="n">0.65</td><td class="n">9/10</td><td class="n">4/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings</td></tr>
+<tr><td>10-23</td><td class="run">tnmde_r1</td><td class="n">0.70</td><td class="n">9/10</td><td class="n">5/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 1 from tn1: +19851 states (policy episodes {...</td></tr>
+<tr><td>10-23</td><td class="run">tnmde_r2</td><td class="n">0.80</td><td class="n">9/10</td><td class="n">7/10</td><td class="n"><b>0.80</b></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 2 from tn1: +19688 states (policy episodes {...</td></tr>
+<tr><td>10-23</td><td class="run">tnmde_r2@2000-2019</td><td class="n">0.72</td><td class="n">19/20</td><td class="n">10/20</td><td class="n"></td><td class="note">practice re-benchmark of tnmde_r2 on seeds 2000-2019 (40 drives)</td></tr>
+<tr><td>10-24</td><td class="run">tnmde_r2@map2_40</td><td class="n">0.82</td><td class="n">16/20</td><td class="n">17/20</td><td class="n"></td><td class="note">practice re-benchmark of tnmde_r2 on seeds 2000-2019 (40 drives), driven with route source map2 (no retraining)</td></tr>
+<tr><td>10-24</td><td class="run">tnm2_r1</td><td class="n">0.90</td><td class="n">9/10</td><td class="n">9/10</td><td class="n"><b>0.85</b></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 1 from tnmde_r2: +15914 states (policy episo...</td></tr>
+<tr><td>10-24</td><td class="run">tnm2_r2</td><td class="n">0.80</td><td class="n">9/10</td><td class="n">7/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 2 from tnmde_r2: +16004 states (policy episo...</td></tr>
+<tr><td>10-24</td><td class="run">tnm2_r1@2000-2019</td><td class="n">0.90</td><td class="n">19/20</td><td class="n">17/20</td><td class="n"></td><td class="note">practice re-benchmark of tnm2_r1 on seeds 2000-2019 (40 drives)</td></tr>
+<tr><td>10-25</td><td class="run">tnmh_r1</td><td class="n">0.80</td><td class="n">8/10</td><td class="n">8/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 1 from tnm2_r1: +19810 states (policy episod...</td></tr>
+<tr><td>10-25</td><td class="run">tnmh_r2</td><td class="n">0.85</td><td class="n">9/10</td><td class="n">8/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 2 from tnm2_r1: +16679 states (policy episod...</td></tr>
+<tr><td>10-25</td><td class="run">tnmh_r1@quiet</td><td class="n">0.85</td><td class="n">9/10</td><td class="n">8/10</td><td class="n"></td><td class="note">tnmh_r1 (trained on its own route source) driven with route source map2, no retraining</td></tr>
+<tr><td>10-25</td><td class="run">tnmh_r2@quiet</td><td class="n">0.85</td><td class="n">10/10</td><td class="n">7/10</td><td class="n"></td><td class="note">tnmh_r2 (trained on its own route source) driven with route source map2, no retraining</td></tr>
+<tr><td>10-25</td><td class="run">tnmh_r2@2000-2019</td><td class="n">0.82</td><td class="n">17/20</td><td class="n">16/20</td><td class="n"></td><td class="note">practice re-benchmark of tnmh_r2 on seeds 2000-2019 (40 drives)</td></tr>
+</tbody></table></div></details>
+<details><summary><span class="fam">DeBERTa-v3-small (text)</span><span class="cnt">10 runs</span><span class="best">best held-out 0.75</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-16</td><td class="run">ft1</td><td class="n">0.00</td><td class="n">0/10</td><td class="n">0/10</td><td class="n"></td><td class="note">DeBERTa-v3-small fine-tuned on scene text</td></tr>
+<tr><td>10-16</td><td class="run">ft1</td><td class="n">0.00</td><td class="n">0/10</td><td class="n">0/10</td><td class="n"></td><td class="note">DeBERTa-v3-small fine-tuned on scene text; repair-fp32-master-weights</td></tr>
+<tr><td>10-17</td><td class="run">ft2</td><td class="n">0.00</td><td class="n">0/10</td><td class="n">0/10</td><td class="n"></td><td class="note">DeBERTa-v3-small fine-tuned on scene text; weighted-classes</td></tr>
+<tr><td>10-23</td><td class="run">tn1</td><td class="n">0.60</td><td class="n">7/10</td><td class="n">5/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings</td></tr>
+<tr><td>10-23</td><td class="run">tnmde_r1</td><td class="n">0.75</td><td class="n">9/10</td><td class="n">6/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 1 from tn1: +17992 states (policy episodes {...</td></tr>
+<tr><td>10-23</td><td class="run">tnmde_r2</td><td class="n">0.85</td><td class="n">10/10</td><td class="n">7/10</td><td class="n"><b>0.75</b></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 2 from tn1: +22040 states (policy episodes {...</td></tr>
+<tr><td>10-24</td><td class="run">tnmde_r2@2000-2019</td><td class="n">0.72</td><td class="n">19/20</td><td class="n">10/20</td><td class="n"></td><td class="note">practice re-benchmark of tnmde_r2 on seeds 2000-2019 (40 drives)</td></tr>
+<tr><td>10-24</td><td class="run">tnmde_r2@map2_40</td><td class="n">0.80</td><td class="n">16/20</td><td class="n">16/20</td><td class="n"></td><td class="note">practice re-benchmark of tnmde_r2 on seeds 2000-2019 (40 drives), driven with route source map2 (no retraining)</td></tr>
+<tr><td>10-25</td><td class="run">tnm2_r1</td><td class="n">0.85</td><td class="n">9/10</td><td class="n">8/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 1 from tnmde_r2: +16326 states (policy episo...</td></tr>
+<tr><td>10-25</td><td class="run">tnm2_r1@2000-2019</td><td class="n">0.72</td><td class="n">18/20</td><td class="n">11/20</td><td class="n"></td><td class="note">practice re-benchmark of tnm2_r1 on seeds 2000-2019 (40 drives)</td></tr>
+</tbody></table></div></details>
+<details><summary><span class="fam">MiniLM (text)</span><span class="cnt">10 runs</span><span class="best">best held-out 0.65</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-22</td><td class="run">tn1</td><td class="n">0.55</td><td class="n">7/10</td><td class="n">4/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings</td></tr>
+<tr><td>10-22</td><td class="run">tnd_r1</td><td class="n">0.60</td><td class="n">9/10</td><td class="n">3/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 1 from tn1: +27333 states (policy episodes {...</td></tr>
+<tr><td>10-22</td><td class="run">tnd_r2</td><td class="n">0.50</td><td class="n">7/10</td><td class="n">3/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 2 from tn1: +33345 states (policy episodes {...</td></tr>
+<tr><td>10-23</td><td class="run">tnm1</td><td class="n">0.00</td><td class="n">0/10</td><td class="n">0/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings</td></tr>
+<tr><td>10-23</td><td class="run">tnd_r1@map</td><td class="n">0.75</td><td class="n">9/10</td><td class="n">6/10</td><td class="n"></td><td class="note">tnd_r1 (trained on its own route source) driven with route source map, no retraining</td></tr>
+<tr><td>10-23</td><td class="run">tnmd_r1</td><td class="n">0.20</td><td class="n">2/10</td><td class="n">2/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 1 from tnd_r1: +25244 states (policy episode...</td></tr>
+<tr><td>10-23</td><td class="run">tnmd_r1b</td><td class="n">0.00</td><td class="n">0/10</td><td class="n">0/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings</td></tr>
+<tr><td>10-23</td><td class="run">tnmde_r1</td><td class="n">0.85</td><td class="n">10/10</td><td class="n">7/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 1 from tnd_r1: +17346 states (policy episode...</td></tr>
+<tr><td>10-23</td><td class="run">tnmde_r2</td><td class="n">0.85</td><td class="n">10/10</td><td class="n">7/10</td><td class="n"><b>0.65</b></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 2 from tnd_r1: +18965 states (policy episode...</td></tr>
+<tr><td>10-23</td><td class="run">tnmde_r2@2000-2019</td><td class="n">0.75</td><td class="n">19/20</td><td class="n">11/20</td><td class="n"></td><td class="note">practice re-benchmark of tnmde_r2 on seeds 2000-2019 (40 drives)</td></tr>
+</tbody></table></div></details>
+<details><summary><span class="fam">Laya (text)</span><span class="cnt">6 runs</span><span class="best">best held-out 0.70</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-16</td><td class="run">zeroshot</td><td class="n">0.00</td><td class="n">0/10</td><td class="n">0/10</td><td class="n"></td><td class="note">zero-shot typed choice over the 8 actions, no training</td></tr>
+<tr><td>10-16</td><td class="run">ft1</td><td class="n">0.00</td><td class="n">0/10</td><td class="n">0/10</td><td class="n"></td><td class="note">Laya encoder fine-tuned as a 8-way classifier on scene text</td></tr>
+<tr><td>10-23</td><td class="run">tn1</td><td class="n">0.65</td><td class="n">8/10</td><td class="n">5/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings</td></tr>
+<tr><td>10-23</td><td class="run">tnmde_r1</td><td class="n">0.80</td><td class="n">10/10</td><td class="n">6/10</td><td class="n"><b>0.70</b></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 1 from tn1: +17738 states (policy episodes {...</td></tr>
+<tr><td>10-23</td><td class="run">tnmde_r2</td><td class="n">0.70</td><td class="n">9/10</td><td class="n">5/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 2 from tn1: +16466 states (policy episodes {...</td></tr>
+<tr><td>10-23</td><td class="run">tnmde_r1@2000-2019</td><td class="n">0.68</td><td class="n">19/20</td><td class="n">8/20</td><td class="n"></td><td class="note">practice re-benchmark of tnmde_r1 on seeds 2000-2019 (40 drives)</td></tr>
+</tbody></table></div></details>
+<details><summary><span class="fam">ModernBERT-large (text)</span><span class="cnt">4 runs</span></summary><div class="tw"><table class="cat"><thead><tr><th>Date</th><th>Run</th><th>Practice score</th><th>No cats</th><th>4 cats</th><th>Held-out</th><th>Notes</th></tr></thead><tbody>
+<tr><td>10-16</td><td class="run">ft1</td><td class="n">0.00</td><td class="n">0/10</td><td class="n">0/10</td><td class="n"></td><td class="note">ModernBERT-large fine-tuned on scene text (control for the decision-head model)</td></tr>
+<tr><td>10-23</td><td class="run">tn1</td><td class="n">0.60</td><td class="n">8/10</td><td class="n">4/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings</td></tr>
+<tr><td>10-23</td><td class="run">tnmde_r1</td><td class="n">0.65</td><td class="n">9/10</td><td class="n">4/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 1 from tn1: +17138 states (policy episodes {...</td></tr>
+<tr><td>10-24</td><td class="run">tnmde_lr1e4_r1</td><td class="n">0.75</td><td class="n">9/10</td><td class="n">6/10</td><td class="n"></td><td class="note">text plus numbers: short scene text, lidar bins and route as prefix embeddings; DAgger round 1 from tn1: +17138 states (policy episodes {...</td></tr>
+</tbody></table></div></details>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">How the work was done</p>
+    <h2>A small team, strict rules, and a lot of checking</h2>
+  </div>
+  <div class="two">
+    <div class="card"><h3>The team</h3><ul class="tight">
+      <li><b>Lead:</b> planning, the map planner, drift correction, the cat fix, benchmarks, reviews and every decision on what to keep.</li>
+      <li><b>Text-model helper:</b> the words-plus-numbers design, all text-model training, and the discovery of the labelling bug.</li>
+      <li><b>Route helper:</b> route input and retraining for the small models, the cat-drive replay.</li>
+      <li><b>Two reviewers on the lab PC:</b> read-only code reviews that caught real bugs before they cost runs.</li>
+    </ul></div>
+    <div class="card"><h3>The rules we held</h3><ul class="tight">
+      <li>Never change the environment; models use the same plug as the built-in driver.</li>
+      <li>Identical test drives for every model; each exam taken once.</li>
+      <li>Benchmarks taken while another heavy job or a game ran were thrown out and redone.</li>
+      <li>A hardware guard and memory watchdogs paused or stopped jobs before the computer struggled.</li>
+      <li>Every run is logged, failures included.</li>
+    </ul></div>
+    <div class="card"><h3>Bugs found by review and testing</h3><ul class="tight">
+      <li>Map votes counted twice and left holes in walls.</li>
+      <li>Drift correction ignored small errors; ghost walls after corrections.</li>
+      <li>The planner’s fallback brought cat walls back.</li>
+      <li>A test-set leak between training rounds; a silently ignored data option.</li>
+      <li>Teacher and model using different planners (the big one).</li>
+    </ul></div>
+    <div class="card"><h3>Problems along the way</h3><ul class="tight">
+      <li>Lab PC crashed three times under load; heavy work moved to the desktop.</li>
+      <li>Google Drive on the desktop stopped uploading for hours; found by checking the cloud copies.</li>
+      <li>Python libraries inside Google Drive loaded slowly; worked around with a cache warm-up.</li>
+      <li>Two jobs together nearly ran out of memory; watchdogs stopped them in time.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">Our thoughts</p>
+    <h2>What we believe now</h2>
+    <ul class="tight">
+      <li><b>Information beat model size.</b> The biggest jumps came from better inputs (a saved map, a route that does not lie about cats), not from bigger networks.</li>
+      <li><b>Teaching signals must match what the student sees.</b> One mismatch quietly destroyed four training runs.</li>
+      <li><b>Small, fast models are the right tool here.</b> They drive best, decide in 2 to 5 ms and train in minutes.</li>
+      <li><b>Text models are viable drivers but not better ones.</b> Their value may lie elsewhere, for example explaining a decision in words.</li>
+      <li><b>The current tests are nearly saturated.</b> With 57 of 60, three timeouts with cats are all that is left; we need harder tests to tell the top models apart.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">Next plans</p>
+    <h2>Where we would go from here</h2>
+    <div class="tw"><table>
+      <thead><tr><th>Next step</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>A harder test set: more cats, longer routes, new layouts</td><td>The top models are close to the ceiling of the current 60 drives</td></tr>
+        <tr><td>Robustness tests: sensor noise, lidar dropouts, odometry errors</td><td>The environment already has these fault options; real robots need them</td></tr>
+        <tr><td>Fix the last misses: “wait or detour” near resting cats</td><td>All remaining failures are slow cat drives, not crashes</td></tr>
+        <tr><td>A second, careful retraining round for the top three, with fresh drives</td><td>Small expected gain; watch for over-fitting</td></tr>
+        <tr><td>Text models that explain their choice in words</td><td>A use where language actually adds something</td></tr>
+        <tr><td>Hardware: check the lab PC’s power supply and cooling; keep Python outside Google Drive streaming</td><td>Faster, more reliable training</td></tr>
+      </tbody></table></div>
+  </div>
+</section>
+
+<section>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p class="eyebrow">Where things are</p>
+    <div class="tw"><table><tbody>
+      <tr><td>Code, one branch per model family</td><td>GitHub <b>CS-Ponkoj/Autonomous-Robot-Environment</b>, branches such as hybrid, dt, mapcnn, cfc, mlp, mapplan, modernbert; main holds only the environment</td></tr>
+      <tr><td>Best model</td><td>AD/models/hybrid/runs/hmap2_r1 (route map2, saved map map_v2)</td></tr>
+      <tr><td>Weights, data, maps</td><td>Kept locally in the project folder, never published</td></tr>
+      <tr><td>Full history</td><td>AD/STATUS.md (dated log), AD/LEADERBOARD.md, AD/PROJECT_REPORT.md</td></tr>
+    </tbody></table></div>
+    <p class="foot">All figures come from the project’s results log, measured on the same fixed test drives for every model. Screenshots are from the environment itself.</p>
+  </div>
+</section>
+</div>
+
+</body>
+</html>
