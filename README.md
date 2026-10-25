@@ -26,6 +26,10 @@ through the Gymnasium interface (`RobotGoalEnv`, see
 [10. For developers](#10-for-developers)), and play: drive it by hand, race the
 cats to the goal, or train it.
 
+**Training results:** a report on learned drivers trained in this environment, from
+34 to 57 goals out of 60 test drives with zero collisions, is in
+[docs/report.html](docs/report.html) (download it and open it in a browser).
+
 ![The robot drives itself to a goal past wandering cats](docs/demo.gif)
 
 *The baseline driver takes the robot from the office to the lab while four cats wander,
