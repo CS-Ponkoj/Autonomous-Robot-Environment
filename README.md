@@ -28,7 +28,7 @@ cats to the goal, or train it.
 
 **Training results:** a report on learned drivers trained in this environment, from
 34 to 57 goals out of 60 test drives with zero collisions, is in
-[docs/report.html](docs/report.html) (download it and open it in a browser).
+the [training results report](https://cs-ponkoj.github.io/Autonomous-Robot-Environment/report.html).
 
 ![The robot drives itself to a goal past wandering cats](docs/demo.gif)
 
