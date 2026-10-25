@@ -26,13 +26,17 @@ def main(argv=None) -> int:
     p.add_argument("--match", action="store_true", help="correct odometry drift by matching scans to the map")
     p.add_argument("--odo-bias", type=float, nargs=2, default=(0.0, 0.0), metavar=("SPEED", "YAWRATE"),
                    help="test only: odometry error added inside the driver (e.g. 0.02 0.0087 = 2%% speed, 0.5 deg/s)")
+    p.add_argument("--nonmap-ttl", type=float, default=None,
+                   help="forget obstacles that are not on the saved map this many s after last seen")
+    p.add_argument("--nonmap-clear", action="store_true",
+                   help="with --nonmap-ttl: an off-map obstacle lapses only after a ray has seen its cell free")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--no-log", action="store_true")
     a = p.parse_args(argv)
     path = RUNS / a.map / "map.npz"
     SavedMap.load(path)  # fail here, not in every worker, if the map is missing
-    make = functools.partial(MapDriver, str(path), match=a.match, odo_bias=tuple(a.odo_bias))
-    run = f"map_{a.map}" + ("_match" if a.match else "") + ("_bias" if any(a.odo_bias) else "")
+    make = functools.partial(MapDriver, str(path), match=a.match, odo_bias=tuple(a.odo_bias), nonmap_ttl=a.nonmap_ttl, nonmap_clear=a.nonmap_clear)
+    run = f"map_{a.map}" + ("_match" if a.match else "") + ("_bias" if any(a.odo_bias) else "") + (f"_ttl{a.nonmap_ttl:g}" if a.nonmap_ttl else "") + ("_clear" if a.nonmap_clear else "")
     if a.final:
         if not any(e["model"] == "builtin" and e["run"] == run for e in tracker.entries()):
             p.error(f"log the practice run {run} first (the held-out result is added to it)")
@@ -47,7 +51,7 @@ def main(argv=None) -> int:
     lo, hi = (int(v) for v in a.seeds.split("-"))
     summary = benchmark.run(make, workers=a.workers, seeds=tuple(range(lo, hi + 1)))
     entry = {"model": "builtin", "run": run, "kind": "benchmark", "base": "-", "data": f"saved map {a.map}",
-             "params": {"map": a.map, "match": a.match, "odo_bias": list(a.odo_bias), "seeds": a.seeds}, "bench": summary, "score": benchmark.score(summary),
+             "params": {"map": a.map, "match": a.match, "odo_bias": list(a.odo_bias), "nonmap_ttl": a.nonmap_ttl, "nonmap_clear": a.nonmap_clear, "seeds": a.seeds}, "bench": summary, "score": benchmark.score(summary),
              "notes": "built-in driver starting from the saved building map"
                       + (" (simulator floor plan: comparison only)" if a.map == "floorplan" else "")}
     print({k: summary[k] for k in ("no_cats", "4_cats", "latency_ms")}, "score", entry["score"], flush=True)

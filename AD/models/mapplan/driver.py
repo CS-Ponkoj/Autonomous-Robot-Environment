@@ -47,11 +47,24 @@ class MapDriver(BaselineDriver):
     name = "builtin_map"
 
     def __init__(self, map_path=None, speed: tuple[float, float] = C.SPEED_LEVELS[C.DEFAULT_SPEED_LEVEL],
-                 match: bool = False, odo_bias: tuple[float, float] = (0.0, 0.0)):
+                 match: bool = False, odo_bias: tuple[float, float] = (0.0, 0.0),
+                 nonmap_ttl: float | None = None, nonmap_clear: bool = False):
         """odo_bias (testing the drift correction only): (relative speed error, yaw-rate bias in
-        rad/s) added to this driver's own odometry, as from worn wheels; the robot is unchanged."""
+        rad/s) added to this driver's own odometry, as from worn wheels; the robot is unchanged.
+
+        nonmap_ttl: with a saved map every real wall is already known, so an obstacle that is not on
+        the map (a cat, a moved chair) is kept only this many seconds after it was last seen,
+        instead of becoming static after CONFIRM_SPAN. Without it a cat resting half a second in a
+        doorway closes that doorway for the rest of the drive. None: BaselineDriver's rule.
+
+        nonmap_clear (with nonmap_ttl): an off-map obstacle lapses only once a later lidar ray has
+        passed through its cell (the cat has gone) and nonmap_ttl has passed since its last hit;
+        one that has not been seen gone (a chair behind the robot) stays. A pure time limit also
+        forgets real unmapped furniture out of view, and the robot loops back into it."""
         self.saved = SavedMap.load(map_path)
         self.match = match
+        self.nonmap_ttl = nonmap_ttl
+        self.nonmap_clear = nonmap_clear
         self.odo_bias = tuple(float(b) for b in odo_bias)
         self._placed = False
         super().__init__(speed)
@@ -61,6 +74,7 @@ class MapDriver(BaselineDriver):
         self._placed = initial_pose is not None
         self._next_match = 0.0
         self.own_free = np.zeros((SIZE, SIZE), bool)  # cells this drive's own rays saw free (map building)
+        self._freed = np.full((SIZE, SIZE), -np.inf)  # last time a ray passed through each cell
         if not self._placed:
             return  # BaselineDriver.__init__ resets without a pose; decide() refuses to drive unplaced
         occ, free = to_driver_frame(self.saved, tuple(float(v) for v in initial_pose))
@@ -96,12 +110,27 @@ class MapDriver(BaselineDriver):
         the saved map's (own_free), so a map built from drives with a saved map counts only what
         each drive saw itself."""
         full = self._seen_free
-        self._seen_free = self.own_free
+        before = self.occupied
+        self._seen_free = np.zeros_like(full)  # this scan's rays only
         try:
-            return super()._map(obs)
+            new = super()._map(obs)
         finally:
-            self.own_free = self._seen_free
+            fresh = self._seen_free
+            self.own_free |= fresh
+            self._freed[fresh] = obs.time
             self._seen_free = full | self.own_free
+        if self.nonmap_ttl is None or not self._placed:
+            return new
+        # saved walls stay; anything else lapses nonmap_ttl after its last sighting. Its first
+        # sighting is also moved up to its last one, so BaselineDriver's own formula (used by the
+        # "nothing reachable" replan and by ghost clearing) can never make it static either.
+        off = (self._first > -1e8) & np.isfinite(self._last)
+        self._first[off] = self._last[off]
+        keep = obs.time - self._last < self.nonmap_ttl
+        if self.nonmap_clear:  # not yet seen gone: keep it
+            keep |= np.isfinite(self._last) & ~(self._freed > self._last)
+        self.occupied = (self._first < -1e8) | keep | (self._refused > obs.time)
+        return bool((self.occupied & ~before).any())
 
     def own_static(self, now: float) -> np.ndarray:
         """Cells this drive itself confirmed occupied (static, not refused), in its own grid."""
@@ -188,3 +217,19 @@ class MapRouteSensor(RouteSensor):
                 out[3] = min(float(p.dist[cx, cy]) * CELL / self.scale, 1.0)
         assert out.shape == (ROUTE_FEATURES,)
         return out
+
+
+class MapRouteSensorTTL(MapRouteSensor):
+    """The map route source where obstacles off the saved map lapse once they have been seen gone
+    (a lidar ray through their cell) and NONMAP_TTL seconds have passed since their last hit
+    (MapDriver nonmap_ttl and nonmap_clear): a cat that rested in a doorway no longer closes it,
+    and unmapped furniture out of view is still remembered."""
+
+    NAME = "map2"
+    NONMAP_TTL = 5.0
+
+    def __init__(self, map_path=None, scale: float = MapRouteSensor.LEN_SCALE, match: bool = True,
+                 nonmap_ttl: float = NONMAP_TTL, nonmap_clear: bool = True):
+        super().__init__(map_path, scale, match)
+        self.planner.nonmap_ttl = nonmap_ttl
+        self.planner.nonmap_clear = nonmap_clear
